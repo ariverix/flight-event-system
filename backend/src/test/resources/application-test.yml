@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eca_db_test
+    username: eca_user
+    password: eca_password
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+  flyway:
+    enabled: false
+
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          enabled: false
+
+app:
+  jwt:
+    secret: test-jwt-secret-key-for-testing-minimum-256-bits-long-string
+    expiration-ms: 3600000
