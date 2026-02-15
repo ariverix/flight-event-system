@@ -1,5 +1,7 @@
 package ru.protectinfotrans.eca.eventprocessor.port.out;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 
@@ -16,6 +18,16 @@ public interface MessageRepositoryPort {
     IncomingMessage save(IncomingMessage message);
 
     Optional<IncomingMessage> findById(Long id);
+
+    /**
+     * Получить список сообщений с фильтрами и пагинацией.
+     *
+     * @param aircraftId фильтр по ВС (null = без фильтра)
+     * @param messageType фильтр по типу сообщения (null = без фильтра)
+     * @param pageable параметры пагинации
+     * @return страница сообщений
+     */
+    Page<IncomingMessage> findAllWithFilters(String aircraftId, MessageType messageType, Pageable pageable);
 
     /**
      * Проверка получения сообщения определённого типа и шаблона для ВС.

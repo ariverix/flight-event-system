@@ -1,6 +1,8 @@
 package ru.protectinfotrans.eca.eventprocessor.adapter.out;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
@@ -44,5 +46,18 @@ public class MessageJpaAdapter implements MessageRepositoryPort {
     public boolean existsPositionReportWithinMinutes(String aircraftId, int minutesAgo) {
         LocalDateTime sinceTime = LocalDateTime.now().minusMinutes(minutesAgo);
         return jpaRepository.existsPositionReportWithinMinutes(aircraftId, sinceTime);
+    }
+
+    @Override
+    public Page<IncomingMessage> findAllWithFilters(String aircraftId, MessageType messageType, Pageable pageable) {
+        if (aircraftId != null && messageType != null) {
+            return jpaRepository.findByAircraftIdAndMessageType(aircraftId, messageType, pageable);
+        } else if (aircraftId != null) {
+            return jpaRepository.findByAircraftId(aircraftId, pageable);
+        } else if (messageType != null) {
+            return jpaRepository.findByMessageType(messageType, pageable);
+        } else {
+            return jpaRepository.findAll(pageable);
+        }
     }
 }

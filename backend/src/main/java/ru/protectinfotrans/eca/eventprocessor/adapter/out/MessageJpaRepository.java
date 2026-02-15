@@ -1,5 +1,7 @@
 package ru.protectinfotrans.eca.eventprocessor.adapter.out;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -42,4 +44,19 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
             @Param("aircraftId") String aircraftId,
             @Param("sinceTime") LocalDateTime sinceTime
     );
+
+    /**
+     * Поиск сообщений по ВС с пагинацией.
+     */
+    Page<IncomingMessage> findByAircraftId(String aircraftId, Pageable pageable);
+
+    /**
+     * Поиск сообщений по типу с пагинацией.
+     */
+    Page<IncomingMessage> findByMessageType(MessageType messageType, Pageable pageable);
+
+    /**
+     * Поиск сообщений по ВС и типу с пагинацией.
+     */
+    Page<IncomingMessage> findByAircraftIdAndMessageType(String aircraftId, MessageType messageType, Pageable pageable);
 }
