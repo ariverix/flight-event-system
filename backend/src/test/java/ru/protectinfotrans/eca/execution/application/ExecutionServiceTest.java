@@ -19,6 +19,7 @@ import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
 import ru.protectinfotrans.eca.execution.event.ExecutionCompletedEvent;
 import ru.protectinfotrans.eca.execution.event.ExecutionStartedEvent;
+import ru.protectinfotrans.eca.execution.port.out.ConditionQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
@@ -28,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -57,6 +59,9 @@ class ExecutionServiceTest {
     private NotificationPort notificationPort;
 
     @Mock
+    private ConditionQueryPort conditionQueryPort;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Spy
@@ -70,6 +75,9 @@ class ExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Mock ConditionQueryPort to return empty conditions by default (lenient for tests that don't use it)
+        lenient().when(conditionQueryPort.getActiveConditions(anyString())).thenReturn(Set.of());
+
         sequence = Sequence.builder()
                 .id(100L)
                 .name("Test Sequence")

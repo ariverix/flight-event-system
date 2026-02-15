@@ -19,6 +19,7 @@ import ru.protectinfotrans.eca.execution.event.ExecutionCompletedEvent;
 import ru.protectinfotrans.eca.execution.event.ExecutionStartedEvent;
 import ru.protectinfotrans.eca.execution.event.StepNotificationEvent;
 import ru.protectinfotrans.eca.execution.event.StepTransitionEvent;
+import ru.protectinfotrans.eca.execution.port.out.ConditionQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Центральный сервис выполнения последовательностей.
@@ -56,6 +58,7 @@ public class ExecutionService {
     private final EcaRuleEngine ecaRuleEngine;
     private final CriterionEvaluator criterionEvaluator;
     private final NotificationPort notificationPort;
+    private final ConditionQueryPort conditionQueryPort;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
@@ -401,7 +404,17 @@ public class ExecutionService {
 
     private ExecutionContext buildContext(NormalizedEvent event) {
         Map<String, Object> additionalData = new HashMap<>();
-        // Здесь можно добавить временные отметки полёта, активные условия и т.д.
+
+        // Добавляем активные условия для CONDITION_ACTIVE критерия
+        if (event.aircraftId() != null) {
+            Set<String> activeConditions = conditionQueryPort.getActiveConditions(event.aircraftId());
+            Map<String, Boolean> conditionsMap = new HashMap<>();
+            for (String conditionName : activeConditions) {
+                conditionsMap.put(conditionName, true);
+            }
+            additionalData.put("activeConditions", conditionsMap);
+        }
+
         return new ExecutionContext(
                 event.aircraftId(),
                 event.flightNumber(),
