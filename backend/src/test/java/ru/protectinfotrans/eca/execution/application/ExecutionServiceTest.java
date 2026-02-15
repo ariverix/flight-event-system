@@ -21,7 +21,7 @@ import ru.protectinfotrans.eca.execution.event.ExecutionCompletedEvent;
 import ru.protectinfotrans.eca.execution.event.ExecutionStartedEvent;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
-import ru.protectinfotrans.eca.integration.port.in.NotificationPort;
+import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
 import ru.protectinfotrans.eca.sequence.domain.*;
 
 import java.time.LocalDateTime;

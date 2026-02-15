@@ -2,7 +2,7 @@ package ru.protectinfotrans.eca.integration.adapter.out;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import ru.protectinfotrans.eca.integration.port.in.MessageOutputPort;
+import ru.protectinfotrans.eca.execution.port.out.MessageOutputPort;
 
 import java.util.List;
 import java.util.Map;

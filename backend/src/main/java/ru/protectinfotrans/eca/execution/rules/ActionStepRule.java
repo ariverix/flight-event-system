@@ -13,7 +13,7 @@ import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
 import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
-import ru.protectinfotrans.eca.integration.port.in.MessageOutputPort;
+import ru.protectinfotrans.eca.execution.port.out.MessageOutputPort;
 import ru.protectinfotrans.eca.sequence.domain.ActionType;
 import ru.protectinfotrans.eca.sequence.domain.Step;
 import ru.protectinfotrans.eca.sequence.domain.StepType;

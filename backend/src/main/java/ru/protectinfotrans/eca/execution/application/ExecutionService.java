@@ -21,7 +21,7 @@ import ru.protectinfotrans.eca.execution.event.StepNotificationEvent;
 import ru.protectinfotrans.eca.execution.event.StepTransitionEvent;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
-import ru.protectinfotrans.eca.integration.port.in.NotificationPort;
+import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
 import ru.protectinfotrans.eca.sequence.domain.Sequence;
 import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;
 import ru.protectinfotrans.eca.sequence.domain.Step;
@@ -356,7 +356,7 @@ public class ExecutionService {
         notificationPort.notifyStepResult(
                 instance.getId(),
                 step.getOrderIndex(),
-                result,
+                result.name(),
                 instance.getAircraftId(),
                 message
         );

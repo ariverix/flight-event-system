@@ -1,13 +1,16 @@
-package ru.protectinfotrans.eca.integration.port.in;
+package ru.protectinfotrans.eca.execution.port.out;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * Порт для отправки исходящих сообщений и управления пользовательскими условиями.
+ * Выходной порт для отправки исходящих сообщений и управления пользовательскими условиями.
  * Реализует UC-07.
  *
- * См. диплом: раздел 1.4.4, таблица 1.6 (MessageOutputPort)
+ * Гексагональная архитектура: это Driven Port (выходной порт) — доменная логика execution
+ * модуля вызывает этот порт, а адаптеры в integration модуле реализуют его.
+ *
+ * См. диплом: раздел 1.4.4, таблица 1.6 (MessageOutputPort — выходной порт)
  */
 public interface MessageOutputPort {
 

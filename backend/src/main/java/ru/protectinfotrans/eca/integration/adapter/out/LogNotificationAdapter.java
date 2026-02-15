@@ -2,8 +2,7 @@ package ru.protectinfotrans.eca.integration.adapter.out;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import ru.protectinfotrans.eca.execution.domain.StepResult;
-import ru.protectinfotrans.eca.integration.port.in.NotificationPort;
+import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
 
 /**
  * Log-заглушка для отправки уведомлений операторам.
@@ -16,7 +15,7 @@ import ru.protectinfotrans.eca.integration.port.in.NotificationPort;
 public class LogNotificationAdapter implements NotificationPort {
 
     @Override
-    public void notifyStepResult(Long executionId, Integer stepIndex, StepResult result, String aircraftId, String message) {
+    public void notifyStepResult(Long executionId, Integer stepIndex, String result, String aircraftId, String message) {
         log.info("[NOTIFICATION] Execution {} / Step {} / Result {} / Aircraft {} - {}",
                 executionId, stepIndex, result, aircraftId, message);
     }
