@@ -1,23 +1,20 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/eca_db_test
-    username: eca_user
-    password: eca_password
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
 
   jpa:
     hibernate:
       ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
 
   flyway:
     enabled: false
 
-  modulith:
-    events:
-      jdbc:
-        schema-initialization:
-          enabled: false
-
-app:
-  jwt:
-    secret: test-jwt-secret-key-for-testing-minimum-256-bits-long-string
-    expiration-ms: 3600000
+logging:
+  level:
+    ru.protectinfotrans.eca: INFO
