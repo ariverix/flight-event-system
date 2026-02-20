@@ -10,7 +10,7 @@ import ru.protectinfotrans.eca.sequence.port.out.AuditLogPort;
  *
  * См. диплом: раздел 1.3.4 (AuditLog — журнал аудита)
  */
-@Repository
+@Repository("sequenceAuditLogJpaAdapter")
 @RequiredArgsConstructor
 public class AuditLogJpaAdapter implements AuditLogPort {
 
