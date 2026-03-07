@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%level] [%logger{36}] — %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Входящие сообщения — DEBUG -->
+    <logger name="ru.protectinfotrans.eca.eventprocessor" level="DEBUG"/>
+
+    <!-- Переходы между шагами, срабатывание ECA-правил — INFO -->
+    <logger name="ru.protectinfotrans.eca.execution" level="INFO"/>
+
+    <!-- Sequence Manager — INFO -->
+    <logger name="ru.protectinfotrans.eca.sequence" level="INFO"/>
+
+    <!-- Integration Adapter — INFO -->
+    <logger name="ru.protectinfotrans.eca.integration" level="INFO"/>
+
+    <!-- User/Auth — INFO -->
+    <logger name="ru.protectinfotrans.eca.user" level="INFO"/>
+
+    <!-- Spring Modulith events — INFO -->
+    <logger name="org.springframework.modulith" level="INFO"/>
+
+    <!-- Spring Security — WARN (убрать шум) -->
+    <logger name="org.springframework.security" level="WARN"/>
+
+    <!-- Hibernate SQL — WARN (убрать шум) -->
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+
+    <!-- Flyway — INFO -->
+    <logger name="org.flywaydb" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

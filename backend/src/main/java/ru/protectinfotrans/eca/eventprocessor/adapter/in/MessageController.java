@@ -1,5 +1,8 @@
 package ru.protectinfotrans.eca.eventprocessor.adapter.in;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +26,7 @@ import ru.protectinfotrans.eca.eventprocessor.dto.MessageResponse;
  *
  * См. диплом: раздел 1.3.5 (UC-06), раздел 1.4.4 (таблица 1.6)
  */
+@Tag(name = "Messages", description = "Приём входящих сообщений и журнал (UC-06)")
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
@@ -39,9 +43,12 @@ public class MessageController {
      * @param request данные входящего сообщения
      * @return ID сохранённого сообщения
      */
+    @Operation(summary = "Принять входящее сообщение",
+               description = "UC-06: Принять ACARS-сообщение от внешней системы. Не требует аутентификации.")
+    @ApiResponse(responseCode = "200", description = "Сообщение принято и обработано")
     @PostMapping("/messages/incoming")
     public ResponseEntity<MessageReceivedResponse> receiveMessage(@Valid @RequestBody IncomingMessageRequest request) {
-        log.info("POST /api/v1/messages/incoming: type={}, template={}, aircraft={}",
+        log.debug("POST /api/v1/messages/incoming: type={}, template={}, aircraft={}",
                 request.messageType(), request.templateName(), request.aircraftId());
 
         Long messageId = eventProcessorService.receiveMessage(
@@ -62,9 +69,12 @@ public class MessageController {
      *
      * @param request данные изменения стадии
      */
+    @Operation(summary = "Изменение стадии полёта",
+               description = "UC-06: Уведомить систему об изменении стадии OOOI. Не требует аутентификации.")
+    @ApiResponse(responseCode = "200", description = "Стадия обновлена")
     @PostMapping("/flights/stage-change")
     public ResponseEntity<Void> notifyFlightStageChange(@Valid @RequestBody FlightStageChangeRequest request) {
-        log.info("POST /api/v1/flights/stage-change: aircraft={}, stage={}",
+        log.debug("POST /api/v1/flights/stage-change: aircraft={}, stage={}",
                 request.aircraftId(), request.stage());
 
         eventProcessorService.notifyFlightStageChange(
@@ -85,13 +95,15 @@ public class MessageController {
      * @param pageable параметры пагинации (page, size, sort)
      * @return страница сообщений
      */
+    @Operation(summary = "Журнал сообщений",
+               description = "Получить список входящих сообщений с фильтрацией по ВС и типу. Требует аутентификации.")
     @GetMapping("/messages")
     public ResponseEntity<Page<MessageResponse>> getMessages(
             @RequestParam(required = false) String aircraftId,
             @RequestParam(required = false) MessageType messageType,
             Pageable pageable
     ) {
-        log.info("GET /api/v1/messages: aircraftId={}, messageType={}, page={}",
+        log.debug("GET /api/v1/messages: aircraftId={}, messageType={}, page={}",
                 aircraftId, messageType, pageable.getPageNumber());
 
         Page<IncomingMessage> messages = messageQueryService.findMessages(aircraftId, messageType, pageable);

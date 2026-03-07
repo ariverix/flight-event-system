@@ -35,8 +35,10 @@ import java.util.List;
  * - /api/v1/messages/**, /api/v1/flights/** — открыт для внешних систем (UC-06)
  * - /api/v1/auth/register, /api/v1/users/** — только ADMIN (UC-09)
  * - /api/v1/sequences/**, /api/v1/executions/** — OPERATOR или ADMIN
- * - /actuator/** — только ADMIN
+ * - /actuator/health — открыт (Docker healthcheck)
+ * - /actuator/** (кроме /health) — только ADMIN
  * - /swagger-ui/**, /v3/api-docs/** — открыт для всех
+ * - Статика и SPA-маршруты — открыты (защита только на API)
  *
  * См. диплом: раздел 1.3.5 (акторы), Глава 2 (технологический стек - Spring Security, JJWT)
  */
@@ -59,7 +61,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/login").permitAll()
                         .requestMatchers("/api/v1/messages/**").permitAll()   // UC-06: Внешние системы
                         .requestMatchers("/api/v1/flights/**").permitAll()    // UC-06: Внешние системы
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()      // Docker healthcheck
 
                         // Эндпоинты только для ADMIN
                         .requestMatchers("/api/v1/auth/register").hasRole("ADMIN")
@@ -69,9 +72,10 @@ public class SecurityConfig {
                         // Эндпоинты для OPERATOR и ADMIN
                         .requestMatchers("/api/v1/sequences/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/executions/**").hasAnyRole("OPERATOR", "ADMIN")
+                        .requestMatchers("/api/v1/auth/me").authenticated()
 
-                        // Все остальные требуют аутентификации
-                        .anyRequest().authenticated()
+                        // Статические ресурсы и SPA-маршруты — открыты (защита только на /api/**)
+                        .anyRequest().permitAll()
                 )
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

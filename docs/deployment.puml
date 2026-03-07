@@ -1,0 +1,33 @@
+@startuml Deployment Diagram
+!theme plain
+
+node "Docker Host" {
+    node "App Container (Spring Boot 3.5)" as app {
+        component "Sequence Manager" as sm
+        component "Execution Engine" as ee
+        component "Event Processor" as ep
+        component "Integration Adapter" as ia
+        component "Web UI (React 18)" as ui
+    }
+
+    node "PostgreSQL 16" as db {
+        database "eca_db" as ecadb
+    }
+}
+
+actor "Оператор" as op
+actor "Внешняя система" as ext
+
+op --> ui : HTTPS (порт 8080)
+ext --> ep : REST API (порт 8080)
+sm --> ecadb : JDBC
+ee --> ecadb : JDBC
+ep --> ecadb : JDBC
+ia ..> ext : HTTP (перспектива)
+
+note right of app
+  Модульный монолит
+  Spring Modulith
+  Гексагональная архитектура
+end note
+@enduml
