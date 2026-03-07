@@ -17,7 +17,7 @@ import ru.protectinfotrans.eca.sequence.dto.PageResponse;
  *
  * См. диплом: раздел 1.3.5 (UC-05 Просмотр статуса выполнения)
  */
-@Tag(name = "Execution", description = "Статус выполнения последовательностей")
+@Tag(name = "Executions", description = "Статус выполнения последовательностей (UC-05)")
 @RestController
 @RequestMapping("/api/v1/executions")
 @RequiredArgsConstructor

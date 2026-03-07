@@ -25,7 +25,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "User Management", description = "User management operations (ADMIN only)")
+@Tag(name = "Users", description = "Управление пользователями (UC-09, только ADMIN)")
 public class UserController {
 
     private final UserService userService;

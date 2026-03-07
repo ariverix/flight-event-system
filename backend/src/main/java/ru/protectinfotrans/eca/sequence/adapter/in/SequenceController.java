@@ -94,7 +94,7 @@ public class SequenceController {
     }
 
     /** UC-02: Добавить шаг в последовательность */
-    @Operation(summary = "Добавить шаг",
+    @Operation(summary = "Добавить шаг", tags = {"Steps"},
                description = "UC-02: Добавить шаг типа ACTION, EVALUATE или WAIT")
     @ApiResponse(responseCode = "201", description = "Шаг добавлен")
     @PostMapping("/{id}/steps")
@@ -105,7 +105,7 @@ public class SequenceController {
     }
 
     /** UC-02, UC-03: Обновить шаг (включая настройку переходов) */
-    @Operation(summary = "Обновить шаг",
+    @Operation(summary = "Обновить шаг", tags = {"Steps"},
                description = "UC-02/UC-03: Обновить параметры шага и настроить переходы (CONTINUE/GOTO/END/ABORT)")
     @PutMapping("/{id}/steps/{stepId}")
     public StepResponse updateStep(@PathVariable Long id,
@@ -115,7 +115,7 @@ public class SequenceController {
     }
 
     /** UC-02: Удалить шаг */
-    @Operation(summary = "Удалить шаг",
+    @Operation(summary = "Удалить шаг", tags = {"Steps"},
                description = "UC-02: Удалить шаг из последовательности (только DRAFT)")
     @ApiResponse(responseCode = "204", description = "Шаг удалён")
     @DeleteMapping("/{id}/steps/{stepId}")
@@ -125,7 +125,7 @@ public class SequenceController {
     }
 
     /** UC-02: Изменить порядок шагов */
-    @Operation(summary = "Изменить порядок шагов",
+    @Operation(summary = "Изменить порядок шагов", tags = {"Steps"},
                description = "UC-02: Переупорядочить шаги по списку ID")
     @PutMapping("/{id}/steps/reorder")
     public List<StepResponse> reorderSteps(@PathVariable Long id,
