@@ -2,6 +2,8 @@ package ru.protectinfotrans.eca.eventprocessor.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import ru.protectinfotrans.eca.MessageType;
 
 import java.time.LocalDateTime;
@@ -34,6 +36,7 @@ public class IncomingMessage {
     @Column(columnDefinition = "text")
     private String content;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String metadataJson;
 

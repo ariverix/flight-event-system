@@ -2,6 +2,8 @@ package ru.protectinfotrans.eca.sequence.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Шаг последовательности — единица выполнения (ACTION, EVALUATE или WAIT).
@@ -38,6 +40,7 @@ public class Step {
     private StepType stepType;
 
     /** JSONB — конфигурация шага (actionType, criterionType, параметры) */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "config", columnDefinition = "jsonb")
     private String configJson;
 

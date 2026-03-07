@@ -39,7 +39,12 @@ public class MessageJpaAdapter implements MessageRepositoryPort {
             String templateName,
             LocalDateTime afterTime
     ) {
-        return jpaRepository.existsByAircraftAndTypeAndTemplate(aircraftId, messageType, templateName, afterTime);
+        // PostgreSQL выдаёт 42P18 (indeterminate datatype) при NULL-параметре в IS NULL.
+        // Поэтому ветвимся на уровне адаптера: два отдельных запроса без NULL-параметра.
+        if (afterTime == null) {
+            return jpaRepository.existsByAircraftAndTypeAndTemplateAnyTime(aircraftId, messageType, templateName);
+        }
+        return jpaRepository.existsByAircraftAndTypeAndTemplateAfter(aircraftId, messageType, templateName, afterTime);
     }
 
     @Override

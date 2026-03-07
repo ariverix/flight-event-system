@@ -185,7 +185,31 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <DOCKER_HOST>${docker.host}</DOCKER_HOST>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Профиль для Docker Desktop на Windows (TCP вместо Unix socket) -->
+        <profile>
+            <id>windows-docker</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <docker.host>tcp://localhost:2375</docker.host>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

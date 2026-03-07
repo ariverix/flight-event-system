@@ -2,6 +2,8 @@ package ru.protectinfotrans.eca.sequence.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -37,10 +39,12 @@ public class Sequence {
     private SequenceStatus status;
 
     /** JSONB — критерии запуска последовательности. null = запуск в начале каждого нового рейса */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "start_criteria", columnDefinition = "jsonb")
     private String startCriteriaJson;
 
     /** JSONB — критерии остановки. null = завершается только через END или ABORT */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "stop_criteria", columnDefinition = "jsonb")
     private String stopCriteriaJson;
 

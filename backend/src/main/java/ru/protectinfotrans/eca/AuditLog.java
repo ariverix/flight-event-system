@@ -2,6 +2,8 @@ package ru.protectinfotrans.eca;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -34,6 +36,7 @@ public class AuditLog {
     private Long entityId;
 
     /** JSONB — дополнительные детали операции */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String detailsJson;
 

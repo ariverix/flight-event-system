@@ -16,15 +16,33 @@ import java.time.LocalDateTime;
 public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Long> {
 
     /**
-     * Проверка существования сообщения по типу, шаблону и ВС.
-     * Опционально фильтр по времени (для fromThisPointOnly в WAIT-шагах).
+     * Проверка существования сообщения без фильтра по времени.
+     * PostgreSQL не поддерживает IS NULL для параметров с неизвестным типом (ошибка 42P18),
+     * поэтому запросы с временны́м фильтром и без него разделены на уровне адаптера.
+     *
+     * См. диплом: раздел 1.4.4 (MessageRepositoryPort)
+     */
+    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
+           "WHERE m.aircraftId = :aircraftId " +
+           "AND m.messageType = :messageType " +
+           "AND m.templateName = :templateName")
+    boolean existsByAircraftAndTypeAndTemplateAnyTime(
+            @Param("aircraftId") String aircraftId,
+            @Param("messageType") MessageType messageType,
+            @Param("templateName") String templateName
+    );
+
+    /**
+     * Проверка существования сообщения с фильтром по времени (fromThisPointOnly в WAIT-шагах).
+     *
+     * См. диплом: раздел 1.4.4 (MessageRepositoryPort)
      */
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
            "WHERE m.aircraftId = :aircraftId " +
            "AND m.messageType = :messageType " +
            "AND m.templateName = :templateName " +
-           "AND (:afterTime IS NULL OR m.receivedAt > :afterTime)")
-    boolean existsByAircraftAndTypeAndTemplate(
+           "AND m.receivedAt > :afterTime")
+    boolean existsByAircraftAndTypeAndTemplateAfter(
             @Param("aircraftId") String aircraftId,
             @Param("messageType") MessageType messageType,
             @Param("templateName") String templateName,

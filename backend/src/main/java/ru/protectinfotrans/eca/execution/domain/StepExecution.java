@@ -2,6 +2,8 @@ package ru.protectinfotrans.eca.execution.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import ru.protectinfotrans.eca.sequence.domain.StepType;
 import ru.protectinfotrans.eca.sequence.domain.TransitionAction;
 
@@ -45,6 +47,7 @@ public class StepExecution {
     private Integer transitionTarget;
 
     /** JSONB — детали выполнения */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String detailsJson;
 

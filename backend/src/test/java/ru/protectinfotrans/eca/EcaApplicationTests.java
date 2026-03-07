@@ -1,15 +1,14 @@
 package ru.protectinfotrans.eca;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Базовый тест загрузки контекста приложения.
+ * Базовый тест загрузки контекста приложения с реальным PostgreSQL (Testcontainers).
+ * H2 не поддерживает JSONB, поэтому используется Testcontainers.
+ *
+ * См. диплом: Глава 3 (Тестирование)
  */
-@SpringBootTest
-@ActiveProfiles("test")
-class EcaApplicationTests {
+class EcaApplicationTests extends BaseIntegrationTest {
 
     @Test
     void contextLoads() {

@@ -2,6 +2,8 @@ package ru.protectinfotrans.eca.execution.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -45,6 +47,7 @@ public class ExecutionInstance {
     private Integer currentStepIndex;
 
     /** JSONB — контекст выполнения (активные условия, переменные) */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "context", columnDefinition = "jsonb")
     private String contextJson;
 
