@@ -21,6 +21,7 @@ public class SpaController {
             "/sequences/**",
             "/executions/**",
             "/messages/**",
+            "/simulator/**",
             "/users/**",
             "/login",
             "/dashboard"
