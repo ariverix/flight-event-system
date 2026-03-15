@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Select, Input, InputNumber, Button, Space, Checkbox, Divider } from 'antd';
-import { StepCreateRequest, StepResponse, StepType, ActionType, CriterionType, TransitionAction } from '../../types/sequence';
+import {
+  StepCreateRequest,
+  StepResponse,
+  StepType,
+  ActionType,
+  CriterionType,
+  TransitionAction,
+} from '../../types/sequence';
 
 interface StepFormProps {
   onSubmit: (data: StepCreateRequest) => void;
@@ -46,7 +53,11 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
     setStepType(value);
     setActionType(null);
     setCriterionType(null);
-    form.resetFields(['actionType', 'criterionType', 'templateName', 'parameters', 'conditionName', 'alertLevel', 'durationSeconds', 'expectedStage', 'timeoutSeconds']);
+    form.resetFields([
+      'actionType', 'criterionType', 'templateName', 'parameters',
+      'conditionName', 'alertLevel', 'durationSeconds', 'expectedStage',
+      'timeoutSeconds',
+    ]);
   };
 
   const handleFinish = (values: any) => {
@@ -54,7 +65,6 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
 
     if (stepType === 'ACTION') {
       configJson.actionType = values.actionType;
-
       switch (values.actionType) {
         case 'SEND_UPLINK':
         case 'SEND_GROUND':
@@ -72,7 +82,6 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
       }
     } else {
       configJson.criterionType = values.criterionType;
-
       switch (values.criterionType) {
         case 'MESSAGE_RECEIVED':
           if (values.templateName) configJson.templateName = values.templateName;
@@ -88,7 +97,6 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
           configJson.conditionName = values.conditionName;
           break;
       }
-
       if (stepType === 'WAIT' && values.timeoutSeconds) {
         configJson.timeoutSeconds = values.timeoutSeconds;
       }
@@ -112,14 +120,14 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
     <Form form={form} layout="vertical" onFinish={handleFinish}>
       <Form.Item
         name="stepType"
-        label="Step Type"
-        rules={[{ required: true, message: 'Please select step type!' }]}
+        label="Тип шага"
+        rules={[{ required: true, message: 'Выберите тип шага' }]}
         initialValue="ACTION"
       >
         <Select onChange={handleStepTypeChange}>
-          <Select.Option value="ACTION">ACTION</Select.Option>
-          <Select.Option value="EVALUATE">EVALUATE</Select.Option>
-          <Select.Option value="WAIT">WAIT</Select.Option>
+          <Select.Option value="ACTION">ACTION — Действие</Select.Option>
+          <Select.Option value="EVALUATE">EVALUATE — Оценка условия</Select.Option>
+          <Select.Option value="WAIT">WAIT — Ожидание события</Select.Option>
         </Select>
       </Form.Item>
 
@@ -127,15 +135,15 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
         <>
           <Form.Item
             name="actionType"
-            label="Action Type"
-            rules={[{ required: true, message: 'Please select action type!' }]}
+            label="Тип действия"
+            rules={[{ required: true, message: 'Выберите тип действия' }]}
           >
             <Select onChange={setActionType}>
-              <Select.Option value="SEND_UPLINK">SEND_UPLINK</Select.Option>
-              <Select.Option value="SEND_GROUND">SEND_GROUND</Select.Option>
-              <Select.Option value="RAISE_CONDITION">RAISE_CONDITION</Select.Option>
-              <Select.Option value="CLOSE_CONDITION">CLOSE_CONDITION</Select.Option>
-              <Select.Option value="WAIT_TIME">WAIT_TIME</Select.Option>
+              <Select.Option value="SEND_UPLINK">SEND_UPLINK — Отправка наземной команды</Select.Option>
+              <Select.Option value="SEND_GROUND">SEND_GROUND — Передача на землю</Select.Option>
+              <Select.Option value="RAISE_CONDITION">RAISE_CONDITION — Установить условие</Select.Option>
+              <Select.Option value="CLOSE_CONDITION">CLOSE_CONDITION — Снять условие</Select.Option>
+              <Select.Option value="WAIT_TIME">WAIT_TIME — Пауза по времени</Select.Option>
             </Select>
           </Form.Item>
 
@@ -143,12 +151,12 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
             <>
               <Form.Item
                 name="templateName"
-                label="Template Name"
-                rules={[{ required: true, message: 'Please input template name!' }]}
+                label="Шаблон сообщения"
+                rules={[{ required: true, message: 'Введите шаблон' }]}
               >
-                <Input placeholder="e.g., WEATHER_UPDATE" />
+                <Input placeholder="Например: WEATHER_UPDATE" />
               </Form.Item>
-              <Form.Item name="parameters" label="Parameters (JSON)">
+              <Form.Item name="parameters" label="Параметры (JSON)">
                 <Input.TextArea rows={3} placeholder='{"key": "value"}' />
               </Form.Item>
             </>
@@ -158,16 +166,16 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
             <>
               <Form.Item
                 name="conditionName"
-                label="Condition Name"
-                rules={[{ required: true, message: 'Please input condition name!' }]}
+                label="Название условия"
+                rules={[{ required: true, message: 'Введите название условия' }]}
               >
-                <Input placeholder="e.g., WEATHER_ALERT" />
+                <Input placeholder="Например: WEATHER_ALERT" />
               </Form.Item>
-              <Form.Item name="alertLevel" label="Alert Level">
+              <Form.Item name="alertLevel" label="Уровень оповещения">
                 <Select allowClear>
-                  <Select.Option value="INFO">INFO</Select.Option>
-                  <Select.Option value="WARNING">WARNING</Select.Option>
-                  <Select.Option value="CRITICAL">CRITICAL</Select.Option>
+                  <Select.Option value="INFO">INFO — Информация</Select.Option>
+                  <Select.Option value="WARNING">WARNING — Предупреждение</Select.Option>
+                  <Select.Option value="CRITICAL">CRITICAL — Критический</Select.Option>
                 </Select>
               </Form.Item>
             </>
@@ -176,10 +184,10 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
           {actionType === 'WAIT_TIME' && (
             <Form.Item
               name="durationSeconds"
-              label="Duration (seconds)"
-              rules={[{ required: true, message: 'Please input duration!' }]}
+              label="Длительность (секунды)"
+              rules={[{ required: true, message: 'Введите длительность' }]}
             >
-              <InputNumber min={1} style={{ width: '100%' }} />
+              <InputNumber min={1} style={{ width: '100%' }} placeholder="60" />
             </Form.Item>
           )}
         </>
@@ -189,52 +197,52 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
         <>
           <Form.Item
             name="criterionType"
-            label="Criterion Type"
-            rules={[{ required: true, message: 'Please select criterion type!' }]}
+            label="Тип критерия"
+            rules={[{ required: true, message: 'Выберите тип критерия' }]}
           >
             <Select onChange={setCriterionType}>
-              <Select.Option value="MESSAGE_RECEIVED">MESSAGE_RECEIVED</Select.Option>
-              <Select.Option value="FLIGHT_STAGE">FLIGHT_STAGE</Select.Option>
-              <Select.Option value="POSITION_REPORTED">POSITION_REPORTED</Select.Option>
-              <Select.Option value="TIME_COMPARISON">TIME_COMPARISON</Select.Option>
-              <Select.Option value="CONDITION_ACTIVE">CONDITION_ACTIVE</Select.Option>
-              <Select.Option value="COMPOUND">COMPOUND</Select.Option>
+              <Select.Option value="MESSAGE_RECEIVED">MESSAGE_RECEIVED — Получено сообщение</Select.Option>
+              <Select.Option value="FLIGHT_STAGE">FLIGHT_STAGE — Фаза полёта</Select.Option>
+              <Select.Option value="POSITION_REPORTED">POSITION_REPORTED — Доклад о позиции</Select.Option>
+              <Select.Option value="TIME_COMPARISON">TIME_COMPARISON — Сравнение времени</Select.Option>
+              <Select.Option value="CONDITION_ACTIVE">CONDITION_ACTIVE — Условие активно</Select.Option>
+              <Select.Option value="COMPOUND">COMPOUND — Составное условие</Select.Option>
             </Select>
           </Form.Item>
 
           {criterionType === 'MESSAGE_RECEIVED' && (
-            <Form.Item name="templateName" label="Template Name">
-              <Input placeholder="Leave empty for any message" />
+            <Form.Item name="templateName" label="Шаблон сообщения">
+              <Input placeholder="Оставьте пустым — для любого сообщения" />
             </Form.Item>
           )}
 
           {criterionType === 'FLIGHT_STAGE' && (
             <Form.Item
               name="expectedStage"
-              label="Expected Stage"
-              rules={[{ required: true, message: 'Please select expected stage!' }]}
+              label="Ожидаемая фаза полёта"
+              rules={[{ required: true, message: 'Выберите фазу' }]}
             >
               <Select>
-                <Select.Option value="INIT">INIT</Select.Option>
-                <Select.Option value="OUT">OUT</Select.Option>
-                <Select.Option value="OFF">OFF</Select.Option>
-                <Select.Option value="ON">ON</Select.Option>
-                <Select.Option value="IN">IN</Select.Option>
+                <Select.Option value="INIT">INIT — Начальная</Select.Option>
+                <Select.Option value="OUT">OUT — Выруливание</Select.Option>
+                <Select.Option value="OFF">OFF — Взлёт</Select.Option>
+                <Select.Option value="ON">ON — Посадка</Select.Option>
+                <Select.Option value="IN">IN — Заруливание</Select.Option>
               </Select>
             </Form.Item>
           )}
 
           {criterionType === 'TIME_COMPARISON' && (
             <>
-              <Form.Item name="comparisonOperator" label="Comparison Operator">
+              <Form.Item name="comparisonOperator" label="Оператор сравнения">
                 <Select>
-                  <Select.Option value="GREATER_THAN">GREATER_THAN</Select.Option>
-                  <Select.Option value="LESS_THAN">LESS_THAN</Select.Option>
-                  <Select.Option value="GREATER_OR_EQUAL">GREATER_OR_EQUAL</Select.Option>
-                  <Select.Option value="LESS_OR_EQUAL">LESS_OR_EQUAL</Select.Option>
+                  <Select.Option value="GREATER_THAN">{'Больше (>)'}</Select.Option>
+                  <Select.Option value="LESS_THAN">Меньше (&lt;)</Select.Option>
+                  <Select.Option value="GREATER_OR_EQUAL">Больше или равно (≥)</Select.Option>
+                  <Select.Option value="LESS_OR_EQUAL">Меньше или равно (≤)</Select.Option>
                 </Select>
               </Form.Item>
-              <Form.Item name="thresholdSeconds" label="Threshold (seconds)">
+              <Form.Item name="thresholdSeconds" label="Порог (секунды)">
                 <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
             </>
@@ -243,83 +251,83 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
           {criterionType === 'CONDITION_ACTIVE' && (
             <Form.Item
               name="conditionName"
-              label="Condition Name"
-              rules={[{ required: true, message: 'Please input condition name!' }]}
+              label="Название условия"
+              rules={[{ required: true, message: 'Введите название условия' }]}
             >
-              <Input placeholder="e.g., WEATHER_ALERT" />
+              <Input placeholder="Например: WEATHER_ALERT" />
             </Form.Item>
           )}
 
           {stepType === 'WAIT' && (
             <Form.Item
               name="timeoutSeconds"
-              label="Timeout (seconds)"
-              rules={[{ required: true, message: 'Please input timeout!' }]}
+              label="Тайм-аут ожидания (секунды)"
+              rules={[{ required: true, message: 'Введите тайм-аут' }]}
             >
-              <InputNumber min={1} style={{ width: '100%' }} />
+              <InputNumber min={1} style={{ width: '100%' }} placeholder="300" />
             </Form.Item>
           )}
         </>
       )}
 
-      <Divider>Transitions</Divider>
+      <Divider>Переходы</Divider>
 
       <div style={{ display: 'flex', gap: '16px' }}>
         <div style={{ flex: 1 }}>
-          <h4>On Success</h4>
+          <h4 style={{ color: '#52c41a', marginTop: 0 }}>При успехе</h4>
           <Form.Item
             name="onSuccessAction"
-            label="Action"
+            label="Действие"
             rules={[{ required: true }]}
             initialValue="CONTINUE"
           >
             <Select onChange={setOnSuccessAction}>
-              <Select.Option value="CONTINUE">CONTINUE</Select.Option>
-              <Select.Option value="GOTO">GOTO</Select.Option>
-              <Select.Option value="END">END</Select.Option>
-              <Select.Option value="ABORT">ABORT</Select.Option>
+              <Select.Option value="CONTINUE">CONTINUE — Продолжить</Select.Option>
+              <Select.Option value="GOTO">GOTO — Перейти к шагу</Select.Option>
+              <Select.Option value="END">END — Завершить</Select.Option>
+              <Select.Option value="ABORT">ABORT — Прервать</Select.Option>
             </Select>
           </Form.Item>
           {onSuccessAction === 'GOTO' && (
             <Form.Item
               name="onSuccessGotoStep"
-              label="Go to Step"
-              rules={[{ required: true, message: 'Please input step number!' }]}
+              label="Номер шага"
+              rules={[{ required: true, message: 'Введите номер шага' }]}
             >
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           )}
           <Form.Item name="onSuccessNotify" valuePropName="checked">
-            <Checkbox>Notify on success</Checkbox>
+            <Checkbox>Уведомить при успехе</Checkbox>
           </Form.Item>
         </div>
 
         <div style={{ flex: 1 }}>
-          <h4>On Failure</h4>
+          <h4 style={{ color: '#ff4d4f', marginTop: 0 }}>При ошибке</h4>
           <Form.Item
             name="onFailureAction"
-            label="Action"
+            label="Действие"
             rules={[{ required: true }]}
             initialValue="ABORT"
           >
             <Select onChange={setOnFailureAction}>
-              <Select.Option value="CONTINUE">CONTINUE</Select.Option>
-              <Select.Option value="GOTO">GOTO</Select.Option>
-              <Select.Option value="END">END</Select.Option>
-              <Select.Option value="ABORT">ABORT</Select.Option>
+              <Select.Option value="CONTINUE">CONTINUE — Продолжить</Select.Option>
+              <Select.Option value="GOTO">GOTO — Перейти к шагу</Select.Option>
+              <Select.Option value="END">END — Завершить</Select.Option>
+              <Select.Option value="ABORT">ABORT — Прервать</Select.Option>
             </Select>
           </Form.Item>
           {onFailureAction === 'GOTO' && (
             <Form.Item
               name="onFailureGotoStep"
-              label="Go to Step"
-              rules={[{ required: true, message: 'Please input step number!' }]}
+              label="Номер шага"
+              rules={[{ required: true, message: 'Введите номер шага' }]}
             >
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           )}
           <Form.Item name="onFailureNotify" valuePropName="checked">
-            <Checkbox>Notify on failure</Checkbox>
+            <Checkbox>Уведомить при ошибке</Checkbox>
           </Form.Item>
         </div>
       </div>
@@ -327,9 +335,9 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
       <Form.Item>
         <Space>
           <Button type="primary" htmlType="submit">
-            {initialValues ? 'Update' : 'Add'} Step
+            {initialValues ? 'Сохранить' : 'Добавить'} шаг
           </Button>
-          <Button onClick={onCancel}>Cancel</Button>
+          <Button onClick={onCancel}>Отмена</Button>
         </Space>
       </Form.Item>
     </Form>

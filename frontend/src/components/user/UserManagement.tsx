@@ -4,6 +4,11 @@ import { UserAddOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/authApi';
 import { UserResponse, RegisterRequest } from '../../types/auth';
 
+const ROLE_LABEL: Record<string, string> = {
+  ADMIN:    'Администратор',
+  OPERATOR: 'Оператор',
+};
+
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -17,7 +22,7 @@ export const UserManagement: React.FC = () => {
       setUsers(data);
     } catch (error: any) {
       notification.error({
-        message: 'Failed to load users',
+        message: 'Ошибка загрузки пользователей',
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -25,20 +30,16 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  useEffect(() => { loadUsers(); }, []);
 
   const handleToggleUser = async (userId: number) => {
     try {
       await authApi.toggleUser(userId);
-      notification.success({
-        message: 'User status updated',
-      });
+      notification.success({ message: 'Статус пользователя обновлён' });
       loadUsers();
     } catch (error: any) {
       notification.error({
-        message: 'Failed to update user status',
+        message: 'Ошибка обновления статуса',
         description: error.response?.data?.message || error.message,
       });
     }
@@ -47,79 +48,68 @@ export const UserManagement: React.FC = () => {
   const handleCreateUser = async (values: RegisterRequest) => {
     try {
       await authApi.register(values);
-      notification.success({
-        message: 'User created successfully',
-      });
+      notification.success({ message: 'Пользователь создан успешно' });
       form.resetFields();
       setIsModalOpen(false);
       loadUsers();
     } catch (error: any) {
       notification.error({
-        message: 'Failed to create user',
+        message: 'Ошибка создания пользователя',
         description: error.response?.data?.message || error.message,
       });
     }
   };
 
   const columns = [
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+    { title: 'Логин', dataIndex: 'username', key: 'username' },
+    { title: 'Полное имя', dataIndex: 'fullName', key: 'fullName' },
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
-    },
-    {
-      title: 'Username',
-      dataIndex: 'username',
-      key: 'username',
-    },
-    {
-      title: 'Full Name',
-      dataIndex: 'fullName',
-      key: 'fullName',
-    },
-    {
-      title: 'Role',
+      title: 'Роль',
       dataIndex: 'role',
       key: 'role',
       render: (role: string) => (
-        <Tag color={role === 'ADMIN' ? 'red' : 'blue'}>{role}</Tag>
+        <Tag color={role === 'ADMIN' ? 'red' : 'blue'}>{ROLE_LABEL[role] ?? role}</Tag>
       ),
     },
     {
-      title: 'Status',
+      title: 'Статус',
       dataIndex: 'enabled',
       key: 'enabled',
       render: (enabled: boolean) => (
-        <Tag color={enabled ? 'green' : 'default'}>{enabled ? 'Enabled' : 'Disabled'}</Tag>
+        <Tag color={enabled ? 'green' : 'default'}>{enabled ? 'Активен' : 'Отключён'}</Tag>
       ),
     },
     {
-      title: 'Created At',
+      title: 'Зарегистрирован',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleString(),
+      render: (date: string) => new Date(date).toLocaleString('ru-RU'),
     },
     {
-      title: 'Actions',
+      title: 'Активность',
       key: 'actions',
       render: (_: any, record: UserResponse) => (
         <Switch
           checked={record.enabled}
           onChange={() => handleToggleUser(record.id)}
-          checkedChildren="Enabled"
-          unCheckedChildren="Disabled"
+          checkedChildren="Вкл"
+          unCheckedChildren="Выкл"
         />
       ),
     },
   ];
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>User Management</h2>
-        <Button type="primary" icon={<UserAddOutlined />} onClick={() => setIsModalOpen(true)}>
-          Register New User
+    <div className="fade-in-up">
+      <div className="page-header">
+        <h2 className="page-title">Управление пользователями</h2>
+        <Button
+          type="primary"
+          icon={<UserAddOutlined />}
+          onClick={() => setIsModalOpen(true)}
+        >
+          Добавить пользователя
         </Button>
       </div>
 
@@ -128,11 +118,14 @@ export const UserManagement: React.FC = () => {
         dataSource={users}
         loading={loading}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
+        pagination={{
+          pageSize: 10,
+          showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+        }}
       />
 
       <Modal
-        title="Register New User"
+        title="Регистрация нового пользователя"
         open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false);
@@ -143,18 +136,18 @@ export const UserManagement: React.FC = () => {
         <Form form={form} layout="vertical" onFinish={handleCreateUser}>
           <Form.Item
             name="username"
-            label="Username"
-            rules={[{ required: true, message: 'Please input username!' }]}
+            label="Логин"
+            rules={[{ required: true, message: 'Введите логин' }]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
             name="password"
-            label="Password"
+            label="Пароль"
             rules={[
-              { required: true, message: 'Please input password!' },
-              { min: 6, message: 'Password must be at least 6 characters!' },
+              { required: true, message: 'Введите пароль' },
+              { min: 6, message: 'Пароль должен содержать не менее 6 символов' },
             ]}
           >
             <Input.Password />
@@ -162,27 +155,27 @@ export const UserManagement: React.FC = () => {
 
           <Form.Item
             name="fullName"
-            label="Full Name"
-            rules={[{ required: true, message: 'Please input full name!' }]}
+            label="Полное имя"
+            rules={[{ required: true, message: 'Введите полное имя' }]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
             name="role"
-            label="Role"
-            rules={[{ required: true, message: 'Please select role!' }]}
+            label="Роль"
+            rules={[{ required: true, message: 'Выберите роль' }]}
           >
             <Select>
-              <Select.Option value="OPERATOR">OPERATOR</Select.Option>
-              <Select.Option value="ADMIN">ADMIN</Select.Option>
+              <Select.Option value="OPERATOR">Оператор</Select.Option>
+              <Select.Option value="ADMIN">Администратор</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
-                Create User
+                Создать пользователя
               </Button>
               <Button
                 onClick={() => {
@@ -190,7 +183,7 @@ export const UserManagement: React.FC = () => {
                   form.resetFields();
                 }}
               >
-                Cancel
+                Отмена
               </Button>
             </Space>
           </Form.Item>

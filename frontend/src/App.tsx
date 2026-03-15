@@ -3,6 +3,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { LoginPage } from './components/user/LoginPage';
 import { UserManagement } from './components/user/UserManagement';
+import { ProfilePage } from './components/user/ProfilePage';
 import { Dashboard } from './components/Dashboard';
 import { SequenceList } from './components/sequence/SequenceList';
 import { SequenceForm } from './components/sequence/SequenceForm';
@@ -10,6 +11,8 @@ import { ExecutionList } from './components/execution/ExecutionList';
 import { ExecutionDetail } from './components/execution/ExecutionDetail';
 import { MessageSimulator } from './components/message/MessageSimulator';
 import { MessageLog } from './components/message/MessageLog';
+import { AuditLogPage } from './components/audit/AuditLogPage';
+import { DemoPage } from './components/demo/DemoPage';
 
 function App() {
   return (
@@ -33,6 +36,16 @@ function App() {
           <Route path="executions/:id" element={<ExecutionDetail />} />
           <Route path="messages" element={<MessageLog />} />
           <Route path="simulator" element={<MessageSimulator />} />
+          <Route path="demo" element={<DemoPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route
+            path="audit-log"
+            element={
+              <ProtectedRoute adminOnly>
+                <AuditLogPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="users"
             element={

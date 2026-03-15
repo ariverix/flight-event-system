@@ -66,7 +66,8 @@ public class SecurityConfig {
 
                         // Эндпоинты только для ADMIN
                         .requestMatchers("/api/v1/auth/register").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/users/**").hasRole("ADMIN")  // UC-09
+                        .requestMatchers("/api/v1/users/**").hasRole("ADMIN")       // UC-09
+                        .requestMatchers("/api/v1/audit-log/**").hasRole("ADMIN")   // Журнал аудита
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
 
                         // Эндпоинты для OPERATOR и ADMIN
@@ -90,7 +91,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 

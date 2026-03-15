@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, notification } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { Form, Input, Button, notification } from 'antd';
+import { UserOutlined, LockOutlined, RocketOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -14,14 +14,14 @@ export const LoginPage: React.FC = () => {
     try {
       await login(values.username, values.password);
       notification.success({
-        message: 'Login Successful',
-        description: 'Welcome to ECA System!',
+        message: 'Вход выполнен',
+        description: 'Добро пожаловать в Систему ЕСА!',
       });
       navigate('/');
     } catch (error: any) {
       notification.error({
-        message: 'Login Failed',
-        description: error.response?.data?.message || 'Invalid username or password',
+        message: 'Ошибка входа',
+        description: error.response?.data?.message || 'Неверное имя пользователя или пароль',
       });
     } finally {
       setLoading(false);
@@ -29,41 +29,73 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      }}
-    >
-      <Card
-        title="ECA System Login"
-        style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
-      >
+    <div className="login-bg">
+      <div className="login-card fade-in-up">
+        {/* Logo */}
+        <div className="login-logo">
+          <div className="login-logo-icon">
+            <RocketOutlined style={{ fontSize: 40, color: '#1677ff' }} />
+          </div>
+          <h1 className="login-title">СИСТЕМА ЕСА</h1>
+          <p className="login-subtitle">
+            Управление последовательностями событий ВС
+          </p>
+        </div>
+
         <Form name="login" onFinish={onFinish} autoComplete="off" size="large">
           <Form.Item
             name="username"
-            rules={[{ required: true, message: 'Please input your username!' }]}
+            rules={[{ required: true, message: 'Введите имя пользователя' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Username" />
+            <Input
+              prefix={<UserOutlined style={{ color: '#484f58' }} />}
+              placeholder="Имя пользователя"
+              style={{ background: '#1c2128', border: '1px solid #30363d' }}
+            />
           </Form.Item>
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: 'Please input your password!' }]}
+            rules={[{ required: true, message: 'Введите пароль' }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+            <Input.Password
+              prefix={<LockOutlined style={{ color: '#484f58' }} />}
+              placeholder="Пароль"
+              style={{ background: '#1c2128', border: '1px solid #30363d' }}
+            />
           </Form.Item>
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block loading={loading}>
-              Log in
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              loading={loading}
+              style={{
+                height: 44,
+                fontSize: 15,
+                fontWeight: 600,
+                letterSpacing: '0.03em',
+              }}
+            >
+              Войти в систему
             </Button>
           </Form.Item>
         </Form>
-      </Card>
+
+        <div
+          style={{
+            marginTop: 20,
+            textAlign: 'center',
+            fontSize: 11,
+            color: '#484f58',
+            borderTop: '1px solid #21262d',
+            paddingTop: 16,
+          }}
+        >
+          © 2026 Система ЕСА · Дипломная работа
+        </div>
+      </div>
     </div>
   );
 };

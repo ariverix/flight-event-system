@@ -9,6 +9,32 @@ import { SequenceResponse } from '../../types/sequence';
 import { ExecutionFlow } from './ExecutionFlow';
 import { usePolling } from '../../hooks/usePolling';
 
+const STATUS_LABEL: Record<string, string> = {
+  RUNNING:   'Выполняется',
+  COMPLETED: 'Завершено',
+  ABORTED:   'Прервано',
+  WAITING:   'Ожидание',
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  RUNNING:   'processing',
+  COMPLETED: 'success',
+  ABORTED:   'error',
+  WAITING:   'warning',
+};
+
+const STEP_TYPE_COLOR: Record<string, string> = {
+  ACTION:   'blue',
+  EVALUATE: 'gold',
+  WAIT:     'purple',
+};
+
+const STEP_TYPE_LABEL: Record<string, string> = {
+  ACTION:   'Действие',
+  EVALUATE: 'Оценка',
+  WAIT:     'Ожидание',
+};
+
 export const ExecutionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -22,12 +48,11 @@ export const ExecutionDetail: React.FC = () => {
     try {
       const execData = await executionApi.getExecutionById(parseInt(id));
       setExecution(execData);
-
       const seqData = await sequenceApi.getSequenceById(execData.sequenceId);
       setSequence(seqData);
     } catch (error: any) {
       notification.error({
-        message: 'Failed to load execution details',
+        message: 'Ошибка загрузки деталей выполнения',
         description: error.response?.data?.message || error.message,
       });
       navigate('/executions');
@@ -36,83 +61,61 @@ export const ExecutionDetail: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadExecution();
-  }, [id]);
+  useEffect(() => { loadExecution(); }, [id]);
 
   usePolling(
     loadExecution,
     5000,
-    execution?.status === 'RUNNING' || execution?.status === 'WAITING'
+    execution?.status === 'RUNNING' || execution?.status === 'WAITING',
   );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'RUNNING':
-        return 'processing';
-      case 'COMPLETED':
-        return 'success';
-      case 'ABORTED':
-        return 'error';
-      case 'WAITING':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
-
-  const getResultColor = (result: StepResult | null) => {
-    switch (result) {
-      case 'SUCCESS':
-        return 'success';
-      case 'FAILURE':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
   const stepColumns = [
+    { title: 'Шаг', dataIndex: 'stepIndex', key: 'stepIndex', width: 70 },
     {
-      title: 'Step Index',
-      dataIndex: 'stepIndex',
-      key: 'stepIndex',
-    },
-    {
-      title: 'Step Type',
+      title: 'Тип',
       dataIndex: 'stepType',
       key: 'stepType',
-      render: (type: string) => <Tag color="blue">{type}</Tag>,
-    },
-    {
-      title: 'Result',
-      dataIndex: 'result',
-      key: 'result',
-      render: (result: StepResult | null) => (
-        result ? <Tag color={getResultColor(result)}>{result}</Tag> : <Tag>IN PROGRESS</Tag>
+      render: (type: string) => (
+        <Tag color={STEP_TYPE_COLOR[type] ?? 'blue'}>{STEP_TYPE_LABEL[type] ?? type}</Tag>
       ),
     },
     {
-      title: 'Executed At',
+      title: 'Результат',
+      dataIndex: 'result',
+      key: 'result',
+      render: (result: StepResult | null) =>
+        result ? (
+          <Tag color={result === 'SUCCESS' ? 'success' : 'error'}>
+            {result === 'SUCCESS' ? 'Успех' : 'Ошибка'}
+          </Tag>
+        ) : (
+          <Tag>В процессе</Tag>
+        ),
+    },
+    {
+      title: 'Начало',
       dataIndex: 'executedAt',
       key: 'executedAt',
-      render: (date: string) => new Date(date).toLocaleString(),
+      render: (date: string) => new Date(date).toLocaleString('ru-RU'),
     },
     {
-      title: 'Completed At',
+      title: 'Завершение',
       dataIndex: 'completedAt',
       key: 'completedAt',
-      render: (date: string | null) => date ? new Date(date).toLocaleString() : 'In Progress',
+      render: (date: string | null) => date ? new Date(date).toLocaleString('ru-RU') : 'В процессе',
     },
     {
-      title: 'Details',
+      title: 'Детали',
       dataIndex: 'detailsJson',
       key: 'detailsJson',
       render: (details: string | null) => {
-        if (!details) return 'N/A';
+        if (!details) return '—';
         try {
-          const parsed = JSON.parse(details);
-          return <pre style={{ fontSize: '11px', margin: 0 }}>{JSON.stringify(parsed, null, 2)}</pre>;
+          return (
+            <pre style={{ fontSize: '11px', margin: 0 }}>
+              {JSON.stringify(JSON.parse(details), null, 2)}
+            </pre>
+          );
         } catch {
           return details;
         }
@@ -129,45 +132,55 @@ export const ExecutionDetail: React.FC = () => {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="fade-in-up">
+      <div className="page-header" style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/executions')}>
-          Back to Executions
+          Назад к выполнениям
         </Button>
         <Button icon={<ReloadOutlined />} onClick={loadExecution}>
-          Refresh
+          Обновить
         </Button>
       </div>
 
-      <Card title="Execution Details" style={{ marginBottom: 16 }}>
-        <Descriptions bordered column={2}>
-          <Descriptions.Item label="Execution ID">{execution.id}</Descriptions.Item>
-          <Descriptions.Item label="Status">
-            <Tag color={getStatusColor(execution.status)}>{execution.status}</Tag>
+      <Card
+        title={<span style={{ color: '#e6edf3' }}>Детали выполнения</span>}
+        style={{ marginBottom: 16, borderColor: '#21262d' }}
+      >
+        <Descriptions bordered column={2} size="small">
+          <Descriptions.Item label="ID выполнения">{execution.id}</Descriptions.Item>
+          <Descriptions.Item label="Статус">
+            <Tag color={STATUS_COLOR[execution.status]}>
+              {STATUS_LABEL[execution.status] ?? execution.status}
+            </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Sequence">{execution.sequenceName}</Descriptions.Item>
-          <Descriptions.Item label="Aircraft ID">{execution.aircraftId}</Descriptions.Item>
-          <Descriptions.Item label="Flight Number">
-            {execution.flightNumber || 'N/A'}
+          <Descriptions.Item label="Последовательность">{execution.sequenceName}</Descriptions.Item>
+          <Descriptions.Item label="Идентификатор ВС">{execution.aircraftId}</Descriptions.Item>
+          <Descriptions.Item label="Номер рейса">
+            {execution.flightNumber || '—'}
           </Descriptions.Item>
-          <Descriptions.Item label="Current Step">
-            {execution.currentStepIndex !== null ? `Step ${execution.currentStepIndex}` : 'N/A'}
+          <Descriptions.Item label="Текущий шаг">
+            {execution.currentStepIndex !== null ? `Шаг ${execution.currentStepIndex}` : '—'}
           </Descriptions.Item>
-          <Descriptions.Item label="Started At">
-            {new Date(execution.startedAt).toLocaleString()}
+          <Descriptions.Item label="Начало">
+            {new Date(execution.startedAt).toLocaleString('ru-RU')}
           </Descriptions.Item>
-          <Descriptions.Item label="Completed At">
-            {execution.completedAt ? new Date(execution.completedAt).toLocaleString() : 'In Progress'}
+          <Descriptions.Item label="Завершение">
+            {execution.completedAt
+              ? new Date(execution.completedAt).toLocaleString('ru-RU')
+              : 'В процессе'}
           </Descriptions.Item>
-          <Descriptions.Item label="Context" span={2}>
-            <pre style={{ fontSize: '11px' }}>
-              {JSON.stringify(JSON.parse(execution.contextJson), null, 2)}
+          <Descriptions.Item label="Контекст" span={2}>
+            <pre style={{ fontSize: '11px', margin: 0 }}>
+              {(() => { try { return JSON.stringify(JSON.parse(execution.contextJson), null, 2); } catch { return execution.contextJson; } })()}
             </pre>
           </Descriptions.Item>
         </Descriptions>
       </Card>
 
-      <Card title="Visual Progress" style={{ marginBottom: 16 }}>
+      <Card
+        title={<span style={{ color: '#e6edf3' }}>Визуальный прогресс</span>}
+        style={{ marginBottom: 16, borderColor: '#21262d' }}
+      >
         <ExecutionFlow
           steps={sequence.steps}
           currentStepIndex={execution.currentStepIndex}
@@ -175,7 +188,10 @@ export const ExecutionDetail: React.FC = () => {
         />
       </Card>
 
-      <Card title="Step Execution History">
+      <Card
+        title={<span style={{ color: '#e6edf3' }}>История выполнения шагов</span>}
+        style={{ borderColor: '#21262d' }}
+      >
         <Table
           columns={stepColumns}
           dataSource={execution.stepExecutions}

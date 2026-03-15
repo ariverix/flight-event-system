@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Card, Form, Input, Select, Button, Space, notification, Divider, Radio } from 'antd';
-import { SendOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Select, Button, Space, notification, Divider, Radio, Tag, Typography } from 'antd';
+import { SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { messageApi } from '../../api/messageApi';
+
+const { Text } = Typography;
 
 export const MessageSimulator: React.FC = () => {
   const [form] = Form.useForm();
@@ -18,13 +20,11 @@ export const MessageSimulator: React.FC = () => {
         flightNumber: values.flightNumber || undefined,
         metadataJson: values.metadataJson || undefined,
       });
-      notification.success({
-        message: 'Message sent successfully',
-      });
+      notification.success({ message: 'Сообщение отправлено успешно' });
       form.resetFields(['templateName', 'metadataJson']);
     } catch (error: any) {
       notification.error({
-        message: 'Failed to send message',
+        message: 'Ошибка отправки сообщения',
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -40,13 +40,11 @@ export const MessageSimulator: React.FC = () => {
         flightNumber: values.flightNumber || undefined,
         newStage: values.newStage,
       });
-      notification.success({
-        message: 'Flight stage changed successfully',
-      });
+      notification.success({ message: 'Фаза полёта изменена успешно' });
       form.resetFields(['newStage']);
     } catch (error: any) {
       notification.error({
-        message: 'Failed to change flight stage',
+        message: 'Ошибка смены фазы полёта',
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -55,20 +53,29 @@ export const MessageSimulator: React.FC = () => {
   };
 
   return (
-    <div>
-      <h2>Message Simulator</h2>
+    <div className="fade-in-up">
+      <div className="page-header">
+        <h2 className="page-title">Симулятор событий</h2>
+      </div>
 
-      <Card>
+      <Card style={{ borderColor: '#21262d' }}>
         <Radio.Group
           value={simulationType}
           onChange={(e) => {
             setSimulationType(e.target.value);
             form.resetFields();
           }}
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: 28 }}
+          buttonStyle="solid"
         >
-          <Radio.Button value="message">Send Message</Radio.Button>
-          <Radio.Button value="stage">Change Flight Stage</Radio.Button>
+          <Radio.Button value="message">
+            <SendOutlined style={{ marginRight: 6 }} />
+            Отправить сообщение
+          </Radio.Button>
+          <Radio.Button value="stage">
+            <ThunderboltOutlined style={{ marginRight: 6 }} />
+            Изменить фазу полёта
+          </Radio.Button>
         </Radio.Group>
 
         {simulationType === 'message' ? (
@@ -80,37 +87,46 @@ export const MessageSimulator: React.FC = () => {
           >
             <Form.Item
               name="messageType"
-              label="Message Type"
-              rules={[{ required: true, message: 'Please select message type!' }]}
+              label="Тип сообщения"
+              rules={[{ required: true, message: 'Выберите тип сообщения' }]}
             >
               <Select>
-                <Select.Option value="DOWNLINK">DOWNLINK</Select.Option>
-                <Select.Option value="UPLINK">UPLINK</Select.Option>
-                <Select.Option value="GROUND">GROUND</Select.Option>
+                <Select.Option value="DOWNLINK">
+                  <Tag color="blue" style={{ marginRight: 6 }}>DOWNLINK</Tag>
+                  Нисходящая (борт → земля)
+                </Select.Option>
+                <Select.Option value="UPLINK">
+                  <Tag color="green" style={{ marginRight: 6 }}>UPLINK</Tag>
+                  Восходящая (земля → борт)
+                </Select.Option>
+                <Select.Option value="GROUND">
+                  <Tag color="orange" style={{ marginRight: 6 }}>GROUND</Tag>
+                  Наземная
+                </Select.Option>
               </Select>
             </Form.Item>
 
             <Form.Item
               name="templateName"
-              label="Template Name"
-              rules={[{ required: true, message: 'Please input template name!' }]}
+              label="Шаблон сообщения"
+              rules={[{ required: true, message: 'Введите шаблон сообщения' }]}
             >
-              <Input placeholder="e.g., POSITION_REPORT, WEATHER_UPDATE" />
+              <Input placeholder="Например: POSITION_REPORT, WEATHER_UPDATE" />
             </Form.Item>
 
             <Form.Item
               name="aircraftId"
-              label="Aircraft ID"
-              rules={[{ required: true, message: 'Please input aircraft ID!' }]}
+              label="Идентификатор воздушного судна"
+              rules={[{ required: true, message: 'Введите идентификатор ВС' }]}
             >
-              <Input placeholder="e.g., SU9876" />
+              <Input placeholder="Например: SU9876" />
             </Form.Item>
 
-            <Form.Item name="flightNumber" label="Flight Number">
-              <Input placeholder="e.g., AFL123 (optional)" />
+            <Form.Item name="flightNumber" label="Номер рейса (необязательно)">
+              <Input placeholder="Например: AFL123" />
             </Form.Item>
 
-            <Form.Item name="metadataJson" label="Metadata (JSON)">
+            <Form.Item name="metadataJson" label="Метаданные (JSON, необязательно)">
               <Input.TextArea
                 rows={4}
                 placeholder='{"latitude": 55.7558, "longitude": 37.6173}'
@@ -119,73 +135,111 @@ export const MessageSimulator: React.FC = () => {
 
             <Form.Item>
               <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={loading}>
-                Send Message
+                Отправить сообщение
               </Button>
             </Form.Item>
           </Form>
         ) : (
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleStageChange}
-          >
+          <Form form={form} layout="vertical" onFinish={handleStageChange}>
             <Form.Item
               name="aircraftId"
-              label="Aircraft ID"
-              rules={[{ required: true, message: 'Please input aircraft ID!' }]}
+              label="Идентификатор воздушного судна"
+              rules={[{ required: true, message: 'Введите идентификатор ВС' }]}
             >
-              <Input placeholder="e.g., SU9876" />
+              <Input placeholder="Например: SU9876" />
             </Form.Item>
 
-            <Form.Item name="flightNumber" label="Flight Number">
-              <Input placeholder="e.g., AFL123 (optional)" />
+            <Form.Item name="flightNumber" label="Номер рейса (необязательно)">
+              <Input placeholder="Например: AFL123" />
             </Form.Item>
 
             <Form.Item
               name="newStage"
-              label="New Flight Stage"
-              rules={[{ required: true, message: 'Please select flight stage!' }]}
+              label="Новая фаза полёта"
+              rules={[{ required: true, message: 'Выберите фазу полёта' }]}
             >
               <Select>
-                <Select.Option value="INIT">INIT - Initial</Select.Option>
-                <Select.Option value="OUT">OUT - Taxi Out</Select.Option>
-                <Select.Option value="OFF">OFF - Takeoff</Select.Option>
-                <Select.Option value="ON">ON - Landing</Select.Option>
-                <Select.Option value="IN">IN - Taxi In</Select.Option>
+                <Select.Option value="INIT">INIT — Начальная</Select.Option>
+                <Select.Option value="OUT">OUT — Выруливание на ВПП</Select.Option>
+                <Select.Option value="OFF">OFF — Взлёт</Select.Option>
+                <Select.Option value="ON">ON — Посадка</Select.Option>
+                <Select.Option value="IN">IN — Заруливание</Select.Option>
               </Select>
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={loading}>
-                Change Stage
+              <Button type="primary" htmlType="submit" icon={<ThunderboltOutlined />} loading={loading}>
+                Изменить фазу
               </Button>
             </Form.Item>
           </Form>
         )}
       </Card>
 
-      <Card title="Quick Test Scenarios" style={{ marginTop: 16 }}>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <div>
-            <strong>Scenario 1: Position Report</strong>
+      <Card
+        title={<span style={{ color: '#e6edf3' }}>Тестовые сценарии</span>}
+        style={{ marginTop: 16, borderColor: '#21262d' }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={4}>
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: 8,
+              background: '#1c2128',
+              border: '1px solid #21262d',
+            }}
+          >
+            <Text strong style={{ color: '#1677ff' }}>Сценарий 1: Доклад о местоположении</Text>
             <br />
-            Message: DOWNLINK / POSITION_REPORT / SU9876
+            <Text style={{ color: '#848d97', fontSize: 13 }}>
+              Тип: DOWNLINK · Шаблон: POSITION_REPORT · ВС: SU9876
+            </Text>
             <br />
-            Metadata: {`{"latitude": 55.7558, "longitude": 37.6173}`}
+            <Text style={{ color: '#484f58', fontSize: 12 }}>
+              Метаданные: {'{"latitude": 55.7558, "longitude": 37.6173}'}
+            </Text>
           </div>
-          <Divider />
-          <div>
-            <strong>Scenario 2: Flight Stage Progression</strong>
+
+          <Divider style={{ margin: '8px 0', borderColor: '#21262d' }} />
+
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: 8,
+              background: '#1c2128',
+              border: '1px solid #21262d',
+            }}
+          >
+            <Text strong style={{ color: '#00c853' }}>Сценарий 2: Прогрессия фаз полёта</Text>
             <br />
-            INIT → OUT → OFF → ON → IN
+            <Text style={{ color: '#848d97', fontSize: 13 }}>
+              INIT → OUT → OFF → ON → IN
+            </Text>
+            <br />
+            <Text style={{ color: '#484f58', fontSize: 12 }}>
+              Последовательно меняйте фазы для ВС SU9876
+            </Text>
           </div>
-          <Divider />
-          <div>
-            <strong>Scenario 3: Weather Update</strong>
+
+          <Divider style={{ margin: '8px 0', borderColor: '#21262d' }} />
+
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: 8,
+              background: '#1c2128',
+              border: '1px solid #21262d',
+            }}
+          >
+            <Text strong style={{ color: '#faad14' }}>Сценарий 3: Метеосводка</Text>
             <br />
-            Message: GROUND / WEATHER_UPDATE / SU9876
+            <Text style={{ color: '#848d97', fontSize: 13 }}>
+              Тип: GROUND · Шаблон: WEATHER_UPDATE · ВС: SU9876
+            </Text>
             <br />
-            Metadata: {`{"temperature": -5, "wind": "10kt"}`}
+            <Text style={{ color: '#484f58', fontSize: 12 }}>
+              Метаданные: {'{"temperature": -5, "wind": "10kt"}'}
+            </Text>
           </div>
         </Space>
       </Card>

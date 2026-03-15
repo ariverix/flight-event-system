@@ -1,9 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, PauseCircleOutlined, EyeOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  EyeOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { sequenceApi } from '../../api/sequenceApi';
 import { SequenceResponse, SequenceStatus } from '../../types/sequence';
+
+const STATUS_LABEL: Record<string, string> = {
+  ACTIVE:   'Активна',
+  INACTIVE: 'Неактивна',
+  DRAFT:    'Черновик',
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  ACTIVE:   'green',
+  INACTIVE: 'orange',
+  DRAFT:    'default',
+};
 
 export const SequenceList: React.FC = () => {
   const [sequences, setSequences] = useState<SequenceResponse[]>([]);
@@ -13,19 +32,15 @@ export const SequenceList: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const navigate = useNavigate();
 
-  const loadSequences = async (page: number = 0, size: number = 10, status?: SequenceStatus) => {
+  const loadSequences = async (page = 0, size = 10, status?: SequenceStatus) => {
     setLoading(true);
     try {
       const data = await sequenceApi.getSequences(page, size, status);
       setSequences(data.content);
-      setPagination({
-        current: page + 1,
-        pageSize: size,
-        total: data.totalElements,
-      });
+      setPagination({ current: page + 1, pageSize: size, total: data.totalElements });
     } catch (error: any) {
       notification.error({
-        message: 'Failed to load sequences',
+        message: 'Ошибка загрузки последовательностей',
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -37,20 +52,18 @@ export const SequenceList: React.FC = () => {
     loadSequences(0, pagination.pageSize, statusFilter);
   }, [statusFilter]);
 
-  const handleTableChange = (newPagination: any) => {
-    loadSequences(newPagination.current - 1, newPagination.pageSize, statusFilter);
+  const handleTableChange = (pg: any) => {
+    loadSequences(pg.current - 1, pg.pageSize, statusFilter);
   };
 
   const handleDelete = async (id: number) => {
     try {
       await sequenceApi.deleteSequence(id);
-      notification.success({
-        message: 'Sequence deleted successfully',
-      });
+      notification.success({ message: 'Последовательность удалена' });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
       notification.error({
-        message: 'Failed to delete sequence',
+        message: 'Ошибка удаления',
         description: error.response?.data?.message || error.message,
       });
     }
@@ -59,13 +72,11 @@ export const SequenceList: React.FC = () => {
   const handleActivate = async (id: number) => {
     try {
       await sequenceApi.activateSequence(id);
-      notification.success({
-        message: 'Sequence activated successfully',
-      });
+      notification.success({ message: 'Последовательность активирована' });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
       notification.error({
-        message: 'Failed to activate sequence',
+        message: 'Ошибка активации',
         description: error.response?.data?.message || error.message,
       });
     }
@@ -74,73 +85,49 @@ export const SequenceList: React.FC = () => {
   const handleDeactivate = async (id: number) => {
     try {
       await sequenceApi.deactivateSequence(id);
-      notification.success({
-        message: 'Sequence deactivated successfully',
-      });
+      notification.success({ message: 'Последовательность деактивирована' });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
       notification.error({
-        message: 'Failed to deactivate sequence',
+        message: 'Ошибка деактивации',
         description: error.response?.data?.message || error.message,
       });
     }
   };
 
-  const getStatusColor = (status: SequenceStatus) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'green';
-      case 'INACTIVE':
-        return 'orange';
-      case 'DRAFT':
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
-
   const columns = [
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
-    },
-    {
-      title: 'Name',
+      title: 'Название',
       dataIndex: 'name',
       key: 'name',
       filteredValue: searchText ? [searchText] : null,
       onFilter: (value: any, record: SequenceResponse) =>
         record.name.toLowerCase().includes(value.toLowerCase()),
     },
+    { title: 'Описание', dataIndex: 'description', key: 'description', ellipsis: true },
     {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: 'Status',
+      title: 'Статус',
       dataIndex: 'status',
       key: 'status',
       render: (status: SequenceStatus) => (
-        <Tag color={getStatusColor(status)}>{status}</Tag>
+        <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
       ),
     },
     {
-      title: 'Steps',
+      title: 'Шаги',
       key: 'steps',
+      width: 80,
       render: (_: any, record: SequenceResponse) => record.steps.length,
     },
     {
-      title: 'Created At',
+      title: 'Создан',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString(),
+      render: (date: string) => new Date(date).toLocaleDateString('ru-RU'),
     },
     {
-      title: 'Actions',
+      title: 'Действия',
       key: 'actions',
       render: (_: any, record: SequenceResponse) => (
         <Space size="small">
@@ -150,7 +137,7 @@ export const SequenceList: React.FC = () => {
             icon={<EyeOutlined />}
             onClick={() => navigate(`/sequences/${record.id}`)}
           >
-            View
+            Просмотр
           </Button>
           <Button
             type="link"
@@ -158,7 +145,7 @@ export const SequenceList: React.FC = () => {
             icon={<EditOutlined />}
             onClick={() => navigate(`/sequences/${record.id}/edit`)}
           >
-            Edit
+            Изменить
           </Button>
           {record.status === 'ACTIVE' ? (
             <Button
@@ -167,7 +154,7 @@ export const SequenceList: React.FC = () => {
               icon={<PauseCircleOutlined />}
               onClick={() => handleDeactivate(record.id)}
             >
-              Deactivate
+              Деактивировать
             </Button>
           ) : (
             <Button
@@ -177,17 +164,19 @@ export const SequenceList: React.FC = () => {
               onClick={() => handleActivate(record.id)}
               disabled={record.steps.length === 0}
             >
-              Activate
+              Активировать
             </Button>
           )}
           <Popconfirm
-            title="Are you sure to delete this sequence?"
+            title="Удалить последовательность?"
+            description="Это действие нельзя отменить."
             onConfirm={() => handleDelete(record.id)}
-            okText="Yes"
-            cancelText="No"
+            okText="Удалить"
+            cancelText="Отмена"
+            okButtonProps={{ danger: true }}
           >
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              Delete
+              Удалить
             </Button>
           </Popconfirm>
         </Space>
@@ -196,29 +185,29 @@ export const SequenceList: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Sequences</h2>
+    <div className="fade-in-up">
+      <div className="page-header">
+        <h2 className="page-title">Последовательности событий</h2>
         <Space>
           <Input.Search
-            placeholder="Search by name"
+            placeholder="Поиск по названию"
             onSearch={setSearchText}
-            style={{ width: 200 }}
+            style={{ width: 220 }}
             allowClear
           />
           <Select
-            placeholder="Filter by status"
-            style={{ width: 150 }}
+            placeholder="Фильтр по статусу"
+            style={{ width: 170 }}
             allowClear
             onChange={setStatusFilter}
             value={statusFilter}
           >
-            <Select.Option value="ACTIVE">ACTIVE</Select.Option>
-            <Select.Option value="INACTIVE">INACTIVE</Select.Option>
-            <Select.Option value="DRAFT">DRAFT</Select.Option>
+            <Select.Option value="ACTIVE">Активна</Select.Option>
+            <Select.Option value="INACTIVE">Неактивна</Select.Option>
+            <Select.Option value="DRAFT">Черновик</Select.Option>
           </Select>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/sequences/new')}>
-            Create Sequence
+            Создать
           </Button>
         </Space>
       </div>
@@ -228,7 +217,10 @@ export const SequenceList: React.FC = () => {
         dataSource={sequences}
         loading={loading}
         rowKey="id"
-        pagination={pagination}
+        pagination={{
+          ...pagination,
+          showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+        }}
         onChange={handleTableChange}
       />
     </div>

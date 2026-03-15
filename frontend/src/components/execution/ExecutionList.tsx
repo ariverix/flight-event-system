@@ -5,6 +5,20 @@ import { useNavigate } from 'react-router-dom';
 import { executionApi } from '../../api/executionApi';
 import { ExecutionInstanceResponse, ExecutionStatus } from '../../types/execution';
 
+const STATUS_LABEL: Record<string, string> = {
+  RUNNING:   'Выполняется',
+  COMPLETED: 'Завершено',
+  ABORTED:   'Прервано',
+  WAITING:   'Ожидание',
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  RUNNING:   'processing',
+  COMPLETED: 'success',
+  ABORTED:   'error',
+  WAITING:   'warning',
+};
+
 export const ExecutionList: React.FC = () => {
   const [executions, setExecutions] = useState<ExecutionInstanceResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -14,23 +28,19 @@ export const ExecutionList: React.FC = () => {
   const navigate = useNavigate();
 
   const loadExecutions = async (
-    page: number = 0,
-    size: number = 10,
+    page = 0,
+    size = 10,
     status?: ExecutionStatus,
-    aircraftId?: string
+    aircraftId?: string,
   ) => {
     setLoading(true);
     try {
       const data = await executionApi.getExecutions(page, size, status, aircraftId);
       setExecutions(data.content);
-      setPagination({
-        current: page + 1,
-        pageSize: size,
-        total: data.totalElements,
-      });
+      setPagination({ current: page + 1, pageSize: size, total: data.totalElements });
     } catch (error: any) {
       notification.error({
-        message: 'Failed to load executions',
+        message: 'Ошибка загрузки выполнений',
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -42,76 +52,48 @@ export const ExecutionList: React.FC = () => {
     loadExecutions(0, pagination.pageSize, statusFilter, aircraftIdFilter);
   }, [statusFilter, aircraftIdFilter]);
 
-  const handleTableChange = (newPagination: any) => {
-    loadExecutions(newPagination.current - 1, newPagination.pageSize, statusFilter, aircraftIdFilter);
-  };
-
-  const getStatusColor = (status: ExecutionStatus) => {
-    switch (status) {
-      case 'RUNNING':
-        return 'processing';
-      case 'COMPLETED':
-        return 'success';
-      case 'ABORTED':
-        return 'error';
-      case 'WAITING':
-        return 'warning';
-      default:
-        return 'default';
-    }
+  const handleTableChange = (pg: any) => {
+    loadExecutions(pg.current - 1, pg.pageSize, statusFilter, aircraftIdFilter);
   };
 
   const columns = [
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+    { title: 'Последовательность', dataIndex: 'sequenceName', key: 'sequenceName' },
+    { title: 'Идент. ВС', dataIndex: 'aircraftId', key: 'aircraftId' },
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
-    },
-    {
-      title: 'Sequence',
-      dataIndex: 'sequenceName',
-      key: 'sequenceName',
-    },
-    {
-      title: 'Aircraft ID',
-      dataIndex: 'aircraftId',
-      key: 'aircraftId',
-    },
-    {
-      title: 'Flight Number',
+      title: 'Номер рейса',
       dataIndex: 'flightNumber',
       key: 'flightNumber',
-      render: (flightNumber: string | null) => flightNumber || 'N/A',
+      render: (v: string | null) => v || '—',
     },
     {
-      title: 'Status',
+      title: 'Статус',
       dataIndex: 'status',
       key: 'status',
       render: (status: ExecutionStatus) => (
-        <Tag color={getStatusColor(status)}>{status}</Tag>
+        <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
       ),
     },
     {
-      title: 'Current Step',
+      title: 'Текущий шаг',
       dataIndex: 'currentStepIndex',
       key: 'currentStepIndex',
-      render: (step: number | null) => step !== null ? `Step ${step}` : 'N/A',
+      render: (step: number | null) => step !== null ? `Шаг ${step}` : '—',
     },
     {
-      title: 'Started At',
+      title: 'Начало',
       dataIndex: 'startedAt',
       key: 'startedAt',
-      render: (date: string) => new Date(date).toLocaleString(),
+      render: (date: string) => new Date(date).toLocaleString('ru-RU'),
     },
     {
-      title: 'Completed At',
+      title: 'Завершение',
       dataIndex: 'completedAt',
       key: 'completedAt',
-      render: (date: string | null) => date ? new Date(date).toLocaleString() : 'In Progress',
+      render: (date: string | null) => date ? new Date(date).toLocaleString('ru-RU') : 'В процессе',
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
       render: (_: any, record: ExecutionInstanceResponse) => (
         <Button
@@ -120,40 +102,42 @@ export const ExecutionList: React.FC = () => {
           icon={<EyeOutlined />}
           onClick={() => navigate(`/executions/${record.id}`)}
         >
-          View Details
+          Детали
         </Button>
       ),
     },
   ];
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Execution Instances</h2>
+    <div className="fade-in-up">
+      <div className="page-header">
+        <h2 className="page-title">Экземпляры выполнений</h2>
         <Space>
           <Input
-            placeholder="Filter by Aircraft ID"
+            placeholder="Фильтр по идент. ВС"
             style={{ width: 200 }}
             allowClear
             onChange={(e) => setAircraftIdFilter(e.target.value || undefined)}
           />
           <Select
-            placeholder="Filter by status"
-            style={{ width: 150 }}
+            placeholder="Фильтр по статусу"
+            style={{ width: 180 }}
             allowClear
             onChange={setStatusFilter}
             value={statusFilter}
           >
-            <Select.Option value="WAITING">WAITING</Select.Option>
-            <Select.Option value="RUNNING">RUNNING</Select.Option>
-            <Select.Option value="COMPLETED">COMPLETED</Select.Option>
-            <Select.Option value="ABORTED">ABORTED</Select.Option>
+            <Select.Option value="WAITING">Ожидание</Select.Option>
+            <Select.Option value="RUNNING">Выполняется</Select.Option>
+            <Select.Option value="COMPLETED">Завершено</Select.Option>
+            <Select.Option value="ABORTED">Прервано</Select.Option>
           </Select>
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => loadExecutions(pagination.current - 1, pagination.pageSize, statusFilter, aircraftIdFilter)}
+            onClick={() =>
+              loadExecutions(pagination.current - 1, pagination.pageSize, statusFilter, aircraftIdFilter)
+            }
           >
-            Refresh
+            Обновить
           </Button>
         </Space>
       </div>
@@ -163,7 +147,10 @@ export const ExecutionList: React.FC = () => {
         dataSource={executions}
         loading={loading}
         rowKey="id"
-        pagination={pagination}
+        pagination={{
+          ...pagination,
+          showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+        }}
         onChange={handleTableChange}
       />
     </div>

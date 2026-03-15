@@ -23,6 +23,9 @@ public class SpaController {
             "/messages/**",
             "/simulator/**",
             "/users/**",
+            "/audit-log",
+            "/profile",
+            "/demo",
             "/login",
             "/dashboard"
     })

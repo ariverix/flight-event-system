@@ -23,7 +23,7 @@ export const authApi = {
   },
 
   toggleUser: async (userId: number): Promise<UserResponse> => {
-    const response = await api.patch<UserResponse>(`/users/${userId}/toggle`);
+    const response = await api.put<UserResponse>(`/users/${userId}/toggle`);
     return response.data;
   },
 };

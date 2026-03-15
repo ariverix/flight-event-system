@@ -40,12 +40,17 @@ export const sequenceApi = {
   },
 
   activateSequence: async (id: number): Promise<SequenceResponse> => {
-    const response = await api.patch<SequenceResponse>(`/sequences/${id}/activate`);
+    const response = await api.post<SequenceResponse>(`/sequences/${id}/activate`);
     return response.data;
   },
 
   deactivateSequence: async (id: number): Promise<SequenceResponse> => {
-    const response = await api.patch<SequenceResponse>(`/sequences/${id}/deactivate`);
+    const response = await api.post<SequenceResponse>(`/sequences/${id}/deactivate`);
+    return response.data;
+  },
+
+  reorderSteps: async (sequenceId: number, stepIds: number[]): Promise<StepResponse[]> => {
+    const response = await api.put<StepResponse[]>(`/sequences/${sequenceId}/steps/reorder`, stepIds);
     return response.data;
   },
 
