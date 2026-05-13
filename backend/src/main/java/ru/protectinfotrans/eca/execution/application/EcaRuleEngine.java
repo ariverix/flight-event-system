@@ -39,28 +39,28 @@ public class EcaRuleEngine {
     public StepResult executeStep(Step step, ExecutionInstance instance, ExecutionContext context) {
         log.debug("Executing step {} (type: {}) for instance {}", step.getOrderIndex(), step.getStepType(), instance.getId());
 
-        // Сбросить результаты предыдущего выполнения
+        // Cброси результатов предыдущего выполнения
         actionStepRule.reset();
         evaluateStepRule.reset();
         waitStepRule.reset();
 
-        // Создать факты для Easy Rules
+        // Создание фактов для Easy Rules
         Facts facts = new Facts();
         facts.put("step", step);
         facts.put("instance", instance);
         facts.put("context", context);
 
-        // Создать набор правил
+        // Создание набор правил
         Rules rules = new Rules();
         rules.register(actionStepRule);
         rules.register(evaluateStepRule);
         rules.register(waitStepRule);
 
-        // Выполнить правила
+        // Выполнение правил
         DefaultRulesEngine rulesEngine = new DefaultRulesEngine();
         rulesEngine.fire(rules, facts);
 
-        // Получить результат из соответствующего правила
+        // Получение результата из соответствующего правила
         StepResult result = switch (step.getStepType()) {
             case ACTION -> actionStepRule.getResult();
             case EVALUATE -> evaluateStepRule.getResult();

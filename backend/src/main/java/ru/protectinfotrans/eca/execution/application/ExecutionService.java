@@ -396,7 +396,7 @@ public class ExecutionService {
                     .orElse(null);
 
             if (currentStep != null) {
-                // Таймаут истёк → результат FAILURE
+                // По истичению таймаута, результат FAILURE
                 advanceExecution(instance, currentStep, StepResult.FAILURE);
             }
         }

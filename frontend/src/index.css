@@ -19,11 +19,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+body[data-theme='light'] {
+  background-color: #f6f8fa;
+  color: #1f2328;
+}
+
 /* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: #161b22; }
 ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+body[data-theme='light'] ::-webkit-scrollbar-track { background: #f0f0f0; }
+body[data-theme='light'] ::-webkit-scrollbar-thumb { background: #d0d7de; }
+body[data-theme='light'] ::-webkit-scrollbar-thumb:hover { background: #9da3ab; }
 
 /* ── Animations ────────────────────────────────────────────── */
 @keyframes fade-in-up {
@@ -182,3 +191,23 @@ body {
   color: #e6edf3;
   margin: 0;
 }
+
+/* ── Light theme overrides ───────────────────────────────── */
+body[data-theme='light'] .login-bg {
+  background: #f6f8fa;
+}
+
+body[data-theme='light'] .login-card {
+  background: #ffffff;
+  border-color: #d0d7de;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
+}
+
+body[data-theme='light'] .login-title { color: #1f2328; }
+body[data-theme='light'] .login-subtitle { color: #636c76; }
+
+body[data-theme='light'] .sidebar-logo { border-bottom-color: #d8dee4; }
+body[data-theme='light'] .sidebar-logo-name { color: #1f2328; }
+body[data-theme='light'] .sidebar-logo-sub { color: #9da3ab; }
+
+body[data-theme='light'] .page-title { color: #1f2328; }

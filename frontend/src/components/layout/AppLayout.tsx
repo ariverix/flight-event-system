@@ -13,9 +13,12 @@ import {
   SafetyCertificateOutlined,
   ProfileOutlined,
   PlaySquareOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../context/ThemeContext';
 import { executionApi } from '../../api/executionApi';
 import { ExecutionInstanceResponse } from '../../types/execution';
 
@@ -45,9 +48,30 @@ export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isAdmin } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
 
   const [activeExecutions, setActiveExecutions] = useState<ExecutionInstanceResponse[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  const c = isDark
+    ? {
+        bgElevated: '#1c2128',
+        border: '#30363d',
+        borderSecondary: '#21262d',
+        text: '#e6edf3',
+        textMuted: '#848d97',
+        textDimmer: '#484f58',
+        bgContainer: '#161b22',
+      }
+    : {
+        bgElevated: '#f6f8fa',
+        border: '#d0d7de',
+        borderSecondary: '#d8dee4',
+        text: '#1f2328',
+        textMuted: '#636c76',
+        textDimmer: '#9da3ab',
+        bgContainer: '#ffffff',
+      };
 
   // Poll for active executions every 10 s
   useEffect(() => {
@@ -92,8 +116,8 @@ export const AppLayout: React.FC = () => {
     <div
       style={{
         width: 320,
-        background: '#1c2128',
-        border: '1px solid #30363d',
+        background: c.bgElevated,
+        border: `1px solid ${c.border}`,
         borderRadius: 8,
         boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
         overflow: 'hidden',
@@ -102,31 +126,31 @@ export const AppLayout: React.FC = () => {
       <div
         style={{
           padding: '12px 16px',
-          borderBottom: '1px solid #21262d',
+          borderBottom: `1px solid ${c.borderSecondary}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <Text strong style={{ color: '#e6edf3' }}>Активные выполнения</Text>
-        <Text style={{ color: '#848d97', fontSize: 12 }}>{activeExecutions.length} активных</Text>
+        <Text strong style={{ color: c.text }}>Активные выполнения</Text>
+        <Text style={{ color: c.textMuted, fontSize: 12 }}>{activeExecutions.length} активных</Text>
       </div>
 
       {activeExecutions.length === 0 ? (
         <div style={{ padding: '24px 16px' }}>
-          <Empty description={<Text style={{ color: '#848d97' }}>Нет активных выполнений</Text>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={<Text style={{ color: c.textMuted }}>Нет активных выполнений</Text>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </div>
       ) : (
         <List
           dataSource={activeExecutions}
           renderItem={exec => (
             <List.Item
-              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #21262d' }}
+              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: `1px solid ${c.borderSecondary}` }}
               onClick={() => { navigate(`/executions/${exec.id}`); setNotifOpen(false); }}
             >
               <div style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <Text strong style={{ color: '#e6edf3', fontSize: 13 }}>
+                  <Text strong style={{ color: c.text, fontSize: 13 }}>
                     {exec.sequenceName}
                   </Text>
                   <span
@@ -139,7 +163,7 @@ export const AppLayout: React.FC = () => {
                     {STATUS_LABEL_RU[exec.status] ?? exec.status}
                   </span>
                 </div>
-                <Text style={{ color: '#848d97', fontSize: 12 }}>
+                <Text style={{ color: c.textMuted, fontSize: 12 }}>
                   ВС: {exec.aircraftId}
                   {exec.flightNumber ? ` · Рейс: ${exec.flightNumber}` : ''}
                 </Text>
@@ -152,7 +176,7 @@ export const AppLayout: React.FC = () => {
       <div
         style={{
           padding: '10px 16px',
-          borderTop: '1px solid #21262d',
+          borderTop: `1px solid ${c.borderSecondary}`,
           textAlign: 'center',
         }}
       >
@@ -174,7 +198,7 @@ export const AppLayout: React.FC = () => {
           height: '100vh',
           position: 'fixed',
           left: 0, top: 0, bottom: 0,
-          borderRight: '1px solid #21262d',
+          borderRight: `1px solid ${c.borderSecondary}`,
         }}
       >
         {/* Logo */}
@@ -189,7 +213,7 @@ export const AppLayout: React.FC = () => {
         </div>
 
         <Menu
-          theme="dark"
+          theme={isDark ? 'dark' : 'light'}
           mode="inline"
           selectedKeys={[activeKey]}
           items={menuItems}
@@ -203,12 +227,12 @@ export const AppLayout: React.FC = () => {
             position: 'absolute',
             bottom: 0, left: 0, right: 0,
             padding: '12px 16px',
-            borderTop: '1px solid #21262d',
+            borderTop: `1px solid ${c.borderSecondary}`,
             display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
           <span className="online-dot" />
-          <Text style={{ fontSize: 11, color: '#484f58' }}>Система онлайн · v1.0.0</Text>
+          <Text style={{ fontSize: 11, color: c.textDimmer }}>Система онлайн · v1.0.0</Text>
         </div>
       </Sider>
 
@@ -219,7 +243,7 @@ export const AppLayout: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid #21262d',
+            borderBottom: `1px solid ${c.borderSecondary}`,
             position: 'sticky',
             top: 0,
             zIndex: 100,
@@ -230,14 +254,24 @@ export const AppLayout: React.FC = () => {
             status="processing"
             color="#00c853"
             text={
-              <Text style={{ fontSize: 12, color: '#848d97' }}>
+              <Text style={{ fontSize: 12, color: c.textMuted }}>
                 Авиационная система мониторинга событий
               </Text>
             }
           />
 
-          {/* Right: notifications + user */}
+          {/* Right: theme toggle + notifications + user */}
           <Space size={8}>
+            {/* Theme toggle */}
+            <Tooltip title={isDark ? 'Светлая тема' : 'Тёмная тема'}>
+              <Button
+                type="text"
+                icon={isDark ? <SunOutlined style={{ fontSize: 16 }} /> : <MoonOutlined style={{ fontSize: 16 }} />}
+                onClick={toggleTheme}
+                style={{ color: c.textMuted }}
+              />
+            </Tooltip>
+
             {/* Notifications bell */}
             <Dropdown
               open={notifOpen}
@@ -251,7 +285,7 @@ export const AppLayout: React.FC = () => {
                   <Button
                     type="text"
                     icon={<BellOutlined style={{ fontSize: 16 }} />}
-                    style={{ color: activeExecutions.length > 0 ? '#faad14' : '#848d97' }}
+                    style={{ color: activeExecutions.length > 0 ? '#faad14' : c.textMuted }}
                   />
                 </Badge>
               </Tooltip>
@@ -263,10 +297,10 @@ export const AppLayout: React.FC = () => {
                 onClick={() => navigate('/profile')}
                 style={{ textAlign: 'right', cursor: 'pointer' }}
               >
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#e6edf3', lineHeight: 1.2 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: c.text, lineHeight: 1.2 }}>
                   {user?.fullName}
                 </div>
-                <div style={{ fontSize: 11, color: '#848d97' }}>
+                <div style={{ fontSize: 11, color: c.textMuted }}>
                   {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
                 </div>
               </div>
@@ -277,7 +311,7 @@ export const AppLayout: React.FC = () => {
                 type="text"
                 icon={<ProfileOutlined />}
                 onClick={() => navigate('/profile')}
-                style={{ color: '#848d97' }}
+                style={{ color: c.textMuted }}
               />
             </Tooltip>
 
@@ -286,7 +320,7 @@ export const AppLayout: React.FC = () => {
                 type="text"
                 icon={<LogoutOutlined />}
                 onClick={logout}
-                style={{ color: '#848d97' }}
+                style={{ color: c.textMuted }}
               />
             </Tooltip>
           </Space>
@@ -297,9 +331,9 @@ export const AppLayout: React.FC = () => {
             className="fade-in-up"
             style={{
               padding: 24,
-              background: '#161b22',
+              background: c.bgContainer,
               borderRadius: 12,
-              border: '1px solid #21262d',
+              border: `1px solid ${c.borderSecondary}`,
               minHeight: 'calc(100vh - 112px)',
             }}
           >

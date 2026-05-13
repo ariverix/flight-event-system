@@ -15,7 +15,7 @@ FROM eclipse-temurin:21-jdk-alpine AS backend-build
 WORKDIR /app
 COPY backend/.mvn/ .mvn/
 COPY backend/mvnw backend/pom.xml ./
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
+RUN sed -i 's/\r//' mvnw && chmod +x mvnw && ./mvnw dependency:go-offline -B
 COPY backend/src/ src/
 # Копировать собранный фронтенд в статические ресурсы Spring Boot
 COPY --from=frontend-build /frontend/dist/ src/main/resources/static/
