@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, Form, Input, Select, Button, Space, notification, Divider, Radio, Tag, Typography } from 'antd';
 import { SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { messageApi } from '../../api/messageApi';
+import { useTheme } from '../../context/ThemeContext';
 
 const { Text } = Typography;
 
@@ -9,6 +10,11 @@ export const MessageSimulator: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [simulationType, setSimulationType] = useState<'message' | 'stage'>('message');
+  const { isDark } = useTheme();
+
+  const c = isDark
+    ? { borderSecondary: '#21262d', text: '#e6edf3', textMuted: '#848d97', textDimmer: '#484f58', bgElevated: '#1c2128' }
+    : { borderSecondary: '#d8dee4', text: '#1f2328', textMuted: '#636c76', textDimmer: '#9da3ab', bgElevated: '#f6f8fa' };
 
   const handleSendMessage = async (values: any) => {
     setLoading(true);
@@ -58,7 +64,7 @@ export const MessageSimulator: React.FC = () => {
         <h2 className="page-title">Симулятор событий</h2>
       </div>
 
-      <Card style={{ borderColor: '#21262d' }}>
+      <Card style={{ borderColor: c.borderSecondary }}>
         <Radio.Group
           value={simulationType}
           onChange={(e) => {
@@ -177,67 +183,67 @@ export const MessageSimulator: React.FC = () => {
       </Card>
 
       <Card
-        title={<span style={{ color: '#e6edf3' }}>Тестовые сценарии</span>}
-        style={{ marginTop: 16, borderColor: '#21262d' }}
+        title={<span style={{ color: c.text }}>Тестовые сценарии</span>}
+        style={{ marginTop: 16, borderColor: c.borderSecondary }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size={4}>
           <div
             style={{
               padding: '12px 16px',
               borderRadius: 8,
-              background: '#1c2128',
-              border: '1px solid #21262d',
+              background: c.bgElevated,
+              border: `1px solid ${c.borderSecondary}`,
             }}
           >
             <Text strong style={{ color: '#1677ff' }}>Сценарий 1: Доклад о местоположении</Text>
             <br />
-            <Text style={{ color: '#848d97', fontSize: 13 }}>
+            <Text style={{ color: c.textMuted, fontSize: 13 }}>
               Тип: DOWNLINK · Шаблон: POSITION_REPORT · ВС: SU9876
             </Text>
             <br />
-            <Text style={{ color: '#484f58', fontSize: 12 }}>
+            <Text style={{ color: c.textDimmer, fontSize: 12 }}>
               Метаданные: {'{"latitude": 55.7558, "longitude": 37.6173}'}
             </Text>
           </div>
 
-          <Divider style={{ margin: '8px 0', borderColor: '#21262d' }} />
+          <Divider style={{ margin: '8px 0', borderColor: c.borderSecondary }} />
 
           <div
             style={{
               padding: '12px 16px',
               borderRadius: 8,
-              background: '#1c2128',
-              border: '1px solid #21262d',
+              background: c.bgElevated,
+              border: `1px solid ${c.borderSecondary}`,
             }}
           >
             <Text strong style={{ color: '#00c853' }}>Сценарий 2: Прогрессия фаз полёта</Text>
             <br />
-            <Text style={{ color: '#848d97', fontSize: 13 }}>
+            <Text style={{ color: c.textMuted, fontSize: 13 }}>
               INIT → OUT → OFF → ON → IN
             </Text>
             <br />
-            <Text style={{ color: '#484f58', fontSize: 12 }}>
+            <Text style={{ color: c.textDimmer, fontSize: 12 }}>
               Последовательно меняйте фазы для ВС SU9876
             </Text>
           </div>
 
-          <Divider style={{ margin: '8px 0', borderColor: '#21262d' }} />
+          <Divider style={{ margin: '8px 0', borderColor: c.borderSecondary }} />
 
           <div
             style={{
               padding: '12px 16px',
               borderRadius: 8,
-              background: '#1c2128',
-              border: '1px solid #21262d',
+              background: c.bgElevated,
+              border: `1px solid ${c.borderSecondary}`,
             }}
           >
             <Text strong style={{ color: '#faad14' }}>Сценарий 3: Метеосводка</Text>
             <br />
-            <Text style={{ color: '#848d97', fontSize: 13 }}>
+            <Text style={{ color: c.textMuted, fontSize: 13 }}>
               Тип: GROUND · Шаблон: WEATHER_UPDATE · ВС: SU9876
             </Text>
             <br />
-            <Text style={{ color: '#484f58', fontSize: 12 }}>
+            <Text style={{ color: c.textDimmer, fontSize: 12 }}>
               Метаданные: {'{"temperature": -5, "wind": "10kt"}'}
             </Text>
           </div>

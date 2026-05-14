@@ -3,11 +3,17 @@ import { Form, Input, Button, notification } from 'antd';
 import { UserOutlined, LockOutlined, RocketOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../context/ThemeContext';
 
 export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { isDark } = useTheme();
+
+  const c = isDark
+    ? { border: '#30363d', bgInput: '#1c2128', textDimmer: '#484f58', borderSecondary: '#21262d' }
+    : { border: '#d0d7de', bgInput: '#ffffff', textDimmer: '#9da3ab', borderSecondary: '#d8dee4' };
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -48,9 +54,9 @@ export const LoginPage: React.FC = () => {
             rules={[{ required: true, message: 'Введите имя пользователя' }]}
           >
             <Input
-              prefix={<UserOutlined style={{ color: '#484f58' }} />}
+              prefix={<UserOutlined style={{ color: c.textDimmer }} />}
               placeholder="Имя пользователя"
-              style={{ background: '#1c2128', border: '1px solid #30363d' }}
+              style={{ background: c.bgInput, border: `1px solid ${c.border}` }}
             />
           </Form.Item>
 
@@ -59,9 +65,9 @@ export const LoginPage: React.FC = () => {
             rules={[{ required: true, message: 'Введите пароль' }]}
           >
             <Input.Password
-              prefix={<LockOutlined style={{ color: '#484f58' }} />}
+              prefix={<LockOutlined style={{ color: c.textDimmer }} />}
               placeholder="Пароль"
-              style={{ background: '#1c2128', border: '1px solid #30363d' }}
+              style={{ background: c.bgInput, border: `1px solid ${c.border}` }}
             />
           </Form.Item>
 
@@ -88,8 +94,8 @@ export const LoginPage: React.FC = () => {
             marginTop: 20,
             textAlign: 'center',
             fontSize: 11,
-            color: '#484f58',
-            borderTop: '1px solid #21262d',
+            color: c.textDimmer,
+            borderTop: `1px solid ${c.borderSecondary}`,
             paddingTop: 16,
           }}
         >

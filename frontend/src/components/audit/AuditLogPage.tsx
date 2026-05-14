@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Tag, Select, Space, Button, notification, Tooltip } from 'antd';
 import { ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { auditApi, AuditLogEntry } from '../../api/auditApi';
+import { useTheme } from '../../context/ThemeContext';
 
 const ENTITY_TYPE_COLORS: Record<string, string> = {
   SEQUENCE:  'blue',
@@ -57,6 +58,8 @@ export const AuditLogPage: React.FC = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [entityTypeFilter, setEntityTypeFilter] = useState<string | undefined>();
   const [actionFilter, setActionFilter] = useState<string | undefined>();
+  const { isDark } = useTheme();
+  const c = isDark ? { textMuted: '#848d97' } : { textMuted: '#636c76' };
 
   const loadLogs = async (page = 0, size = 20, entityType?: string, action?: string) => {
     setLoading(true);
@@ -104,7 +107,7 @@ export const AuditLogPage: React.FC = () => {
             {ENTITY_TYPE_LABELS[type] ?? type}
           </Tag>
           {record.entityId && (
-            <span style={{ color: '#848d97', fontSize: 12 }}>#{record.entityId}</span>
+            <span style={{ color: c.textMuted, fontSize: 12 }}>#{record.entityId}</span>
           )}
         </Space>
       ) : '—',
@@ -128,7 +131,7 @@ export const AuditLogPage: React.FC = () => {
           const text = JSON.stringify(parsed, null, 2);
           return (
             <Tooltip title={<pre style={{ fontSize: 11, margin: 0 }}>{text}</pre>}>
-              <span style={{ cursor: 'help', color: '#848d97', fontSize: 12 }}>
+              <span style={{ cursor: 'help', color: c.textMuted, fontSize: 12 }}>
                 {Object.keys(parsed).slice(0, 2).join(', ')}…
               </span>
             </Tooltip>

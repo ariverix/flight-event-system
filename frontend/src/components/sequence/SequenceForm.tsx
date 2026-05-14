@@ -7,6 +7,7 @@ import { SequenceResponse, StepResponse, StepCreateRequest } from '../../types/s
 import { CriteriaEditor } from './CriteriaEditor';
 import { StepForm } from './StepForm';
 import { SequenceFlow } from './SequenceFlow';
+import { useTheme } from '../../context/ThemeContext';
 
 const STEP_TYPE_COLOR: Record<string, string> = {
   ACTION:   'blue',
@@ -29,6 +30,10 @@ export const SequenceForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditMode = id && id !== 'new';
+  const { isDark } = useTheme();
+  const c = isDark
+    ? { borderSecondary: '#21262d', text: '#e6edf3' }
+    : { borderSecondary: '#d8dee4', text: '#1f2328' };
 
   useEffect(() => {
     if (isEditMode) loadSequence();
@@ -235,7 +240,7 @@ export const SequenceForm: React.FC = () => {
         {isEditMode ? 'Редактировать последовательность' : 'Создать последовательность'}
       </h2>
 
-      <Card style={{ marginBottom: 16, borderColor: '#21262d' }}>
+      <Card style={{ marginBottom: 16, borderColor: c.borderSecondary }}>
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
             name="name"
@@ -275,8 +280,8 @@ export const SequenceForm: React.FC = () => {
       {sequence && (
         <>
           <Card
-            title={<span style={{ color: '#e6edf3' }}>Шаги последовательности</span>}
-            style={{ marginBottom: 16, borderColor: '#21262d' }}
+            title={<span style={{ color: c.text }}>Шаги последовательности</span>}
+            style={{ marginBottom: 16, borderColor: c.borderSecondary }}
           >
             <Button
               type="dashed"
@@ -297,8 +302,8 @@ export const SequenceForm: React.FC = () => {
 
           {sequence.steps.length > 0 && (
             <Card
-              title={<span style={{ color: '#e6edf3' }}>Визуальная схема</span>}
-              style={{ borderColor: '#21262d' }}
+              title={<span style={{ color: c.text }}>Визуальная схема</span>}
+              style={{ borderColor: c.borderSecondary }}
             >
               <SequenceFlow steps={sequence.steps} />
             </Card>

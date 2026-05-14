@@ -8,6 +8,7 @@ import { ExecutionInstanceResponse, StepResult } from '../../types/execution';
 import { SequenceResponse } from '../../types/sequence';
 import { ExecutionFlow } from './ExecutionFlow';
 import { usePolling } from '../../hooks/usePolling';
+import { useTheme } from '../../context/ThemeContext';
 
 const STATUS_LABEL: Record<string, string> = {
   RUNNING:   'Выполняется',
@@ -41,6 +42,10 @@ export const ExecutionDetail: React.FC = () => {
   const [execution, setExecution] = useState<ExecutionInstanceResponse | null>(null);
   const [sequence, setSequence] = useState<SequenceResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const { isDark } = useTheme();
+  const c = isDark
+    ? { borderSecondary: '#21262d', text: '#e6edf3' }
+    : { borderSecondary: '#d8dee4', text: '#1f2328' };
 
   const loadExecution = async () => {
     if (!id) return;
@@ -143,8 +148,8 @@ export const ExecutionDetail: React.FC = () => {
       </div>
 
       <Card
-        title={<span style={{ color: '#e6edf3' }}>Детали выполнения</span>}
-        style={{ marginBottom: 16, borderColor: '#21262d' }}
+        title={<span style={{ color: c.text }}>Детали выполнения</span>}
+        style={{ marginBottom: 16, borderColor: c.borderSecondary }}
       >
         <Descriptions bordered column={2} size="small">
           <Descriptions.Item label="ID выполнения">{execution.id}</Descriptions.Item>
@@ -178,8 +183,8 @@ export const ExecutionDetail: React.FC = () => {
       </Card>
 
       <Card
-        title={<span style={{ color: '#e6edf3' }}>Визуальный прогресс</span>}
-        style={{ marginBottom: 16, borderColor: '#21262d' }}
+        title={<span style={{ color: c.text }}>Визуальный прогресс</span>}
+        style={{ marginBottom: 16, borderColor: c.borderSecondary }}
       >
         <ExecutionFlow
           steps={sequence.steps}
@@ -189,8 +194,8 @@ export const ExecutionDetail: React.FC = () => {
       </Card>
 
       <Card
-        title={<span style={{ color: '#e6edf3' }}>История выполнения шагов</span>}
-        style={{ borderColor: '#21262d' }}
+        title={<span style={{ color: c.text }}>История выполнения шагов</span>}
+        style={{ borderColor: c.borderSecondary }}
       >
         <Table
           columns={stepColumns}

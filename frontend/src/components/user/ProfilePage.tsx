@@ -3,6 +3,7 @@ import { Card, Descriptions, Tag, Spin, notification, Avatar, Typography } from 
 import { UserOutlined, SafetyOutlined, CalendarOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/authApi';
 import { UserResponse } from '../../types/auth';
+import { useTheme } from '../../context/ThemeContext';
 
 const { Title, Text } = Typography;
 
@@ -19,6 +20,11 @@ const ROLE_COLOR: Record<string, string> = {
 export const ProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isDark } = useTheme();
+
+  const c = isDark
+    ? { borderSecondary: '#21262d', text: '#e6edf3', textMuted: '#848d97' }
+    : { borderSecondary: '#d8dee4', text: '#1f2328', textMuted: '#636c76' };
 
   useEffect(() => {
     authApi.me()
@@ -47,7 +53,7 @@ export const ProfilePage: React.FC = () => {
       <h2 className="page-title" style={{ marginBottom: 24 }}>Профиль пользователя</h2>
 
       {/* Avatar card */}
-      <Card style={{ marginBottom: 16, borderColor: '#21262d' }}>
+      <Card style={{ marginBottom: 16, borderColor: c.borderSecondary }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <Avatar
             size={72}
@@ -58,8 +64,8 @@ export const ProfilePage: React.FC = () => {
             }}
           />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#e6edf3' }}>{profile.fullName}</Title>
-            <Text style={{ color: '#848d97' }}>@{profile.username}</Text>
+            <Title level={4} style={{ margin: 0, color: c.text }}>{profile.fullName}</Title>
+            <Text style={{ color: c.textMuted }}>@{profile.username}</Text>
             <div style={{ marginTop: 6 }}>
               <Tag color={ROLE_COLOR[profile.role]}>{ROLE_LABEL[profile.role] ?? profile.role}</Tag>
               <Tag color={profile.enabled ? 'green' : 'default'}>
@@ -72,8 +78,8 @@ export const ProfilePage: React.FC = () => {
 
       {/* Details */}
       <Card
-        title={<span style={{ color: '#e6edf3' }}>Учётные данные</span>}
-        style={{ borderColor: '#21262d' }}
+        title={<span style={{ color: c.text }}>Учётные данные</span>}
+        style={{ borderColor: c.borderSecondary }}
       >
         <Descriptions column={1} bordered size="small">
           <Descriptions.Item
