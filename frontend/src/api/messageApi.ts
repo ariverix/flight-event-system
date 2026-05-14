@@ -8,7 +8,7 @@ export const messageApi = {
   },
 
   changeFlightStage: async (request: FlightStageChangeRequest): Promise<void> => {
-    await api.post('/messages/stage-change', request);
+    await api.post('/flights/stage-change', request);
   },
 
   getMessages: async (

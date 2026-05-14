@@ -246,9 +246,15 @@ export const DemoPage: React.FC = () => {
       return;
     }
 
+    // Запоминаем максимальный ID выполнения ДО отправки события
+    let maxExistingId = 0;
+    try {
+      const existing = await executionApi.getExecutions(0, 1, undefined, sc.aircraft);
+      if (existing.content.length > 0) maxExistingId = existing.content[0].id;
+    } catch {/* ignore */}
+
     setPhase('triggering');
     addLog(`Отправляем триггерное событие...`);
-    const before = Date.now();
     try {
       if (sc.trigger.type === 'stage') {
         await messageApi.changeFlightStage(sc.trigger.payload);
@@ -272,9 +278,10 @@ export const DemoPage: React.FC = () => {
       pollRef.current = setInterval(async () => {
         attempts++;
         try {
-          const page = await executionApi.getExecutions(0, 10, undefined, sc.aircraft);
+          const page = await executionApi.getExecutions(0, 20, undefined, sc.aircraft);
+          // Ищем новое выполнение (ID > maxExistingId) для нужной последовательности
           const match = page.content.find(
-            e => e.sequenceId === seqId && new Date(e.startedAt).getTime() >= before - 3000
+            e => e.sequenceId === seqId && e.id > maxExistingId
           );
           if (match) {
             foundExec = match;

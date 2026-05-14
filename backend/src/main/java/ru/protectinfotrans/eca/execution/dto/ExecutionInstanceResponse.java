@@ -13,6 +13,7 @@ import java.util.List;
 public record ExecutionInstanceResponse(
         Long id,
         Long sequenceId,
+        String sequenceName,
         String aircraftId,
         String flightNumber,
         ExecutionStatus status,
@@ -22,6 +23,6 @@ public record ExecutionInstanceResponse(
         LocalDateTime waitTimeoutAt,
         LocalDateTime startedAt,
         LocalDateTime completedAt,
-        List<StepExecutionResponse> stepHistory
+        List<StepExecutionResponse> stepExecutions
 ) {
 }

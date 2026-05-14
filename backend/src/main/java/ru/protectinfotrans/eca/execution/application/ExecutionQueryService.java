@@ -13,6 +13,7 @@ import ru.protectinfotrans.eca.execution.dto.ExecutionInstanceResponse;
 import ru.protectinfotrans.eca.execution.dto.StepExecutionResponse;
 import ru.protectinfotrans.eca.execution.port.in.ExecutionManagementUseCase;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
+import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
 import ru.protectinfotrans.eca.sequence.dto.PageResponse;
 
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.NoSuchElementException;
 public class ExecutionQueryService implements ExecutionManagementUseCase {
 
     private final ExecutionRepositoryPort executionRepository;
+    private final SequenceQueryPort sequenceQuery;
 
     @Override
     public PageResponse<ExecutionInstanceResponse> listExecutions(
@@ -63,13 +65,18 @@ public class ExecutionQueryService implements ExecutionManagementUseCase {
     }
 
     private ExecutionInstanceResponse toResponse(ExecutionInstance instance) {
-        List<StepExecutionResponse> stepHistory = instance.getStepHistory().stream()
+        List<StepExecutionResponse> steps = instance.getStepHistory().stream()
                 .map(this::toStepResponse)
                 .toList();
+
+        String sequenceName = sequenceQuery.findById(instance.getSequenceId())
+                .map(s -> s.getName())
+                .orElse("—");
 
         return new ExecutionInstanceResponse(
                 instance.getId(),
                 instance.getSequenceId(),
+                sequenceName,
                 instance.getAircraftId(),
                 instance.getFlightNumber(),
                 instance.getStatus(),
@@ -79,7 +86,7 @@ public class ExecutionQueryService implements ExecutionManagementUseCase {
                 instance.getWaitTimeoutAt(),
                 instance.getStartedAt(),
                 instance.getCompletedAt(),
-                stepHistory
+                steps
         );
     }
 

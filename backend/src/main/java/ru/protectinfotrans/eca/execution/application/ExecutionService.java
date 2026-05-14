@@ -28,6 +28,8 @@ import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;
 import ru.protectinfotrans.eca.sequence.domain.Step;
 import ru.protectinfotrans.eca.sequence.domain.TransitionAction;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -80,25 +82,51 @@ public class ExecutionService {
     /**
      * Проверить start критерии всех активных последовательностей.
      * Если критерии совпадают — запустить новый экземпляр для данного ВС.
+     *
+     * Для MESSAGE_RECEIVED используется прямое сравнение с текущим событием,
+     * а не запрос истории БД — иначе старые сообщения вызывали бы повторный запуск.
      */
     private void checkStartCriteria(NormalizedEvent event) {
         List<Sequence> activeSequences = sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE);
 
         for (Sequence sequence : activeSequences) {
             if (sequence.getStartCriteriaJson() == null || sequence.getStartCriteriaJson().isBlank()) {
-                // Пустой start criteria = запуск в начале каждого нового рейса (FlightStage = INIT)
                 if (event.flightStage() == FlightStage.INIT) {
                     startExecution(sequence.getId(), event.aircraftId(), event.flightNumber());
                 }
             } else {
-                ExecutionContext context = buildContext(event);
-                boolean criterionMet = criterionEvaluator.evaluate(sequence.getStartCriteriaJson(), context, null);
-
+                boolean criterionMet = matchesStartCriteria(sequence.getStartCriteriaJson(), event);
                 if (criterionMet) {
                     log.info("Start criteria met for sequence {} and aircraft {}", sequence.getId(), event.aircraftId());
                     startExecution(sequence.getId(), event.aircraftId(), event.flightNumber());
                 }
             }
+        }
+    }
+
+    /**
+     * Проверяет, соответствует ли текущее событие критерию запуска.
+     * MESSAGE_RECEIVED: прямое сравнение с событием (не запрос к БД).
+     * Остальные типы: стандартный CriterionEvaluator.
+     */
+    private boolean matchesStartCriteria(String criteriaJson, NormalizedEvent event) {
+        try {
+            Map<String, Object> criteria = objectMapper.readValue(criteriaJson, new TypeReference<>() {});
+            String type = (String) criteria.get("type");
+
+            if ("MESSAGE_RECEIVED".equals(type)) {
+                if (event.messageType() == null || event.templateName() == null) return false;
+                String requiredType = (String) criteria.get("messageType");
+                String requiredTemplate = (String) criteria.get("templateName");
+                return event.messageType().name().equals(requiredType)
+                        && event.templateName().equals(requiredTemplate);
+            }
+
+            ExecutionContext context = buildContext(event);
+            return criterionEvaluator.evaluate(criteriaJson, context, null);
+        } catch (Exception e) {
+            log.error("Failed to evaluate start criterion: {}", criteriaJson, e);
+            return false;
         }
     }
 
