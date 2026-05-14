@@ -95,6 +95,8 @@ export const ExecutionList: React.FC = () => {
     {
       title: '',
       key: 'actions',
+      width: 90,
+      fixed: 'right' as const,
       render: (_: any, record: ExecutionInstanceResponse) => (
         <Button
           type="link"
@@ -147,6 +149,7 @@ export const ExecutionList: React.FC = () => {
         dataSource={executions}
         loading={loading}
         rowKey="id"
+        scroll={{ x: 900 }}
         pagination={{
           ...pagination,
           showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,

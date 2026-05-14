@@ -300,9 +300,11 @@ export const AppLayout: React.FC = () => {
                 <div style={{ fontWeight: 600, fontSize: 13, color: c.text, lineHeight: 1.2 }}>
                   {user?.fullName}
                 </div>
-                <div style={{ fontSize: 11, color: c.textMuted }}>
-                  {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
-                </div>
+                {ROLE_LABEL[user?.role ?? ''] !== user?.fullName && (
+                  <div style={{ fontSize: 11, color: c.textMuted }}>
+                    {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
+                  </div>
+                )}
               </div>
             </Tooltip>
 

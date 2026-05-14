@@ -105,7 +105,7 @@ export const SequenceList: React.FC = () => {
       onFilter: (value: any, record: SequenceResponse) =>
         record.name.toLowerCase().includes(value.toLowerCase()),
     },
-    { title: 'Описание', dataIndex: 'description', key: 'description', ellipsis: true },
+    { title: 'Описание', dataIndex: 'description', key: 'description', ellipsis: true, width: 200 },
     {
       title: 'Статус',
       dataIndex: 'status',
@@ -129,6 +129,8 @@ export const SequenceList: React.FC = () => {
     {
       title: 'Действия',
       key: 'actions',
+      width: 310,
+      fixed: 'right' as const,
       render: (_: any, record: SequenceResponse) => (
         <Space size="small">
           <Button
@@ -217,6 +219,7 @@ export const SequenceList: React.FC = () => {
         dataSource={sequences}
         loading={loading}
         rowKey="id"
+        scroll={{ x: 1000 }}
         pagination={{
           ...pagination,
           showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
