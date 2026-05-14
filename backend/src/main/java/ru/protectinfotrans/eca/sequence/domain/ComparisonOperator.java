@@ -8,9 +8,9 @@ package ru.protectinfotrans.eca.sequence.domain;
 public enum ComparisonOperator {
 
     EQUALS,
-    NOT_EQUAL,
-    GREATER,
-    LESS,
-    GREATER_EQUAL,
-    LESS_EQUAL
+    NOT_EQUALS,
+    GREATER_THAN,
+    LESS_THAN,
+    GREATER_OR_EQUAL,
+    LESS_OR_EQUAL
 }

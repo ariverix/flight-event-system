@@ -1,5 +1,7 @@
 package ru.protectinfotrans.eca.eventprocessor.adapter.in;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,6 +20,8 @@ import ru.protectinfotrans.eca.eventprocessor.dto.FlightStageChangeRequest;
 import ru.protectinfotrans.eca.eventprocessor.dto.IncomingMessageRequest;
 import ru.protectinfotrans.eca.eventprocessor.dto.MessageResponse;
 
+import java.util.Map;
+
 /**
  * REST контроллер для приёма входящих сообщений от внешних систем.
  * Реализует UC-06 (Обработать входящее сообщение).
@@ -35,6 +39,7 @@ public class MessageController {
 
     private final EventProcessorService eventProcessorService;
     private final MessageQueryService messageQueryService;
+    private final ObjectMapper objectMapper;
 
     /**
      * UC-06: Принять входящее сообщение от внешней системы.
@@ -51,13 +56,22 @@ public class MessageController {
         log.debug("POST /api/v1/messages/incoming: type={}, template={}, aircraft={}",
                 request.messageType(), request.templateName(), request.aircraftId());
 
+        Map<String, Object> metadata = null;
+        if (request.metadataJson() != null && !request.metadataJson().isBlank()) {
+            try {
+                metadata = objectMapper.readValue(request.metadataJson(), new TypeReference<>() {});
+            } catch (Exception e) {
+                log.warn("Failed to parse metadataJson: {}", e.getMessage());
+            }
+        }
+
         Long messageId = eventProcessorService.receiveMessage(
                 request.messageType(),
                 request.templateName(),
                 request.aircraftId(),
                 request.flightNumber(),
-                request.content(),
-                request.metadata()
+                null,
+                metadata
         );
 
         return ResponseEntity.ok(new MessageReceivedResponse(messageId, "Message received and processed"));
@@ -114,8 +128,8 @@ public class MessageController {
                 msg.getTemplateName(),
                 msg.getAircraftId(),
                 msg.getFlightNumber(),
-                msg.getContent(),
-                msg.getReceivedAt()
+                msg.getReceivedAt(),
+                msg.getMetadataJson()
         ));
 
         return ResponseEntity.ok(response);

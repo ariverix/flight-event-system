@@ -12,7 +12,11 @@ export const usePolling = (callback: () => void, interval: number = 5000, enable
 
     const tick = () => {
       if (savedCallback.current) {
-        savedCallback.current();
+        try {
+          savedCallback.current();
+        } catch {
+          // silently ignore polling errors
+        }
       }
     };
 

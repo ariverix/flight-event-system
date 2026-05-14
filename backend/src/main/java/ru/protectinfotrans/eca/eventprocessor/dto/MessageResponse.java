@@ -15,7 +15,7 @@ public record MessageResponse(
         String templateName,
         String aircraftId,
         String flightNumber,
-        String content,
-        LocalDateTime receivedAt
+        LocalDateTime receivedAt,
+        String metadataJson
 ) {
 }

@@ -96,11 +96,11 @@ public class CriterionEvaluator {
 
         return switch (operator) {
             case EQUALS -> currentStage == targetStage;
-            case NOT_EQUAL -> currentStage != targetStage;
-            case GREATER -> currentStage.ordinal() > targetStage.ordinal();
-            case LESS -> currentStage.ordinal() < targetStage.ordinal();
-            case GREATER_EQUAL -> currentStage.ordinal() >= targetStage.ordinal();
-            case LESS_EQUAL -> currentStage.ordinal() <= targetStage.ordinal();
+            case NOT_EQUALS -> currentStage != targetStage;
+            case GREATER_THAN -> currentStage.ordinal() > targetStage.ordinal();
+            case LESS_THAN -> currentStage.ordinal() < targetStage.ordinal();
+            case GREATER_OR_EQUAL -> currentStage.ordinal() >= targetStage.ordinal();
+            case LESS_OR_EQUAL -> currentStage.ordinal() <= targetStage.ordinal();
         };
     }
 

@@ -104,10 +104,10 @@ export const ExecutionDetail: React.FC = () => {
       render: (date: string) => new Date(date).toLocaleString('ru-RU'),
     },
     {
-      title: 'Завершение',
-      dataIndex: 'completedAt',
-      key: 'completedAt',
-      render: (date: string | null) => date ? new Date(date).toLocaleString('ru-RU') : 'В процессе',
+      title: 'Выполнен',
+      dataIndex: 'executedAt',
+      key: 'executedAtEnd',
+      render: (date: string) => new Date(date).toLocaleString('ru-RU'),
     },
     {
       title: 'Детали',

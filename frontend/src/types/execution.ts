@@ -21,6 +21,5 @@ export interface StepExecutionResponse {
   stepType: string;
   result: StepResult | null;
   executedAt: string;
-  completedAt: string | null;
   detailsJson: string | null;
 }

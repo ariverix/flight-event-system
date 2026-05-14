@@ -1,5 +1,6 @@
 package ru.protectinfotrans.eca.eventprocessor.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import ru.protectinfotrans.eca.FlightStage;
@@ -12,6 +13,6 @@ import ru.protectinfotrans.eca.FlightStage;
 public record FlightStageChangeRequest(
         @NotBlank String aircraftId,
         String flightNumber,
-        @NotNull FlightStage stage
+        @NotNull @JsonProperty("newStage") FlightStage stage
 ) {
 }

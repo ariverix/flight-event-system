@@ -4,8 +4,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import ru.protectinfotrans.eca.MessageType;
 
-import java.util.Map;
-
 /**
  * DTO для приёма входящих сообщений от внешних систем.
  *
@@ -16,7 +14,6 @@ public record IncomingMessageRequest(
         @NotBlank String templateName,
         @NotBlank String aircraftId,
         String flightNumber,
-        String content,
-        Map<String, Object> metadata
+        String metadataJson
 ) {
 }

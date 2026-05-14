@@ -10,6 +10,6 @@ public record PageResponse<T>(
         List<T> content,
         long totalElements,
         int totalPages,
-        int currentPage,
-        int pageSize
+        int number,
+        int size
 ) {}
