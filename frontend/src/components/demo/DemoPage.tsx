@@ -15,6 +15,7 @@ import { messageApi } from '../../api/messageApi';
 import { sequenceApi } from '../../api/sequenceApi';
 import { executionApi } from '../../api/executionApi';
 import { ExecutionInstanceResponse } from '../../types/execution';
+import { useTheme } from '../../context/ThemeContext';
 
 const { Title, Text } = Typography;
 
@@ -156,6 +157,7 @@ function timestamp() {
 
 export const DemoPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
   const [scenarioKey, setScenarioKey] = useState<string>('weather');
   const [phase, setPhase] = useState<DemoPhase>('idle');
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -163,6 +165,28 @@ export const DemoPage: React.FC = () => {
   const [followUpSent, setFollowUpSent] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
+
+  const c = isDark
+    ? {
+        border: '#30363d',
+        borderSecondary: '#21262d',
+        text: '#e6edf3',
+        textMuted: '#848d97',
+        textDimmer: '#484f58',
+        bgContainer: '#161b22',
+        bgLayout: '#0d1117',
+        logText: '#8b949e',
+      }
+    : {
+        border: '#d0d7de',
+        borderSecondary: '#d8dee4',
+        text: '#1f2328',
+        textMuted: '#636c76',
+        textDimmer: '#9da3ab',
+        bgContainer: '#ffffff',
+        bgLayout: '#f6f8fa',
+        logText: '#57606a',
+      };
 
   const scenario = SCENARIOS.find(s => s.key === scenarioKey)!;
 
@@ -196,7 +220,6 @@ export const DemoPage: React.FC = () => {
     const sc = SCENARIOS.find(s => s.key === scenarioKey)!;
     setPhase('activating');
 
-    // ── 1. Find sequence
     addLog(`Ищем последовательность: «${sc.seqName}»...`);
     let seqId: number | null = null;
     try {
@@ -210,7 +233,6 @@ export const DemoPage: React.FC = () => {
       seqId = found.id;
       addLog(`Найдена: ID=${found.id}, статус=${found.status}`, 'success');
 
-      // ── 2. Activate if needed
       if (found.status !== 'ACTIVE') {
         addLog(`Активируем последовательность...`);
         await sequenceApi.activateSequence(found.id);
@@ -224,7 +246,6 @@ export const DemoPage: React.FC = () => {
       return;
     }
 
-    // ── 3. Send trigger
     setPhase('triggering');
     addLog(`Отправляем триггерное событие...`);
     const before = Date.now();
@@ -242,7 +263,6 @@ export const DemoPage: React.FC = () => {
       return;
     }
 
-    // ── 4. Poll for execution
     setPhase('waiting');
     addLog(`Ждём запуска выполнения...`);
     let foundExec: ExecutionInstanceResponse | null = null;
@@ -279,7 +299,6 @@ export const DemoPage: React.FC = () => {
     setExecution(foundExec);
     addLog(`Выполнение запущено! ID=${(foundExec as ExecutionInstanceResponse).id}`, 'success');
 
-    // ── 5. Send follow-up if needed
     if (sc.followUp && !followUpSent) {
       setTimeout(async () => {
         try {
@@ -291,7 +310,6 @@ export const DemoPage: React.FC = () => {
       }, sc.followUp.delayMs);
     }
 
-    // ── 6. Track execution to completion
     const execId = (foundExec as ExecutionInstanceResponse).id;
     let prevStepCount = 0;
 
@@ -301,7 +319,6 @@ export const DemoPage: React.FC = () => {
           const updated = await executionApi.getExecutionById(execId);
           setExecution(updated);
 
-          // Log new steps
           if (updated.stepExecutions.length > prevStepCount) {
             for (let i = prevStepCount; i < updated.stepExecutions.length; i++) {
               const s = updated.stepExecutions[i];
@@ -338,17 +355,17 @@ export const DemoPage: React.FC = () => {
   return (
     <div className="fade-in-up" style={{ maxWidth: 1100 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0, color: '#e6edf3' }}>Демонстрация сценариев</Title>
-        <Text style={{ color: '#848d97' }}>Выберите сценарий и нажмите «Запустить» — система выполнит всё автоматически</Text>
+        <Title level={4} style={{ margin: 0, color: c.text }}>Демонстрация сценариев</Title>
+        <Text style={{ color: c.textMuted }}>Выберите сценарий и нажмите «Запустить» — система выполнит всё автоматически</Text>
       </div>
 
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
         {/* ── LEFT: controls ── */}
         <div style={{ flex: '1 1 340px', minWidth: 300 }}>
-          <Card style={{ border: '1px solid #30363d', background: '#161b22' }}>
+          <Card style={{ border: `1px solid ${c.border}`, background: c.bgContainer }}>
             <div style={{ marginBottom: 16 }}>
-              <Text style={{ color: '#848d97', fontSize: 12, display: 'block', marginBottom: 6 }}>
+              <Text style={{ color: c.textMuted, fontSize: 12, display: 'block', marginBottom: 6 }}>
                 СЦЕНАРИЙ
               </Text>
               <Select
@@ -363,9 +380,9 @@ export const DemoPage: React.FC = () => {
             {/* Scenario info */}
             <div style={{
               padding: '12px 14px',
-              background: '#0d1117',
+              background: c.bgLayout,
               borderRadius: 8,
-              border: '1px solid #21262d',
+              border: `1px solid ${c.borderSecondary}`,
               marginBottom: 16,
             }}>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -375,14 +392,14 @@ export const DemoPage: React.FC = () => {
                 <Tag style={{ fontSize: 11 }}>ВС: {scenario.aircraft}</Tag>
                 <Tag style={{ fontSize: 11 }}>Рейс: {scenario.flight}</Tag>
               </div>
-              <Text style={{ color: '#8b949e', fontSize: 12, lineHeight: 1.6 }}>
+              <Text style={{ color: c.logText, fontSize: 12, lineHeight: 1.6 }}>
                 {scenario.description}
               </Text>
             </div>
 
             {/* Steps preview */}
             <div style={{ marginBottom: 16 }}>
-              <Text style={{ color: '#848d97', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
+              <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
                 Шаги
               </Text>
               {scenario.steps.map((step, i) => (
@@ -397,12 +414,12 @@ export const DemoPage: React.FC = () => {
                     style={{ margin: 0, fontSize: 10 }}>
                     {step.type}
                   </Tag>
-                  <Text style={{ color: '#8b949e', fontSize: 12 }}>{step.label}</Text>
+                  <Text style={{ color: c.logText, fontSize: 12 }}>{step.label}</Text>
                 </div>
               ))}
               {scenario.followUp && (
                 <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(22,119,255,0.08)', border: '1px solid rgba(22,119,255,0.15)' }}>
-                  <Text style={{ color: '#8b949e', fontSize: 11 }}>
+                  <Text style={{ color: c.logText, fontSize: 11 }}>
                     <SendOutlined style={{ marginRight: 4, color: '#1677ff' }} />
                     Авто-ответ через ~4 сек: {scenario.followUp.label}
                   </Text>
@@ -429,9 +446,9 @@ export const DemoPage: React.FC = () => {
 
           {/* Execution result card */}
           {execution && (
-            <Card style={{ border: '1px solid #30363d', background: '#161b22', marginTop: 16 }}>
+            <Card style={{ border: `1px solid ${c.border}`, background: c.bgContainer, marginTop: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <Text strong style={{ color: '#e6edf3' }}>Выполнение #{execution.id}</Text>
+                <Text strong style={{ color: c.text }}>Выполнение #{execution.id}</Text>
                 <Tag color={execution.status === 'COMPLETED' ? 'green' : execution.status === 'WAITING' ? 'gold' : execution.status === 'RUNNING' ? 'blue' : 'red'}>
                   {STATUS_LABEL[execution.status] ?? execution.status}
                 </Tag>
@@ -449,8 +466,8 @@ export const DemoPage: React.FC = () => {
                   current={execution.stepExecutions.length - 1}
                   style={{ fontSize: 12 }}
                   items={execution.stepExecutions.map(s => ({
-                    title: <Text style={{ color: '#e6edf3', fontSize: 12 }}>Шаг {s.stepIndex} · {s.stepType}</Text>,
-                    description: <Text style={{ color: '#848d97', fontSize: 11 }}>{s.result ?? '…'}</Text>,
+                    title: <Text style={{ color: c.text, fontSize: 12 }}>Шаг {s.stepIndex} · {s.stepType}</Text>,
+                    description: <Text style={{ color: c.textMuted, fontSize: 11 }}>{s.result ?? '…'}</Text>,
                     status: s.result === 'SUCCESS' ? 'finish' : s.result === 'FAILURE' ? 'error' : 'process',
                     icon: s.result === 'SUCCESS' ? <CheckCircleOutlined /> : s.result === null ? <LoadingOutlined /> : undefined,
                   }))}
@@ -463,12 +480,12 @@ export const DemoPage: React.FC = () => {
         {/* ── RIGHT: live log ── */}
         <div style={{ flex: '1 1 380px', minWidth: 320 }}>
           <Card
-            style={{ border: '1px solid #30363d', background: '#161b22' }}
+            style={{ border: `1px solid ${c.border}`, background: c.bgContainer }}
             styles={{ body: { padding: 0 } }}
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {isRunning && <span className="online-dot" />}
-                <Text style={{ color: '#e6edf3', fontSize: 13 }}>Лог выполнения</Text>
+                <Text style={{ color: c.text, fontSize: 13 }}>Лог выполнения</Text>
               </div>
             }
           >
@@ -480,22 +497,22 @@ export const DemoPage: React.FC = () => {
                 padding: '12px 16px',
                 fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
                 fontSize: 12,
-                background: '#0d1117',
+                background: c.bgLayout,
                 borderBottomLeftRadius: 8,
                 borderBottomRightRadius: 8,
               }}
             >
               {log.length === 0 && (
-                <Text style={{ color: '#484f58' }}>Нажмите «Запустить демонстрацию» чтобы начать...</Text>
+                <Text style={{ color: c.textDimmer }}>Нажмите «Запустить демонстрацию» чтобы начать...</Text>
               )}
               {log.map((entry, i) => (
                 <div key={i} style={{ marginBottom: 4, display: 'flex', gap: 10 }}>
-                  <Text style={{ color: '#484f58', fontSize: 11, flexShrink: 0 }}>{entry.time}</Text>
+                  <Text style={{ color: c.textDimmer, fontSize: 11, flexShrink: 0 }}>{entry.time}</Text>
                   <Text style={{
                     color: entry.type === 'success' ? '#3fb950'
                       : entry.type === 'error' ? '#f85149'
                       : entry.type === 'warn' ? '#d29922'
-                      : '#8b949e',
+                      : c.logText,
                   }}>
                     {entry.type === 'success' ? '✓ ' : entry.type === 'error' ? '✗ ' : entry.type === 'warn' ? '⚠ ' : '  '}
                     {entry.text}
@@ -511,8 +528,8 @@ export const DemoPage: React.FC = () => {
           </Card>
 
           {/* What to watch */}
-          <Card style={{ border: '1px solid #30363d', background: '#161b22', marginTop: 16 }}>
-            <Text style={{ color: '#848d97', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 10 }}>
+          <Card style={{ border: `1px solid ${c.border}`, background: c.bgContainer, marginTop: 16 }}>
+            <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 10 }}>
               На что смотреть
             </Text>
             {[
@@ -523,10 +540,10 @@ export const DemoPage: React.FC = () => {
             ].map((item, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
                 <span style={{ marginTop: 1, fontSize: 13, flexShrink: 0 }}>{item.icon}</span>
-                <Text style={{ color: '#8b949e', fontSize: 12 }}>{item.text}</Text>
+                <Text style={{ color: c.logText, fontSize: 12 }}>{item.text}</Text>
               </div>
             ))}
-            <Divider style={{ borderColor: '#21262d', margin: '10px 0' }} />
+            <Divider style={{ borderColor: c.borderSecondary, margin: '10px 0' }} />
             <div style={{ display: 'flex', gap: 8 }}>
               <Button size="small" onClick={() => navigate('/executions')} style={{ flex: 1 }}>
                 Выполнения
@@ -543,8 +560,8 @@ export const DemoPage: React.FC = () => {
       </div>
 
       {/* ── Demo order guide ── */}
-      <Card style={{ border: '1px solid #30363d', background: '#161b22', marginTop: 20 }}>
-        <Text style={{ color: '#848d97', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 14 }}>
+      <Card style={{ border: `1px solid ${c.border}`, background: c.bgContainer, marginTop: 20 }}>
+        <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 14 }}>
           Рекомендуемый порядок демонстрации на защите
         </Text>
         <div style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
@@ -570,12 +587,12 @@ export const DemoPage: React.FC = () => {
                 }}>
                   {step.n}
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#e6edf3' }}>{step.label}</div>
-                <div style={{ fontSize: 11, color: '#484f58', marginTop: 2 }}>{step.desc}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: c.text }}>{step.label}</div>
+                <div style={{ fontSize: 11, color: c.textDimmer, marginTop: 2 }}>{step.desc}</div>
               </div>
               {i < arr.length - 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', padding: '0 2px', paddingBottom: 20 }}>
-                  <RightOutlined style={{ color: '#30363d', fontSize: 10 }} />
+                  <RightOutlined style={{ color: c.border, fontSize: 10 }} />
                 </div>
               )}
             </React.Fragment>

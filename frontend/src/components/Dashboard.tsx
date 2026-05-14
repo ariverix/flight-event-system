@@ -15,6 +15,7 @@ import { sequenceApi } from '../api/sequenceApi';
 import { executionApi } from '../api/executionApi';
 import { messageApi } from '../api/messageApi';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../context/ThemeContext';
 
 const { Text } = Typography;
 
@@ -37,6 +38,25 @@ export const Dashboard: React.FC = () => {
   });
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isDark } = useTheme();
+
+  const c = isDark
+    ? {
+        border: '#30363d',
+        borderSecondary: '#21262d',
+        text: '#e6edf3',
+        textMuted: '#848d97',
+        textDimmer: '#484f58',
+        bgElevated: '#1c2128',
+      }
+    : {
+        border: '#d0d7de',
+        borderSecondary: '#d8dee4',
+        text: '#1f2328',
+        textMuted: '#636c76',
+        textDimmer: '#9da3ab',
+        bgElevated: '#f6f8fa',
+      };
 
   const loadStats = async () => {
     setLoading(true);
@@ -88,7 +108,7 @@ export const Dashboard: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <h2 className="page-title" style={{ marginBottom: 2 }}>Панель управления</h2>
-          <Text style={{ color: '#848d97', fontSize: 13 }}>
+          <Text style={{ color: c.textMuted, fontSize: 13 }}>
             {user?.fullName} · {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}
           </Text>
         </div>
@@ -100,7 +120,7 @@ export const Dashboard: React.FC = () => {
       {/* ── Stat cards row 1 ────────────────────────────────── */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card" style={{ borderColor: '#21262d' }}>
+          <Card className="stat-card" style={{ borderColor: c.borderSecondary }}>
             <div
               className="stat-card-icon"
               style={{ background: 'rgba(22,119,255,0.12)', color: '#1677ff' }}
@@ -108,18 +128,18 @@ export const Dashboard: React.FC = () => {
               <OrderedListOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: '#848d97', fontSize: 13 }}>Активные посл-ти</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Активные посл-ти</span>}
               value={stats.activeSequences}
               valueStyle={{ color: '#1677ff', fontWeight: 700 }}
             />
-            <Text style={{ color: '#484f58', fontSize: 12 }}>
+            <Text style={{ color: c.textDimmer, fontSize: 12 }}>
               из {stats.totalSequences} всего
             </Text>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card" style={{ borderColor: '#21262d' }}>
+          <Card className="stat-card" style={{ borderColor: c.borderSecondary }}>
             <div
               className="stat-card-icon"
               style={{ background: 'rgba(0,200,83,0.12)', color: '#00c853' }}
@@ -127,13 +147,13 @@ export const Dashboard: React.FC = () => {
               <PlayCircleOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: '#848d97', fontSize: 13 }}>Активные выполнения</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Активные выполнения</span>}
               value={stats.runningExecutions}
               valueStyle={{ color: '#00c853', fontWeight: 700 }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
               {stats.runningExecutions > 0 && <span className="online-dot" />}
-              <Text style={{ color: '#484f58', fontSize: 12 }}>
+              <Text style={{ color: c.textDimmer, fontSize: 12 }}>
                 {stats.runningExecutions > 0 ? 'выполняются сейчас' : 'нет активных'}
               </Text>
             </div>
@@ -141,7 +161,7 @@ export const Dashboard: React.FC = () => {
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card" style={{ borderColor: '#21262d' }}>
+          <Card className="stat-card" style={{ borderColor: c.borderSecondary }}>
             <div
               className="stat-card-icon"
               style={{ background: 'rgba(250,173,20,0.12)', color: '#faad14' }}
@@ -149,7 +169,7 @@ export const Dashboard: React.FC = () => {
               <MessageOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: '#848d97', fontSize: 13 }}>Всего сообщений</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Всего сообщений</span>}
               value={stats.totalMessages}
               valueStyle={{ color: '#faad14', fontWeight: 700 }}
             />
@@ -157,7 +177,7 @@ export const Dashboard: React.FC = () => {
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card" style={{ borderColor: '#21262d' }}>
+          <Card className="stat-card" style={{ borderColor: c.borderSecondary }}>
             <div
               className="stat-card-icon"
               style={{ background: 'rgba(82,196,26,0.12)', color: '#52c41a' }}
@@ -165,7 +185,7 @@ export const Dashboard: React.FC = () => {
               <CheckCircleOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: '#848d97', fontSize: 13 }}>Завершено выполнений</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Завершено выполнений</span>}
               value={stats.completedExecutions}
               valueStyle={{ color: '#52c41a', fontWeight: 700 }}
             />
@@ -177,8 +197,8 @@ export const Dashboard: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
           <Card
-            title={<span style={{ color: '#e6edf3' }}>Быстрые действия</span>}
-            style={{ borderColor: '#21262d', height: '100%' }}
+            title={<span style={{ color: c.text }}>Быстрые действия</span>}
+            style={{ borderColor: c.borderSecondary, height: '100%' }}
           >
             <Row gutter={[12, 10]}>
               {[
@@ -224,21 +244,21 @@ export const Dashboard: React.FC = () => {
                     style={{
                       padding: '14px 16px',
                       borderRadius: 8,
-                      border: '1px solid #21262d',
+                      border: `1px solid ${c.borderSecondary}`,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
                       transition: 'all 0.2s',
-                      background: '#1c2128',
+                      background: c.bgElevated,
                     }}
                     onMouseEnter={e => {
                       (e.currentTarget as HTMLDivElement).style.borderColor = item.color;
                       (e.currentTarget as HTMLDivElement).style.background = `${item.color}0d`;
                     }}
                     onMouseLeave={e => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = '#21262d';
-                      (e.currentTarget as HTMLDivElement).style.background = '#1c2128';
+                      (e.currentTarget as HTMLDivElement).style.borderColor = c.borderSecondary;
+                      (e.currentTarget as HTMLDivElement).style.background = c.bgElevated;
                     }}
                   >
                     <div
@@ -258,14 +278,14 @@ export const Dashboard: React.FC = () => {
                       {item.icon}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#e6edf3' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: c.text }}>
                         {item.label}
                       </div>
-                      <div style={{ fontSize: 12, color: '#848d97', marginTop: 1 }}>
+                      <div style={{ fontSize: 12, color: c.textMuted, marginTop: 1 }}>
                         {item.desc}
                       </div>
                     </div>
-                    <ArrowRightOutlined style={{ color: '#484f58', fontSize: 12 }} />
+                    <ArrowRightOutlined style={{ color: c.textDimmer, fontSize: 12 }} />
                   </div>
                 </Col>
               ))}
@@ -275,8 +295,8 @@ export const Dashboard: React.FC = () => {
 
         <Col xs={24} lg={10}>
           <Card
-            title={<span style={{ color: '#e6edf3' }}>Статус системы</span>}
-            style={{ borderColor: '#21262d', height: '100%' }}
+            title={<span style={{ color: c.text }}>Статус системы</span>}
+            style={{ borderColor: c.borderSecondary, height: '100%' }}
           >
             <Space direction="vertical" style={{ width: '100%' }} size={14}>
               {[
@@ -295,7 +315,7 @@ export const Dashboard: React.FC = () => {
                     padding: '8px 0',
                   }}
                 >
-                  <Text style={{ color: '#848d97', fontSize: 13 }}>{item.label}</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 13 }}>{item.label}</Text>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span
                       style={{
@@ -312,8 +332,8 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
               ))}
-              <Divider style={{ margin: '4px 0', borderColor: '#21262d' }} />
-              <Text style={{ color: '#484f58', fontSize: 11 }}>
+              <Divider style={{ margin: '4px 0', borderColor: c.borderSecondary }} />
+              <Text style={{ color: c.textDimmer, fontSize: 11 }}>
                 Spring Boot 3 · Spring Modulith · PostgreSQL 17
               </Text>
             </Space>
