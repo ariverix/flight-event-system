@@ -74,12 +74,27 @@ export const ExecutionDetail: React.FC = () => {
     execution?.status === 'RUNNING' || execution?.status === 'WAITING',
   );
 
+  const TRANSITION_LABEL: Record<string, string> = {
+    CONTINUE: 'Продолжить',
+    GOTO:     'Перейти',
+    END:      'Завершить',
+    ABORT:    'Прервать',
+  };
+
+  const TRANSITION_COLOR: Record<string, string> = {
+    CONTINUE: 'blue',
+    GOTO:     'purple',
+    END:      'green',
+    ABORT:    'red',
+  };
+
   const stepColumns = [
-    { title: 'Шаг', dataIndex: 'stepIndex', key: 'stepIndex', width: 70 },
+    { title: 'Шаг', dataIndex: 'stepIndex', key: 'stepIndex', width: 60 },
     {
       title: 'Тип',
       dataIndex: 'stepType',
       key: 'stepType',
+      width: 100,
       render: (type: string) => (
         <Tag color={STEP_TYPE_COLOR[type] ?? 'blue'}>{STEP_TYPE_LABEL[type] ?? type}</Tag>
       ),
@@ -88,25 +103,36 @@ export const ExecutionDetail: React.FC = () => {
       title: 'Результат',
       dataIndex: 'result',
       key: 'result',
+      width: 110,
       render: (result: StepResult | null) =>
         result ? (
           <Tag color={result === 'SUCCESS' ? 'success' : 'error'}>
             {result === 'SUCCESS' ? 'Успех' : 'Ошибка'}
           </Tag>
         ) : (
-          <Tag>В процессе</Tag>
+          <Tag color="processing">В процессе</Tag>
         ),
     },
     {
-      title: 'Начало',
-      dataIndex: 'executedAt',
-      key: 'executedAt',
-      render: (date: string) => new Date(date).toLocaleString('ru-RU'),
+      title: 'Решение',
+      dataIndex: 'transitionAction',
+      key: 'transitionAction',
+      width: 120,
+      render: (action: string | null, record: any) => {
+        if (!action) return '—';
+        const label = TRANSITION_LABEL[action] ?? action;
+        const color = TRANSITION_COLOR[action] ?? 'default';
+        return (
+          <Tag color={color}>
+            {label}{record.transitionTarget != null ? ` → ${record.transitionTarget}` : ''}
+          </Tag>
+        );
+      },
     },
     {
-      title: 'Выполнен',
+      title: 'Время',
       dataIndex: 'executedAt',
-      key: 'executedAtEnd',
+      key: 'executedAt',
       render: (date: string) => new Date(date).toLocaleString('ru-RU'),
     },
     {

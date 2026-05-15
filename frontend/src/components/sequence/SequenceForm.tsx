@@ -316,7 +316,8 @@ export const SequenceForm: React.FC = () => {
         open={isStepModalOpen}
         onCancel={() => { setIsStepModalOpen(false); setEditingStep(null); }}
         footer={null}
-        width={800}
+        width={820}
+        styles={{ body: { maxHeight: '75vh', overflowY: 'auto', paddingRight: 4 } }}
       >
         <StepForm
           onSubmit={handleStepSubmit}

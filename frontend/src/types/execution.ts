@@ -20,6 +20,8 @@ export interface StepExecutionResponse {
   stepIndex: number;
   stepType: string;
   result: StepResult | null;
+  transitionAction: string | null;
+  transitionTarget: number | null;
   executedAt: string;
   detailsJson: string | null;
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Form, Input, Select, Button, Space, notification, Divider, Radio, Tag, Typography } from 'antd';
+import { Card, Form, Input, Select, Button, Space, notification, Divider, Radio, Tag, Typography, Row, Col } from 'antd';
 import { SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { messageApi } from '../../api/messageApi';
 import { useTheme } from '../../context/ThemeContext';
@@ -71,7 +71,7 @@ export const MessageSimulator: React.FC = () => {
             setSimulationType(e.target.value);
             form.resetFields();
           }}
-          style={{ marginBottom: 28 }}
+          style={{ marginBottom: 20 }}
           buttonStyle="solid"
         >
           <Radio.Button value="message">
@@ -91,55 +91,65 @@ export const MessageSimulator: React.FC = () => {
             onFinish={handleSendMessage}
             initialValues={{ messageType: 'DOWNLINK' }}
           >
-            <Form.Item
-              name="messageType"
-              label="Тип сообщения"
-              rules={[{ required: true, message: 'Выберите тип сообщения' }]}
-            >
-              <Select>
-                <Select.Option value="DOWNLINK">
-                  <Tag color="blue" style={{ marginRight: 6 }}>DOWNLINK</Tag>
-                  Нисходящая (борт → земля)
-                </Select.Option>
-                <Select.Option value="UPLINK">
-                  <Tag color="green" style={{ marginRight: 6 }}>UPLINK</Tag>
-                  Восходящая (земля → борт)
-                </Select.Option>
-                <Select.Option value="GROUND">
-                  <Tag color="orange" style={{ marginRight: 6 }}>GROUND</Tag>
-                  Наземная
-                </Select.Option>
-              </Select>
-            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="messageType"
+                  label="Тип сообщения"
+                  rules={[{ required: true, message: 'Выберите тип' }]}
+                >
+                  <Select>
+                    <Select.Option value="DOWNLINK">
+                      <Tag color="blue" style={{ marginRight: 4 }}>DOWNLINK</Tag>
+                      Борт → земля
+                    </Select.Option>
+                    <Select.Option value="UPLINK">
+                      <Tag color="green" style={{ marginRight: 4 }}>UPLINK</Tag>
+                      Земля → борт
+                    </Select.Option>
+                    <Select.Option value="GROUND">
+                      <Tag color="orange" style={{ marginRight: 4 }}>GROUND</Tag>
+                      Наземная
+                    </Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="templateName"
+                  label="Шаблон сообщения"
+                  rules={[{ required: true, message: 'Введите шаблон' }]}
+                >
+                  <Input placeholder="POSITION_REPORT, WEATHER_UPDATE…" />
+                </Form.Item>
+              </Col>
+            </Row>
 
-            <Form.Item
-              name="templateName"
-              label="Шаблон сообщения"
-              rules={[{ required: true, message: 'Введите шаблон сообщения' }]}
-            >
-              <Input placeholder="Например: POSITION_REPORT, WEATHER_UPDATE" />
-            </Form.Item>
-
-            <Form.Item
-              name="aircraftId"
-              label="Идентификатор воздушного судна"
-              rules={[{ required: true, message: 'Введите идентификатор ВС' }]}
-            >
-              <Input placeholder="Например: SU9876" />
-            </Form.Item>
-
-            <Form.Item name="flightNumber" label="Номер рейса (необязательно)">
-              <Input placeholder="Например: AFL123" />
-            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="aircraftId"
+                  label="Идентификатор ВС"
+                  rules={[{ required: true, message: 'Введите идентификатор ВС' }]}
+                >
+                  <Input placeholder="VP-BQR" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="flightNumber" label="Номер рейса (необязательно)">
+                  <Input placeholder="SU1234" />
+                </Form.Item>
+              </Col>
+            </Row>
 
             <Form.Item name="metadataJson" label="Метаданные (JSON, необязательно)">
               <Input.TextArea
-                rows={4}
+                rows={3}
                 placeholder='{"latitude": 55.7558, "longitude": 37.6173}'
               />
             </Form.Item>
 
-            <Form.Item>
+            <Form.Item style={{ marginBottom: 0 }}>
               <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={loading}>
                 Отправить сообщение
               </Button>
@@ -147,17 +157,22 @@ export const MessageSimulator: React.FC = () => {
           </Form>
         ) : (
           <Form form={form} layout="vertical" onFinish={handleStageChange}>
-            <Form.Item
-              name="aircraftId"
-              label="Идентификатор воздушного судна"
-              rules={[{ required: true, message: 'Введите идентификатор ВС' }]}
-            >
-              <Input placeholder="Например: SU9876" />
-            </Form.Item>
-
-            <Form.Item name="flightNumber" label="Номер рейса (необязательно)">
-              <Input placeholder="Например: AFL123" />
-            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="aircraftId"
+                  label="Идентификатор ВС"
+                  rules={[{ required: true, message: 'Введите идентификатор ВС' }]}
+                >
+                  <Input placeholder="VP-BQR" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="flightNumber" label="Номер рейса (необязательно)">
+                  <Input placeholder="SU1234" />
+                </Form.Item>
+              </Col>
+            </Row>
 
             <Form.Item
               name="newStage"
@@ -173,7 +188,7 @@ export const MessageSimulator: React.FC = () => {
               </Select>
             </Form.Item>
 
-            <Form.Item>
+            <Form.Item style={{ marginBottom: 0 }}>
               <Button type="primary" htmlType="submit" icon={<ThunderboltOutlined />} loading={loading}>
                 Изменить фазу
               </Button>
@@ -187,64 +202,43 @@ export const MessageSimulator: React.FC = () => {
         style={{ marginTop: 16, borderColor: c.borderSecondary }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size={4}>
-          <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: 8,
-              background: c.bgElevated,
-              border: `1px solid ${c.borderSecondary}`,
-            }}
-          >
+          <div style={{ padding: '12px 16px', borderRadius: 8, background: c.bgElevated, border: `1px solid ${c.borderSecondary}` }}>
             <Text strong style={{ color: '#1677ff' }}>Сценарий 1: Доклад о местоположении</Text>
             <br />
             <Text style={{ color: c.textMuted, fontSize: 13 }}>
-              Тип: DOWNLINK · Шаблон: POSITION_REPORT · ВС: SU9876
+              Тип: DOWNLINK · Шаблон: POSITION_REPORT · ВС: VP-BQR · Рейс: SU1234
             </Text>
             <br />
             <Text style={{ color: c.textDimmer, fontSize: 12 }}>
-              Метаданные: {'{"latitude": 55.7558, "longitude": 37.6173}'}
+              {'{"latitude": 55.7558, "longitude": 37.6173}'}
             </Text>
           </div>
 
           <Divider style={{ margin: '8px 0', borderColor: c.borderSecondary }} />
 
-          <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: 8,
-              background: c.bgElevated,
-              border: `1px solid ${c.borderSecondary}`,
-            }}
-          >
-            <Text strong style={{ color: '#00c853' }}>Сценарий 2: Прогрессия фаз полёта</Text>
+          <div style={{ padding: '12px 16px', borderRadius: 8, background: c.bgElevated, border: `1px solid ${c.borderSecondary}` }}>
+            <Text strong style={{ color: '#00c853' }}>Сценарий 2: Прогрессия фаз полёта (демо V9)</Text>
             <br />
             <Text style={{ color: c.textMuted, fontSize: 13 }}>
-              INIT → OUT → OFF → ON → IN
+              INIT → OUT → <strong>OFF</strong> → ON → IN · ВС: VP-BQR · Рейс: SU1234
             </Text>
             <br />
             <Text style={{ color: c.textDimmer, fontSize: 12 }}>
-              Последовательно меняйте фазы для ВС SU9876
+              При фазе OFF запускается «Запрос позиционного отчёта после взлёта»
             </Text>
           </div>
 
           <Divider style={{ margin: '8px 0', borderColor: c.borderSecondary }} />
 
-          <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: 8,
-              background: c.bgElevated,
-              border: `1px solid ${c.borderSecondary}`,
-            }}
-          >
+          <div style={{ padding: '12px 16px', borderRadius: 8, background: c.bgElevated, border: `1px solid ${c.borderSecondary}` }}>
             <Text strong style={{ color: '#faad14' }}>Сценарий 3: Метеосводка</Text>
             <br />
             <Text style={{ color: c.textMuted, fontSize: 13 }}>
-              Тип: GROUND · Шаблон: WEATHER_UPDATE · ВС: SU9876
+              Тип: GROUND · Шаблон: WEATHER_UPDATE · ВС: VP-BQR · Рейс: SU1234
             </Text>
             <br />
             <Text style={{ color: c.textDimmer, fontSize: 12 }}>
-              Метаданные: {'{"temperature": -5, "wind": "10kt"}'}
+              {'{"temperature": -5, "wind": "10kt"}'}
             </Text>
           </div>
         </Space>
