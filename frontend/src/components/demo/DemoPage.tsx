@@ -370,9 +370,12 @@ export const DemoPage: React.FC = () => {
 
         {/* ── LEFT: controls ── */}
         <div style={{ flex: '1 1 340px', minWidth: 300 }}>
-          <Card style={{ border: `1px solid ${c.border}`, background: c.bgContainer }}>
-            <div style={{ marginBottom: 16 }}>
-              <Text style={{ color: c.textMuted, fontSize: 12, display: 'block', marginBottom: 6 }}>
+          <Card
+            style={{ border: `1px solid ${c.border}`, background: c.bgContainer, maxHeight: 300, overflowY: 'auto' }}
+            styles={{ body: { padding: '12px 16px' } }}
+          >
+            <div style={{ marginBottom: 10 }}>
+              <Text style={{ color: c.textMuted, fontSize: 12, display: 'block', marginBottom: 4 }}>
                 СЦЕНАРИЙ
               </Text>
               <Select
@@ -386,17 +389,17 @@ export const DemoPage: React.FC = () => {
 
             {/* Scenario info */}
             <div style={{
-              padding: '12px 14px',
+              padding: '8px 12px',
               background: c.bgLayout,
               borderRadius: 8,
               border: `1px solid ${c.borderSecondary}`,
-              marginBottom: 16,
+              marginBottom: 10,
             }}>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                 {scenario.ucRefs.map(uc => (
                   <Tag key={uc} color="geekblue" style={{ fontSize: 11 }}>{uc}</Tag>
                 ))}
-                <Tag style={{ fontSize: 11 }}>ВС: {scenario.aircraft}</Tag>
+                <Tag style={{ fontSize: 11 }}>Борт: {scenario.aircraft}</Tag>
                 <Tag style={{ fontSize: 11 }}>Рейс: {scenario.flight}</Tag>
               </div>
               <Text style={{ color: c.logText, fontSize: 12, lineHeight: 1.6 }}>
@@ -405,7 +408,7 @@ export const DemoPage: React.FC = () => {
             </div>
 
             {/* Steps preview */}
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 10 }}>
               <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
                 Шаги
               </Text>
@@ -441,7 +444,6 @@ export const DemoPage: React.FC = () => {
                 loading={isRunning}
                 disabled={isRunning}
                 onClick={runDemo}
-                style={{ flex: 1 }}
               >
                 {isRunning ? 'Выполняется...' : 'Запустить демонстрацию'}
               </Button>

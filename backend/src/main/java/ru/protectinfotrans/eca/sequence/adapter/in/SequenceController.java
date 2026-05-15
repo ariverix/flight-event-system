@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import ru.protectinfotrans.eca.sequence.dto.*;
 import ru.protectinfotrans.eca.sequence.port.in.SequenceManagementUseCase;
@@ -33,6 +34,7 @@ public class SequenceController {
     @ApiResponse(responseCode = "201", description = "Последовательность создана")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public SequenceResponse create(@Valid @RequestBody SequenceCreateRequest request) {
         return sequenceUseCase.createSequence(request, 1L);
     }
@@ -62,6 +64,7 @@ public class SequenceController {
     @Operation(summary = "Обновить последовательность",
                description = "UC-01: Обновить название, описание и критерии (только DRAFT)")
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public SequenceResponse update(@PathVariable Long id,
                                    @Valid @RequestBody SequenceUpdateRequest request) {
         return sequenceUseCase.updateSequence(id, request, 1L);
@@ -73,6 +76,7 @@ public class SequenceController {
     @ApiResponse(responseCode = "204", description = "Последовательность удалена")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@PathVariable Long id) {
         sequenceUseCase.deleteSequence(id, 1L);
     }
@@ -81,6 +85,7 @@ public class SequenceController {
     @Operation(summary = "Активировать последовательность",
                description = "UC-04: Перевести в статус ACTIVE — начинает обрабатывать события")
     @PostMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
     public SequenceResponse activate(@PathVariable Long id) {
         return sequenceUseCase.activateSequence(id, 1L);
     }
@@ -89,6 +94,7 @@ public class SequenceController {
     @Operation(summary = "Деактивировать последовательность",
                description = "UC-04: Перевести из ACTIVE обратно в DRAFT")
     @PostMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
     public SequenceResponse deactivate(@PathVariable Long id) {
         return sequenceUseCase.deactivateSequence(id, 1L);
     }
@@ -99,6 +105,7 @@ public class SequenceController {
     @ApiResponse(responseCode = "201", description = "Шаг добавлен")
     @PostMapping("/{id}/steps")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public StepResponse addStep(@PathVariable Long id,
                                 @Valid @RequestBody StepCreateRequest request) {
         return sequenceUseCase.addStep(id, request, 1L);
@@ -108,6 +115,7 @@ public class SequenceController {
     @Operation(summary = "Обновить шаг", tags = {"Steps"},
                description = "UC-02/UC-03: Обновить параметры шага и настроить переходы (CONTINUE/GOTO/END/ABORT)")
     @PutMapping("/{id}/steps/{stepId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public StepResponse updateStep(@PathVariable Long id,
                                    @PathVariable Long stepId,
                                    @Valid @RequestBody StepUpdateRequest request) {
@@ -120,6 +128,7 @@ public class SequenceController {
     @ApiResponse(responseCode = "204", description = "Шаг удалён")
     @DeleteMapping("/{id}/steps/{stepId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteStep(@PathVariable Long id, @PathVariable Long stepId) {
         sequenceUseCase.deleteStep(id, stepId, 1L);
     }
@@ -128,6 +137,7 @@ public class SequenceController {
     @Operation(summary = "Изменить порядок шагов", tags = {"Steps"},
                description = "UC-02: Переупорядочить шаги по списку ID")
     @PutMapping("/{id}/steps/reorder")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<StepResponse> reorderSteps(@PathVariable Long id,
                                            @RequestBody List<Long> stepIds) {
         return sequenceUseCase.reorderSteps(id, stepIds, 1L);

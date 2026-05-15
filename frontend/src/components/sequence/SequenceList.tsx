@@ -11,6 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { sequenceApi } from '../../api/sequenceApi';
 import { SequenceResponse, SequenceStatus } from '../../types/sequence';
+import { useAuth } from '../../hooks/useAuth';
 
 const STATUS_LABEL: Record<string, string> = {
   ACTIVE:   'Активна',
@@ -31,6 +32,7 @@ export const SequenceList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<SequenceStatus | undefined>();
   const [searchText, setSearchText] = useState('');
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
 
   const loadSequences = async (page = 0, size = 10, status?: SequenceStatus) => {
     setLoading(true);
@@ -96,11 +98,12 @@ export const SequenceList: React.FC = () => {
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 60, fixed: 'left' as const },
     {
       title: 'Название',
       dataIndex: 'name',
       key: 'name',
+      width: 220,
       filteredValue: searchText ? [searchText] : null,
       onFilter: (value: any, record: SequenceResponse) =>
         record.name.toLowerCase().includes(value.toLowerCase()),
@@ -110,7 +113,7 @@ export const SequenceList: React.FC = () => {
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      width: 200,
+      width: 220,
       render: (text: string) => (
         <Tooltip title={text} placement="topLeft">
           <span>{text}</span>
@@ -121,6 +124,7 @@ export const SequenceList: React.FC = () => {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
+      width: 110,
       render: (status: SequenceStatus) => (
         <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
       ),
@@ -128,19 +132,20 @@ export const SequenceList: React.FC = () => {
     {
       title: 'Шаги',
       key: 'steps',
-      width: 80,
+      width: 70,
       render: (_: any, record: SequenceResponse) => record.steps.length,
     },
     {
       title: 'Создан',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      width: 110,
       render: (date: string) => new Date(date).toLocaleDateString('ru-RU'),
     },
     {
       title: 'Действия',
       key: 'actions',
-      width: 310,
+      width: isAdmin ? 320 : 100,
       fixed: 'right' as const,
       render: (_: any, record: SequenceResponse) => (
         <Space size="small">
@@ -152,22 +157,24 @@ export const SequenceList: React.FC = () => {
           >
             Просмотр
           </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/sequences/${record.id}/edit`)}
-          >
-            Изменить
-          </Button>
-          {record.status === 'ACTIVE' ? (
+          {isAdmin && (
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/sequences/${record.id}/edit`)}
+            >
+              Изменить
+            </Button>
+          )}
+          {isAdmin && (record.status === 'ACTIVE' ? (
             <Button
               type="link"
               size="small"
               icon={<PauseCircleOutlined />}
               onClick={() => handleDeactivate(record.id)}
             >
-              Деактивировать
+              Деактив.
             </Button>
           ) : (
             <Button
@@ -179,19 +186,21 @@ export const SequenceList: React.FC = () => {
             >
               Активировать
             </Button>
+          ))}
+          {isAdmin && (
+            <Popconfirm
+              title="Удалить последовательность?"
+              description="Это действие нельзя отменить."
+              onConfirm={() => handleDelete(record.id)}
+              okText="Удалить"
+              cancelText="Отмена"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                Удалить
+              </Button>
+            </Popconfirm>
           )}
-          <Popconfirm
-            title="Удалить последовательность?"
-            description="Это действие нельзя отменить."
-            onConfirm={() => handleDelete(record.id)}
-            okText="Удалить"
-            cancelText="Отмена"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              Удалить
-            </Button>
-          </Popconfirm>
         </Space>
       ),
     },
@@ -219,9 +228,11 @@ export const SequenceList: React.FC = () => {
             <Select.Option value="INACTIVE">Неактивна</Select.Option>
             <Select.Option value="DRAFT">Черновик</Select.Option>
           </Select>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/sequences/new')}>
-            Создать
-          </Button>
+          {isAdmin && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/sequences/new')}>
+              Создать
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -230,7 +241,7 @@ export const SequenceList: React.FC = () => {
         dataSource={sequences}
         loading={loading}
         rowKey="id"
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1200 }}
         pagination={{
           ...pagination,
           showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,

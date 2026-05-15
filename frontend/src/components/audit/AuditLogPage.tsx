@@ -29,25 +29,25 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  CREATE_SEQUENCE:     'Создана посл-ть',
-  UPDATE_SEQUENCE:     'Обновлена посл-ть',
-  DELETE_SEQUENCE:     'Удалена посл-ть',
+  CREATE_SEQUENCE:     'Создана последовательность',
+  UPDATE_SEQUENCE:     'Обновлена последовательность',
+  DELETE_SEQUENCE:     'Удалена последовательность',
   ACTIVATE_SEQUENCE:   'Активирована',
   DEACTIVATE_SEQUENCE: 'Деактивирована',
   ADD_STEP:            'Добавлен шаг',
   UPDATE_STEP:         'Изменён шаг',
   DELETE_STEP:         'Удалён шаг',
-  REORDER_STEPS:       'Порядок шагов',
+  REORDER_STEPS:       'Порядок шагов изменён',
   EXECUTION_STARTED:   'Выполнение начато',
   EXECUTION_COMPLETED: 'Выполнение завершено',
   EXECUTION_ABORTED:   'Выполнение прервано',
   USER_LOGIN:          'Вход в систему',
   CREATE_USER:         'Создан пользователь',
-  TOGGLE_USER:         'Статус польз.',
+  TOGGLE_USER:         'Статус изменён',
 };
 
 const ENTITY_TYPE_LABELS: Record<string, string> = {
-  SEQUENCE:  'Посл-ть',
+  SEQUENCE:  'Последовательность',
   EXECUTION: 'Выполнение',
   USER:      'Пользователь',
 };
@@ -86,7 +86,14 @@ export const AuditLogPage: React.FC = () => {
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 70,
+      defaultSortOrder: 'ascend' as const,
+      sorter: (a: AuditLogEntry, b: AuditLogEntry) => a.id - b.id,
+    },
     {
       title: 'Операция',
       dataIndex: 'action',
@@ -175,15 +182,16 @@ export const AuditLogPage: React.FC = () => {
             onChange={setActionFilter}
             value={actionFilter}
           >
-            <Select.Option value="CREATE_SEQUENCE">Создание посл-ти</Select.Option>
-            <Select.Option value="ACTIVATE_SEQUENCE">Активация</Select.Option>
-            <Select.Option value="DEACTIVATE_SEQUENCE">Деактивация</Select.Option>
-            <Select.Option value="DELETE_SEQUENCE">Удаление посл-ти</Select.Option>
+            <Select.Option value="CREATE_SEQUENCE">Создание последовательности</Select.Option>
+            <Select.Option value="ACTIVATE_SEQUENCE">Активация последовательности</Select.Option>
+            <Select.Option value="DEACTIVATE_SEQUENCE">Деактивация последовательности</Select.Option>
+            <Select.Option value="DELETE_SEQUENCE">Удаление последовательности</Select.Option>
             <Select.Option value="EXECUTION_STARTED">Старт выполнения</Select.Option>
-            <Select.Option value="EXECUTION_COMPLETED">Завершение</Select.Option>
-            <Select.Option value="EXECUTION_ABORTED">Прерывание</Select.Option>
+            <Select.Option value="EXECUTION_COMPLETED">Завершение выполнения</Select.Option>
+            <Select.Option value="EXECUTION_ABORTED">Прерывание выполнения</Select.Option>
             <Select.Option value="USER_LOGIN">Вход в систему</Select.Option>
-            <Select.Option value="CREATE_USER">Создание польз.</Select.Option>
+            <Select.Option value="CREATE_USER">Создание пользователя</Select.Option>
+            <Select.Option value="TOGGLE_USER">Статус изменён</Select.Option>
           </Select>
           <Button
             icon={<ReloadOutlined />}
@@ -199,6 +207,7 @@ export const AuditLogPage: React.FC = () => {
         dataSource={logs}
         loading={loading}
         rowKey="id"
+        scroll={{ x: 900 }}
         pagination={{
           ...pagination,
           showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,

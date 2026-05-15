@@ -8,6 +8,7 @@ import { CriteriaEditor } from './CriteriaEditor';
 import { StepForm } from './StepForm';
 import { SequenceFlow } from './SequenceFlow';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const STEP_TYPE_COLOR: Record<string, string> = {
   ACTION:   'blue',
@@ -30,6 +31,7 @@ export const SequenceForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditMode = id && id !== 'new';
+  const { isAdmin } = useAuth();
   const { isDark } = useTheme();
   const c = isDark
     ? { borderSecondary: '#21262d', text: '#e6edf3' }
@@ -204,35 +206,43 @@ export const SequenceForm: React.FC = () => {
         const idx = sortedSteps.findIndex(s => s.id === record.id);
         return (
           <Space size={4}>
-            <Button
-              size="small"
-              icon={<ArrowUpOutlined />}
-              disabled={idx === 0}
-              onClick={() => handleMoveStep(record.id, 'up')}
-              title="Переместить вверх"
-            />
-            <Button
-              size="small"
-              icon={<ArrowDownOutlined />}
-              disabled={idx === sortedSteps.length - 1}
-              onClick={() => handleMoveStep(record.id, 'down')}
-              title="Переместить вниз"
-            />
-            <Button
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => { setEditingStep(record); setIsStepModalOpen(true); }}
-            >
-              Изменить
-            </Button>
-            <Button
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDeleteStep(record.id)}
-            >
-              Удалить
-            </Button>
+            {isAdmin && (
+              <Button
+                size="small"
+                icon={<ArrowUpOutlined />}
+                disabled={idx === 0}
+                onClick={() => handleMoveStep(record.id, 'up')}
+                title="Переместить вверх"
+              />
+            )}
+            {isAdmin && (
+              <Button
+                size="small"
+                icon={<ArrowDownOutlined />}
+                disabled={idx === sortedSteps.length - 1}
+                onClick={() => handleMoveStep(record.id, 'down')}
+                title="Переместить вниз"
+              />
+            )}
+            {isAdmin && (
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => { setEditingStep(record); setIsStepModalOpen(true); }}
+              >
+                Изменить
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDeleteStep(record.id)}
+              >
+                Удалить
+              </Button>
+            )}
           </Space>
         );
       },
@@ -273,10 +283,14 @@ export const SequenceForm: React.FC = () => {
 
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
-                {isEditMode ? 'Сохранить' : 'Создать'} последовательность
+              {isAdmin && (
+                <Button type="primary" htmlType="submit" loading={loading}>
+                  {isEditMode ? 'Сохранить' : 'Создать'} последовательность
+                </Button>
+              )}
+              <Button onClick={() => navigate('/sequences')}>
+                {isAdmin ? 'Отмена' : 'Назад'}
               </Button>
-              <Button onClick={() => navigate('/sequences')}>Отмена</Button>
             </Space>
           </Form.Item>
         </Form>
@@ -288,14 +302,16 @@ export const SequenceForm: React.FC = () => {
             title={<span style={{ color: c.text }}>Шаги последовательности</span>}
             style={{ marginBottom: 16, borderColor: c.borderSecondary }}
           >
-            <Button
-              type="dashed"
-              icon={<PlusOutlined />}
-              onClick={() => { setEditingStep(null); setIsStepModalOpen(true); }}
-              style={{ marginBottom: 16, width: '100%' }}
-            >
-              Добавить шаг
-            </Button>
+            {isAdmin && (
+              <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={() => { setEditingStep(null); setIsStepModalOpen(true); }}
+                style={{ marginBottom: 16, width: '100%' }}
+              >
+                Добавить шаг
+              </Button>
+            )}
 
             <Table
               columns={stepColumns}

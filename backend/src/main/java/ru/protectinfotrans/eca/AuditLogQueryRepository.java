@@ -15,16 +15,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AuditLogQueryRepository extends JpaRepository<AuditLog, Long> {
 
-    /** Все записи, сортировка: свежие первыми */
-    Page<AuditLog> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    /** Все записи, сортировка: ID по возрастанию (старые сначала) */
+    Page<AuditLog> findAllByOrderByIdAsc(Pageable pageable);
 
     /** Записи по типу сущности */
-    Page<AuditLog> findByEntityTypeOrderByCreatedAtDesc(String entityType, Pageable pageable);
+    Page<AuditLog> findByEntityTypeOrderByIdAsc(String entityType, Pageable pageable);
 
     /** Записи по типу операции */
-    Page<AuditLog> findByActionOrderByCreatedAtDesc(String action, Pageable pageable);
+    Page<AuditLog> findByActionOrderByIdAsc(String action, Pageable pageable);
 
     /** Записи по типу сущности И операции */
-    Page<AuditLog> findByEntityTypeAndActionOrderByCreatedAtDesc(
+    Page<AuditLog> findByEntityTypeAndActionOrderByIdAsc(
             String entityType, String action, Pageable pageable);
 }

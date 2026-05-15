@@ -47,13 +47,13 @@ public class AuditLogController {
         Page<AuditLog> result;
 
         if (entityType != null && action != null) {
-            result = repository.findByEntityTypeAndActionOrderByCreatedAtDesc(entityType, action, pageable);
+            result = repository.findByEntityTypeAndActionOrderByIdAsc(entityType, action, pageable);
         } else if (entityType != null) {
-            result = repository.findByEntityTypeOrderByCreatedAtDesc(entityType, pageable);
+            result = repository.findByEntityTypeOrderByIdAsc(entityType, pageable);
         } else if (action != null) {
-            result = repository.findByActionOrderByCreatedAtDesc(action, pageable);
+            result = repository.findByActionOrderByIdAsc(action, pageable);
         } else {
-            result = repository.findAllByOrderByCreatedAtDesc(pageable);
+            result = repository.findAllByOrderByIdAsc(pageable);
         }
 
         return new PageResponse<>(

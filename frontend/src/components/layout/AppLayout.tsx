@@ -298,19 +298,16 @@ export const AppLayout: React.FC = () => {
                 style={{
                   textAlign: 'right',
                   cursor: 'pointer',
-                  maxWidth: 160,
-                  overflow: 'hidden',
+                  maxWidth: 200,
                   lineHeight: 1,
                 }}
               >
                 <div style={{
                   fontWeight: 600,
-                  fontSize: 13,
+                  fontSize: 12,
                   color: c.text,
-                  lineHeight: '18px',
+                  lineHeight: '17px',
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                 }}>
                   {user?.fullName}
                 </div>
