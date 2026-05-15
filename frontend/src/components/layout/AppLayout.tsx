@@ -292,16 +292,35 @@ export const AppLayout: React.FC = () => {
             </Dropdown>
 
             {/* User info */}
-            <Tooltip title="Профиль">
+            <Tooltip title={user?.fullName}>
               <div
                 onClick={() => navigate('/profile')}
-                style={{ textAlign: 'right', cursor: 'pointer' }}
+                style={{
+                  textAlign: 'right',
+                  cursor: 'pointer',
+                  maxWidth: 160,
+                  overflow: 'hidden',
+                  lineHeight: 1,
+                }}
               >
-                <div style={{ fontWeight: 600, fontSize: 13, color: c.text, lineHeight: 1.2 }}>
+                <div style={{
+                  fontWeight: 600,
+                  fontSize: 13,
+                  color: c.text,
+                  lineHeight: '18px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
                   {user?.fullName}
                 </div>
                 {ROLE_LABEL[user?.role ?? ''] !== user?.fullName && (
-                  <div style={{ fontSize: 11, color: c.textMuted }}>
+                  <div style={{
+                    fontSize: 11,
+                    color: c.textMuted,
+                    whiteSpace: 'nowrap',
+                    lineHeight: '16px',
+                  }}>
                     {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
                   </div>
                 )}

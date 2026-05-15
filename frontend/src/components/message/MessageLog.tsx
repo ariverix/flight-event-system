@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, notification, Select, Input, Space, Button, DatePicker } from 'antd';
+import { Table, Tag, notification, Select, Input, Space, Button, DatePicker, Tooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { messageApi } from '../../api/messageApi';
 import { MessageResponse } from '../../types/message';
@@ -95,10 +95,16 @@ export const MessageLog: React.FC = () => {
       render: (metadata: string | null) => {
         if (!metadata) return '—';
         try {
+          const parsed = JSON.parse(metadata);
+          const keys = Object.keys(parsed).slice(0, 2).join(', ');
+          const summary = keys ? `{${keys}…}` : '{}';
           return (
-            <pre style={{ fontSize: '11px', margin: 0 }}>
-              {JSON.stringify(JSON.parse(metadata), null, 2)}
-            </pre>
+            <Tooltip
+              title={<pre style={{ fontSize: 11, margin: 0 }}>{JSON.stringify(parsed, null, 2)}</pre>}
+              placement="topLeft"
+            >
+              <span style={{ cursor: 'help', fontSize: 12 }}>{summary}</span>
+            </Tooltip>
           );
         } catch {
           return metadata;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Space, notification, Card, Modal, Table, Tag } from 'antd';
+import { Form, Input, Button, Space, notification, Card, Modal, Table, Tag, Tooltip } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PlusOutlined, DeleteOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { sequenceApi } from '../../api/sequenceApi';
@@ -162,7 +162,12 @@ export const SequenceForm: React.FC = () => {
       render: (config: string) => {
         try {
           const parsed = JSON.parse(config);
-          return parsed.actionType || parsed.criterionType || '—';
+          const label = parsed.actionType || parsed.criterionType || '—';
+          return (
+            <Tooltip title={<pre style={{ margin: 0, fontSize: 11 }}>{JSON.stringify(parsed, null, 2)}</pre>} placement="topLeft">
+              <span>{label}</span>
+            </Tooltip>
+          );
         } catch {
           return '—';
         }

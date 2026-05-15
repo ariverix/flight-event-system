@@ -57,39 +57,44 @@ export const ExecutionList: React.FC = () => {
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-    { title: 'Последовательность', dataIndex: 'sequenceName', key: 'sequenceName' },
-    { title: 'Идент. ВС', dataIndex: 'aircraftId', key: 'aircraftId' },
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 65, fixed: 'left' as const },
+    { title: 'Последовательность', dataIndex: 'sequenceName', key: 'sequenceName', minWidth: 160 },
+    { title: 'Идент. ВС', dataIndex: 'aircraftId', key: 'aircraftId', width: 110 },
     {
       title: 'Номер рейса',
       dataIndex: 'flightNumber',
       key: 'flightNumber',
+      width: 110,
       render: (v: string | null) => v || '—',
     },
     {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
+      width: 130,
       render: (status: ExecutionStatus) => (
         <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
       ),
     },
     {
-      title: 'Текущий шаг',
+      title: 'Шаг',
       dataIndex: 'currentStepIndex',
       key: 'currentStepIndex',
-      render: (step: number | null) => step !== null ? `Шаг ${step}` : '—',
+      width: 70,
+      render: (step: number | null) => step !== null ? `${step}` : '—',
     },
     {
       title: 'Начало',
       dataIndex: 'startedAt',
       key: 'startedAt',
+      width: 150,
       render: (date: string) => new Date(date).toLocaleString('ru-RU'),
     },
     {
       title: 'Завершение',
       dataIndex: 'completedAt',
       key: 'completedAt',
+      width: 150,
       render: (date: string | null) => date ? new Date(date).toLocaleString('ru-RU') : 'В процессе',
     },
     {

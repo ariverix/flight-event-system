@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input } from 'antd';
+import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Tooltip } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
@@ -105,7 +105,18 @@ export const SequenceList: React.FC = () => {
       onFilter: (value: any, record: SequenceResponse) =>
         record.name.toLowerCase().includes(value.toLowerCase()),
     },
-    { title: 'Описание', dataIndex: 'description', key: 'description', ellipsis: true, width: 200 },
+    {
+      title: 'Описание',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+      width: 200,
+      render: (text: string) => (
+        <Tooltip title={text} placement="topLeft">
+          <span>{text}</span>
+        </Tooltip>
+      ),
+    },
     {
       title: 'Статус',
       dataIndex: 'status',

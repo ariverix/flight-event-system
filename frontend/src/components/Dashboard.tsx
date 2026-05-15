@@ -119,8 +119,8 @@ export const Dashboard: React.FC = () => {
 
       {/* ── Stat cards row 1 ────────────────────────────────── */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card" style={{ borderColor: c.borderSecondary }}>
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <Card className="stat-card" style={{ borderColor: c.borderSecondary, flex: 1 }}>
             <div
               className="stat-card-icon"
               style={{ background: 'rgba(22,119,255,0.12)', color: '#1677ff' }}
@@ -128,7 +128,7 @@ export const Dashboard: React.FC = () => {
               <OrderedListOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Активные посл-ти</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 12 }}>Активные последовательности</span>}
               value={stats.activeSequences}
               valueStyle={{ color: '#1677ff', fontWeight: 700 }}
             />
@@ -138,8 +138,8 @@ export const Dashboard: React.FC = () => {
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card" style={{ borderColor: c.borderSecondary }}>
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <Card className="stat-card" style={{ borderColor: c.borderSecondary, flex: 1 }}>
             <div
               className="stat-card-icon"
               style={{ background: 'rgba(0,200,83,0.12)', color: '#00c853' }}
@@ -147,7 +147,7 @@ export const Dashboard: React.FC = () => {
               <PlayCircleOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Активные выполнения</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 12 }}>Активные выполнения</span>}
               value={stats.runningExecutions}
               valueStyle={{ color: '#00c853', fontWeight: 700 }}
             />
@@ -160,8 +160,8 @@ export const Dashboard: React.FC = () => {
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card" style={{ borderColor: c.borderSecondary }}>
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <Card className="stat-card" style={{ borderColor: c.borderSecondary, flex: 1 }}>
             <div
               className="stat-card-icon"
               style={{ background: 'rgba(250,173,20,0.12)', color: '#faad14' }}
@@ -169,15 +169,16 @@ export const Dashboard: React.FC = () => {
               <MessageOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Всего сообщений</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 12 }}>Всего сообщений</span>}
               value={stats.totalMessages}
               valueStyle={{ color: '#faad14', fontWeight: 700 }}
             />
+            <Text style={{ color: c.textDimmer, fontSize: 12 }}>&nbsp;</Text>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card" style={{ borderColor: c.borderSecondary }}>
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <Card className="stat-card" style={{ borderColor: c.borderSecondary, flex: 1 }}>
             <div
               className="stat-card-icon"
               style={{ background: 'rgba(82,196,26,0.12)', color: '#52c41a' }}
@@ -185,10 +186,11 @@ export const Dashboard: React.FC = () => {
               <CheckCircleOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Завершено выполнений</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 12 }}>Завершено выполнений</span>}
               value={stats.completedExecutions}
               valueStyle={{ color: '#52c41a', fontWeight: 700 }}
             />
+            <Text style={{ color: c.textDimmer, fontSize: 12 }}>&nbsp;</Text>
           </Card>
         </Col>
       </Row>
