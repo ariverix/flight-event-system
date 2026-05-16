@@ -25,7 +25,8 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
 
   useEffect(() => {
     if (initialValues) {
-      const config = JSON.parse(initialValues.configJson);
+      let config: any = {};
+      try { config = JSON.parse(initialValues.configJson); } catch { /* keep empty config */ }
       setStepType(initialValues.stepType);
       setOnSuccessAction(initialValues.onSuccessAction);
       setOnFailureAction(initialValues.onFailureAction);

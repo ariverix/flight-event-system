@@ -89,7 +89,8 @@ export const convertStepsToFlow = (steps: StepResponse[]) => {
   let hasAbortNode = false;
 
   steps.forEach((step) => {
-    const config = JSON.parse(step.configJson);
+    let config: any = {};
+    try { config = JSON.parse(step.configJson); } catch { /* keep empty config */ }
     const label = `${step.orderIndex}. ${step.stepType}\n${config.actionType || config.criterionType || ''}`;
 
     nodes.push({
@@ -120,7 +121,7 @@ export const convertStepsToFlow = (steps: StepResponse[]) => {
       const edgeStyle = isSuccess ? 'solid' : 'dashed';
 
       switch (action) {
-        case 'CONTINUE':
+        case 'CONTINUE': {
           const nextStep = steps.find((s) => s.orderIndex === step.orderIndex + 1);
           if (nextStep) {
             targetId = `step-${nextStep.orderIndex}`;
@@ -135,6 +136,7 @@ export const convertStepsToFlow = (steps: StepResponse[]) => {
             });
           }
           break;
+        }
         case 'GOTO':
           if (gotoStep !== null) {
             targetId = `step-${gotoStep}`;

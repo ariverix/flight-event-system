@@ -77,12 +77,12 @@ export const SequenceForm: React.FC = () => {
       if (isEditMode && id) {
         await sequenceApi.updateSequence(parseInt(id), request);
         notification.success({ message: 'Последовательность обновлена' });
+        await loadSequence();
       } else {
         const newSeq = await sequenceApi.createSequence(request);
         notification.success({ message: 'Последовательность создана' });
         navigate(`/sequences/${newSeq.id}`);
       }
-      loadSequence();
     } catch (error: any) {
       notification.error({
         message: 'Ошибка сохранения',

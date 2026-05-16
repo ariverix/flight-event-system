@@ -13,7 +13,7 @@ export const usePolling = (callback: () => void, interval: number = 5000, enable
     const tick = () => {
       if (savedCallback.current) {
         try {
-          savedCallback.current();
+          Promise.resolve(savedCallback.current()).catch(() => {});
         } catch {
           // silently ignore polling errors
         }

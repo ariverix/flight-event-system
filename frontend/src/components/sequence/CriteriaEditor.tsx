@@ -25,7 +25,7 @@ export const CriteriaEditor: React.FC<CriteriaEditorProps> = ({ value = '', onCh
       setError(null);
       onChange?.(newValue);
     } else {
-      setError('Invalid JSON format');
+      setError('Некорректный формат JSON');
       onChange?.(newValue);
     }
   };
@@ -48,7 +48,7 @@ export const CriteriaEditor: React.FC<CriteriaEditorProps> = ({ value = '', onCh
         />
       )}
       <div style={{ marginTop: 8, fontSize: '12px', color: '#8c8c8c' }}>
-        Enter JSON criteria or leave empty for no criteria
+        Введите критерий в формате JSON или оставьте поле пустым
       </div>
     </div>
   );
