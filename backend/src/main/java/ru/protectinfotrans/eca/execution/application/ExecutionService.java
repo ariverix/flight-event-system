@@ -235,8 +235,10 @@ public class ExecutionService {
                 flightNumber
         ));
 
-        // Выполнить первый шаг
-        Step firstStep = sequence.getSteps().get(0);
+        // Выполнить первый шаг (по orderIndex, не по позиции в списке)
+        Step firstStep = sequence.getSteps().stream()
+                .min(java.util.Comparator.comparingInt(Step::getOrderIndex))
+                .orElseThrow();
         ExecutionContext context = buildDefaultContext(aircraftId, flightNumber);
         StepResult result = ecaRuleEngine.executeStep(firstStep, instance, context);
 

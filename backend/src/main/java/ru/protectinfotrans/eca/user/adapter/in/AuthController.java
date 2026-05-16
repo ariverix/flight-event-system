@@ -1,5 +1,7 @@
 package ru.protectinfotrans.eca.user.adapter.in;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -37,6 +39,7 @@ public class AuthController {
     private final UserService userService;
     private final JwtService jwtService;
     private final ru.protectinfotrans.eca.user.port.out.AuditLogPort auditLogPort;
+    private final ObjectMapper objectMapper;
 
     /**
      * POST /api/v1/auth/login — Аутентификация пользователя.
@@ -77,7 +80,7 @@ public class AuthController {
                 .action("USER_LOGIN")
                 .entityType("USER")
                 .entityId(user.getId())
-                .detailsJson("{\"username\":\"" + user.getUsername() + "\"}")
+                .detailsJson(toJson(Map.of("username", user.getUsername())))
                 .build());
 
         LoginResponse response = new LoginResponse(
@@ -142,5 +145,14 @@ public class AuthController {
 
         UserResponse response = UserResponse.fromEntity(user);
         return ResponseEntity.ok(response);
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize audit details", e);
+            return null;
+        }
     }
 }

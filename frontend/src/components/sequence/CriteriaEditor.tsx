@@ -36,7 +36,7 @@ export const CriteriaEditor: React.FC<CriteriaEditorProps> = ({ value = '', onCh
         rows={8}
         value={value}
         onChange={handleChange}
-        placeholder='{"criterionType": "FLIGHT_STAGE", "expectedStage": "OUT"}'
+        placeholder='{"type": "FLIGHT_STAGE", "operator": "EQUALS", "targetStage": "OUT"}'
         style={{ fontFamily: 'monospace', fontSize: '12px' }}
       />
       {error && (

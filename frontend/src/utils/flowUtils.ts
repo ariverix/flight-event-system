@@ -91,7 +91,7 @@ export const convertStepsToFlow = (steps: StepResponse[]) => {
   steps.forEach((step) => {
     let config: any = {};
     try { config = JSON.parse(step.configJson); } catch { /* keep empty config */ }
-    const label = `${step.orderIndex}. ${step.stepType}\n${config.actionType || config.criterionType || ''}`;
+    const label = `${step.orderIndex}. ${step.stepType}\n${config.actionType || config.type || config.criterionType || ''}`;
 
     nodes.push({
       id: `step-${step.orderIndex}`,

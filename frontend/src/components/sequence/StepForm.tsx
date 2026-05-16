@@ -34,7 +34,9 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
       if (initialValues.stepType === 'ACTION') {
         setActionType(config.actionType);
       } else {
-        setCriterionType(config.criterionType);
+        // Поддержка обоих форматов: 'type' (БД/миграции) и 'criterionType' (старый UI)
+        const ct = config.type || config.criterionType;
+        setCriterionType(ct);
       }
 
       form.setFieldsValue({
@@ -46,6 +48,10 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
         onFailureGotoStep: initialValues.onFailureGotoStep,
         onFailureNotify: initialValues.onFailureNotify,
         ...config,
+        // Нормализация ключей: 'type' → 'criterionType', 'targetStage' → 'expectedStage'
+        criterionType: config.type || config.criterionType,
+        expectedStage: config.targetStage || config.expectedStage,
+        criteriaMessageType: config.messageType,
       });
     }
   }, [initialValues]);
@@ -57,7 +63,7 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
     form.resetFields([
       'actionType', 'criterionType', 'templateName', 'parameters',
       'conditionName', 'alertLevel', 'durationSeconds', 'expectedStage',
-      'timeoutSeconds',
+      'criteriaMessageType', 'timeoutSeconds',
     ]);
   };
 
@@ -82,16 +88,20 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
           break;
       }
     } else {
-      configJson.criterionType = values.criterionType;
+      // Используем ключ 'type' — формат, ожидаемый бэкендом (CriterionEvaluator)
+      configJson.type = values.criterionType;
       switch (values.criterionType) {
         case 'MESSAGE_RECEIVED':
+          if (values.criteriaMessageType) configJson.messageType = values.criteriaMessageType;
           if (values.templateName) configJson.templateName = values.templateName;
           break;
         case 'FLIGHT_STAGE':
-          configJson.expectedStage = values.expectedStage;
+          // Бэкенд ожидает 'targetStage' и 'operator'
+          configJson.targetStage = values.expectedStage;
+          configJson.operator = 'EQUALS';
           break;
         case 'TIME_COMPARISON':
-          if (values.comparisonOperator) configJson.comparisonOperator = values.comparisonOperator;
+          if (values.comparisonOperator) configJson.operator = values.comparisonOperator;
           if (values.thresholdSeconds) configJson.thresholdSeconds = values.thresholdSeconds;
           break;
         case 'CONDITION_ACTIVE':
@@ -212,9 +222,22 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
           </Form.Item>
 
           {criterionType === 'MESSAGE_RECEIVED' && (
-            <Form.Item name="templateName" label="Шаблон сообщения">
-              <Input placeholder="Оставьте пустым — для любого сообщения" />
-            </Form.Item>
+            <>
+              <Form.Item
+                name="criteriaMessageType"
+                label="Тип сообщения"
+                rules={[{ required: true, message: 'Выберите тип сообщения' }]}
+              >
+                <Select>
+                  <Select.Option value="DOWNLINK">DOWNLINK — Борт → земля</Select.Option>
+                  <Select.Option value="UPLINK">UPLINK — Земля → борт</Select.Option>
+                  <Select.Option value="GROUND">GROUND — Наземная</Select.Option>
+                </Select>
+              </Form.Item>
+              <Form.Item name="templateName" label="Шаблон сообщения">
+                <Input placeholder="Оставьте пустым — для любого сообщения" />
+              </Form.Item>
+            </>
           )}
 
           {criterionType === 'FLIGHT_STAGE' && (

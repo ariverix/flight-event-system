@@ -72,8 +72,15 @@ public class WaitStepRule {
                 result = StepResult.SUCCESS;
             } else {
                 log.debug("WaitStepRule: criterion not met yet, continue waiting");
-                result = null; // Продолжаем ждать
+                result = null;
                 instance.setStatus(ExecutionStatus.WAITING);
+                // Инициализируем таймаут при первом входе в WAITING
+                if (instance.getWaitTimeoutAt() == null && step.getTimeoutSeconds() != null) {
+                    instance.setWaitStartedAt(now);
+                    instance.setWaitTimeoutAt(now.plusSeconds(step.getTimeoutSeconds()));
+                    log.info("WaitStepRule: timeout set to {} sec, expires at {}",
+                            step.getTimeoutSeconds(), instance.getWaitTimeoutAt());
+                }
             }
 
         } catch (Exception e) {

@@ -164,7 +164,7 @@ export const SequenceForm: React.FC = () => {
       render: (config: string) => {
         try {
           const parsed = JSON.parse(config);
-          const label = parsed.actionType || parsed.criterionType || '—';
+          const label = parsed.actionType || parsed.type || parsed.criterionType || '—';
           return (
             <Tooltip title={<pre style={{ margin: 0, fontSize: 11 }}>{JSON.stringify(parsed, null, 2)}</pre>} placement="topLeft">
               <span>{label}</span>

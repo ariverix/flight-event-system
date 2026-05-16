@@ -1,8 +1,9 @@
 package ru.protectinfotrans.eca.user.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,8 +12,8 @@ import ru.protectinfotrans.eca.user.adapter.out.UserJpaRepository;
 import ru.protectinfotrans.eca.user.domain.Role;
 import ru.protectinfotrans.eca.user.domain.User;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Сервис управления пользователями.
@@ -34,7 +35,8 @@ public class UserService {
 
     private final UserJpaRepository userRepository;
     private final ru.protectinfotrans.eca.user.port.out.AuditLogPort auditLogPort;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
+    private final ObjectMapper objectMapper;
 
     /**
      * UC-09: Регистрация нового пользователя.
@@ -71,7 +73,7 @@ public class UserService {
                 .action("USER_REGISTERED")
                 .entityType("USER")
                 .entityId(savedUser.getId())
-                .detailsJson("{\"username\":\"" + username + "\",\"role\":\"" + role + "\"}")
+                .detailsJson(toJson(Map.of("username", username, "role", role.name())))
                 .build());
 
         return savedUser;
@@ -130,7 +132,7 @@ public class UserService {
                 .action("USER_TOGGLED")
                 .entityType("USER")
                 .entityId(userId)
-                .detailsJson("{\"username\":\"" + user.getUsername() + "\",\"enabled\":" + user.getEnabled() + "}")
+                .detailsJson(toJson(Map.of("username", user.getUsername(), "enabled", user.getEnabled())))
                 .build());
 
         return updatedUser;
@@ -142,5 +144,14 @@ public class UserService {
     @Transactional(readOnly = true)
     public boolean existsByUsername(String username) {
         return userRepository.existsByUsername(username);
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize audit details", e);
+            return null;
+        }
     }
 }
