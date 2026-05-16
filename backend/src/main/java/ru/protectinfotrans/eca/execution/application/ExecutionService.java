@@ -455,12 +455,21 @@ public class ExecutionService {
     }
 
     private ExecutionContext buildDefaultContext(String aircraftId, String flightNumber) {
+        Map<String, Object> additionalData = new HashMap<>();
+        if (aircraftId != null) {
+            Set<String> conditions = conditionQueryPort.getActiveConditions(aircraftId);
+            if (!conditions.isEmpty()) {
+                Map<String, Boolean> conditionsMap = new HashMap<>();
+                conditions.forEach(c -> conditionsMap.put(c, true));
+                additionalData.put("activeConditions", conditionsMap);
+            }
+        }
         return new ExecutionContext(
                 aircraftId,
                 flightNumber,
                 FlightStage.INIT,
                 LocalDateTime.now(),
-                new HashMap<>()
+                additionalData
         );
     }
 }

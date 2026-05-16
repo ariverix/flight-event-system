@@ -70,7 +70,7 @@ public class UserService {
         log.info("User registered: id={}, username={}, role={}", savedUser.getId(), username, role);
 
         auditLogPort.save(ru.protectinfotrans.eca.AuditLog.builder()
-                .action("USER_REGISTERED")
+                .action("CREATE_USER")
                 .entityType("USER")
                 .entityId(savedUser.getId())
                 .detailsJson(toJson(Map.of("username", username, "role", role.name())))
@@ -129,7 +129,7 @@ public class UserService {
         log.info("User toggled: id={}, username={}, enabled={}", userId, user.getUsername(), user.getEnabled());
 
         auditLogPort.save(ru.protectinfotrans.eca.AuditLog.builder()
-                .action("USER_TOGGLED")
+                .action("TOGGLE_USER")
                 .entityType("USER")
                 .entityId(userId)
                 .detailsJson(toJson(Map.of("username", user.getUsername(), "enabled", user.getEnabled())))

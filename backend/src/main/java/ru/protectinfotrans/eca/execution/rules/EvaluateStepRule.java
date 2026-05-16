@@ -21,6 +21,7 @@ import ru.protectinfotrans.eca.sequence.domain.StepType;
  */
 @Rule(name = "EvaluateStepRule", description = "Evaluates EVALUATE IF steps")
 @Component
+@org.springframework.context.annotation.Scope("prototype")
 @RequiredArgsConstructor
 @Slf4j
 public class EvaluateStepRule {

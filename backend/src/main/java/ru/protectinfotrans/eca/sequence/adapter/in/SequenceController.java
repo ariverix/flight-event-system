@@ -7,9 +7,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ru.protectinfotrans.eca.sequence.dto.*;
 import ru.protectinfotrans.eca.sequence.port.in.SequenceManagementUseCase;
+import ru.protectinfotrans.eca.user.application.UserService;
 
 import java.util.List;
 
@@ -27,6 +29,7 @@ import java.util.List;
 public class SequenceController {
 
     private final SequenceManagementUseCase sequenceUseCase;
+    private final UserService userService;
 
     /** UC-01: Создать последовательность */
     @Operation(summary = "Создать последовательность",
@@ -35,8 +38,8 @@ public class SequenceController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
-    public SequenceResponse create(@Valid @RequestBody SequenceCreateRequest request) {
-        return sequenceUseCase.createSequence(request, 1L);
+    public SequenceResponse create(@Valid @RequestBody SequenceCreateRequest request, Authentication auth) {
+        return sequenceUseCase.createSequence(request, resolveUserId(auth));
     }
 
     /** UC-05: Список последовательностей с пагинацией */
@@ -66,8 +69,9 @@ public class SequenceController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public SequenceResponse update(@PathVariable Long id,
-                                   @Valid @RequestBody SequenceUpdateRequest request) {
-        return sequenceUseCase.updateSequence(id, request, 1L);
+                                   @Valid @RequestBody SequenceUpdateRequest request,
+                                   Authentication auth) {
+        return sequenceUseCase.updateSequence(id, request, resolveUserId(auth));
     }
 
     /** UC-01: Удалить последовательность (только DRAFT) */
@@ -77,8 +81,8 @@ public class SequenceController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
-    public void delete(@PathVariable Long id) {
-        sequenceUseCase.deleteSequence(id, 1L);
+    public void delete(@PathVariable Long id, Authentication auth) {
+        sequenceUseCase.deleteSequence(id, resolveUserId(auth));
     }
 
     /** UC-04: Активировать последовательность */
@@ -86,8 +90,8 @@ public class SequenceController {
                description = "UC-04: Перевести в статус ACTIVE — начинает обрабатывать события")
     @PostMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
-    public SequenceResponse activate(@PathVariable Long id) {
-        return sequenceUseCase.activateSequence(id, 1L);
+    public SequenceResponse activate(@PathVariable Long id, Authentication auth) {
+        return sequenceUseCase.activateSequence(id, resolveUserId(auth));
     }
 
     /** UC-04: Деактивировать последовательность */
@@ -95,8 +99,8 @@ public class SequenceController {
                description = "UC-04: Перевести из ACTIVE обратно в DRAFT")
     @PostMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('ADMIN')")
-    public SequenceResponse deactivate(@PathVariable Long id) {
-        return sequenceUseCase.deactivateSequence(id, 1L);
+    public SequenceResponse deactivate(@PathVariable Long id, Authentication auth) {
+        return sequenceUseCase.deactivateSequence(id, resolveUserId(auth));
     }
 
     /** UC-02: Добавить шаг в последовательность */
@@ -107,8 +111,9 @@ public class SequenceController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
     public StepResponse addStep(@PathVariable Long id,
-                                @Valid @RequestBody StepCreateRequest request) {
-        return sequenceUseCase.addStep(id, request, 1L);
+                                @Valid @RequestBody StepCreateRequest request,
+                                Authentication auth) {
+        return sequenceUseCase.addStep(id, request, resolveUserId(auth));
     }
 
     /** UC-02, UC-03: Обновить шаг (включая настройку переходов) */
@@ -118,8 +123,9 @@ public class SequenceController {
     @PreAuthorize("hasRole('ADMIN')")
     public StepResponse updateStep(@PathVariable Long id,
                                    @PathVariable Long stepId,
-                                   @Valid @RequestBody StepUpdateRequest request) {
-        return sequenceUseCase.updateStep(id, stepId, request, 1L);
+                                   @Valid @RequestBody StepUpdateRequest request,
+                                   Authentication auth) {
+        return sequenceUseCase.updateStep(id, stepId, request, resolveUserId(auth));
     }
 
     /** UC-02: Удалить шаг */
@@ -129,8 +135,8 @@ public class SequenceController {
     @DeleteMapping("/{id}/steps/{stepId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
-    public void deleteStep(@PathVariable Long id, @PathVariable Long stepId) {
-        sequenceUseCase.deleteStep(id, stepId, 1L);
+    public void deleteStep(@PathVariable Long id, @PathVariable Long stepId, Authentication auth) {
+        sequenceUseCase.deleteStep(id, stepId, resolveUserId(auth));
     }
 
     /** UC-02: Изменить порядок шагов */
@@ -139,7 +145,15 @@ public class SequenceController {
     @PutMapping("/{id}/steps/reorder")
     @PreAuthorize("hasRole('ADMIN')")
     public List<StepResponse> reorderSteps(@PathVariable Long id,
-                                           @RequestBody List<Long> stepIds) {
-        return sequenceUseCase.reorderSteps(id, stepIds, 1L);
+                                           @RequestBody List<Long> stepIds,
+                                           Authentication auth) {
+        return sequenceUseCase.reorderSteps(id, stepIds, resolveUserId(auth));
+    }
+
+    /** Извлечь userId из JWT-аутентификации. */
+    private Long resolveUserId(Authentication auth) {
+        if (auth == null || auth.getName() == null) return null;
+        var user = userService.findByUsername(auth.getName());
+        return user != null ? user.getId() : null;
     }
 }

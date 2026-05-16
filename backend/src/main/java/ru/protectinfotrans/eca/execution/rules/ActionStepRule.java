@@ -30,6 +30,7 @@ import java.util.Map;
  */
 @Rule(name = "ActionStepRule", description = "Executes ACTION steps")
 @Component
+@org.springframework.context.annotation.Scope("prototype")
 @RequiredArgsConstructor
 @Slf4j
 public class ActionStepRule {

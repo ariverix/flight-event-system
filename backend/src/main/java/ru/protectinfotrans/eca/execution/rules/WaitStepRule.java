@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
  */
 @Rule(name = "WaitStepRule", description = "Executes WAIT FOR steps")
 @Component
+@org.springframework.context.annotation.Scope("prototype")
 @RequiredArgsConstructor
 @Slf4j
 public class WaitStepRule {

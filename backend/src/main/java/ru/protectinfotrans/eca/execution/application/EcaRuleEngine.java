@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jeasy.rules.api.Facts;
 import org.jeasy.rules.api.Rules;
 import org.jeasy.rules.core.DefaultRulesEngine;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
@@ -24,9 +25,11 @@ import ru.protectinfotrans.eca.sequence.domain.Step;
 @Slf4j
 public class EcaRuleEngine {
 
-    private final ActionStepRule actionStepRule;
-    private final EvaluateStepRule evaluateStepRule;
-    private final WaitStepRule waitStepRule;
+    // ObjectProvider используется т.к. правила — prototype-scoped бины:
+    // каждый вызов executeStep создаёт свежие экземпляры без общего state
+    private final ObjectProvider<ActionStepRule> actionStepRuleProvider;
+    private final ObjectProvider<EvaluateStepRule> evaluateStepRuleProvider;
+    private final ObjectProvider<WaitStepRule> waitStepRuleProvider;
 
     /**
      * Выполнить шаг последовательности.
@@ -39,10 +42,10 @@ public class EcaRuleEngine {
     public StepResult executeStep(Step step, ExecutionInstance instance, ExecutionContext context) {
         log.debug("Executing step {} (type: {}) for instance {}", step.getOrderIndex(), step.getStepType(), instance.getId());
 
-        // Cброси результатов предыдущего выполнения
-        actionStepRule.reset();
-        evaluateStepRule.reset();
-        waitStepRule.reset();
+        // Получаем свежие prototype-экземпляры правил — нет shared state между вызовами
+        ActionStepRule actionStepRule = actionStepRuleProvider.getObject();
+        EvaluateStepRule evaluateStepRule = evaluateStepRuleProvider.getObject();
+        WaitStepRule waitStepRule = waitStepRuleProvider.getObject();
 
         // Создание фактов для Easy Rules
         Facts facts = new Facts();
@@ -50,7 +53,7 @@ public class EcaRuleEngine {
         facts.put("instance", instance);
         facts.put("context", context);
 
-        // Создание набор правил
+        // Создание набора правил
         Rules rules = new Rules();
         rules.register(actionStepRule);
         rules.register(evaluateStepRule);
