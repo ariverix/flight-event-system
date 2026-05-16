@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STATUS_COLOR: Record<string, string> = {
   ACTIVE:   'green',
-  INACTIVE: 'orange',
+  INACTIVE: 'default',
   DRAFT:    'default',
 };
 
@@ -104,9 +104,15 @@ export const SequenceList: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       width: 220,
+      ellipsis: true,
       filteredValue: searchText ? [searchText] : null,
       onFilter: (value: any, record: SequenceResponse) =>
         record.name.toLowerCase().includes(value.toLowerCase()),
+      render: (text: string) => (
+        <Tooltip title={text} placement="topLeft">
+          <span>{text}</span>
+        </Tooltip>
+      ),
     },
     {
       title: 'Описание',
@@ -124,7 +130,7 @@ export const SequenceList: React.FC = () => {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
-      width: 110,
+      width: 120,
       render: (status: SequenceStatus) => (
         <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
       ),
@@ -132,14 +138,14 @@ export const SequenceList: React.FC = () => {
     {
       title: 'Шаги',
       key: 'steps',
-      width: 70,
+      width: 80,
       render: (_: any, record: SequenceResponse) => record.steps.length,
     },
     {
       title: 'Создан',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 110,
+      width: 120,
       render: (date: string) => new Date(date).toLocaleDateString('ru-RU'),
     },
     {

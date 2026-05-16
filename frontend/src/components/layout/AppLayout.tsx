@@ -240,6 +240,8 @@ export const AppLayout: React.FC = () => {
         <Header
           style={{
             padding: '0 24px',
+            height: 64,
+            lineHeight: '64px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -247,6 +249,7 @@ export const AppLayout: React.FC = () => {
             position: 'sticky',
             top: 0,
             zIndex: 100,
+            overflow: 'hidden',
           }}
         >
           {/* Left: system subtitle */}
@@ -291,15 +294,17 @@ export const AppLayout: React.FC = () => {
               </Tooltip>
             </Dropdown>
 
-            {/* User info */}
+            {/* User info — показываем полное имя, Tooltip как запасной вариант */}
             <Tooltip title={user?.fullName}>
               <div
                 onClick={() => navigate('/profile')}
                 style={{
                   textAlign: 'right',
                   cursor: 'pointer',
-                  maxWidth: 200,
+                  maxWidth: 180,
+                  overflow: 'hidden',
                   lineHeight: 1,
+                  flexShrink: 0,
                 }}
               >
                 <div style={{
@@ -308,19 +313,18 @@ export const AppLayout: React.FC = () => {
                   color: c.text,
                   lineHeight: '17px',
                   whiteSpace: 'nowrap',
+                  overflow: 'hidden',
                 }}>
                   {user?.fullName}
                 </div>
-                {ROLE_LABEL[user?.role ?? ''] !== user?.fullName && (
-                  <div style={{
-                    fontSize: 11,
-                    color: c.textMuted,
-                    whiteSpace: 'nowrap',
-                    lineHeight: '16px',
-                  }}>
-                    {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
-                  </div>
-                )}
+                <div style={{
+                  fontSize: 11,
+                  color: c.textMuted,
+                  whiteSpace: 'nowrap',
+                  lineHeight: '16px',
+                }}>
+                  {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
+                </div>
               </div>
             </Tooltip>
 

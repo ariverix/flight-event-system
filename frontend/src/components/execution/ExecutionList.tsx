@@ -77,11 +77,11 @@ export const ExecutionList: React.FC = () => {
       ),
     },
     {
-      title: 'Шаг',
+      title: 'Текущий шаг',
       dataIndex: 'currentStepIndex',
       key: 'currentStepIndex',
-      width: 70,
-      render: (step: number | null) => step !== null ? `${step}` : '—',
+      width: 110,
+      render: (step: number | null) => step !== null ? `Шаг ${step}` : '—',
     },
     {
       title: 'Начало',

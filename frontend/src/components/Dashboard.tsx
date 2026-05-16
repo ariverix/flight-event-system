@@ -128,7 +128,7 @@ export const Dashboard: React.FC = () => {
               <OrderedListOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: c.textMuted, fontSize: 12 }}>Активные последовательности</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Активные последовательности</span>}
               value={stats.activeSequences}
               valueStyle={{ color: '#1677ff', fontWeight: 700 }}
             />
@@ -147,7 +147,7 @@ export const Dashboard: React.FC = () => {
               <PlayCircleOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: c.textMuted, fontSize: 12 }}>Активные выполнения</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Активные выполнения</span>}
               value={stats.runningExecutions}
               valueStyle={{ color: '#00c853', fontWeight: 700 }}
             />
@@ -169,7 +169,7 @@ export const Dashboard: React.FC = () => {
               <MessageOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: c.textMuted, fontSize: 12 }}>Всего сообщений</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Всего сообщений</span>}
               value={stats.totalMessages}
               valueStyle={{ color: '#faad14', fontWeight: 700 }}
             />
@@ -186,7 +186,7 @@ export const Dashboard: React.FC = () => {
               <CheckCircleOutlined />
             </div>
             <Statistic
-              title={<span style={{ color: c.textMuted, fontSize: 12 }}>Завершено выполнений</span>}
+              title={<span style={{ color: c.textMuted, fontSize: 13 }}>Завершено выполнений</span>}
               value={stats.completedExecutions}
               valueStyle={{ color: '#52c41a', fontWeight: 700 }}
             />

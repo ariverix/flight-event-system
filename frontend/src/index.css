@@ -161,6 +161,14 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb:hover { background: #9da3ab; 
 .stat-card {
   border-radius: 10px !important;
   transition: box-shadow 0.2s ease !important;
+  min-height: 140px !important;
+}
+
+.stat-card .ant-card-body {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  height: 100% !important;
 }
 
 .stat-card:hover {

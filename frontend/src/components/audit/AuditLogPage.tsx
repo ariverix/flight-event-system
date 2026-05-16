@@ -43,7 +43,7 @@ const ACTION_LABELS: Record<string, string> = {
   EXECUTION_ABORTED:   'Выполнение прервано',
   USER_LOGIN:          'Вход в систему',
   CREATE_USER:         'Создан пользователь',
-  TOGGLE_USER:         'Статус изменён',
+  TOGGLE_USER:         'Изменение статуса пользователя',
 };
 
 const ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -191,7 +191,7 @@ export const AuditLogPage: React.FC = () => {
             <Select.Option value="EXECUTION_ABORTED">Прерывание выполнения</Select.Option>
             <Select.Option value="USER_LOGIN">Вход в систему</Select.Option>
             <Select.Option value="CREATE_USER">Создание пользователя</Select.Option>
-            <Select.Option value="TOGGLE_USER">Статус изменён</Select.Option>
+            <Select.Option value="TOGGLE_USER">Изменение статуса пользователя</Select.Option>
           </Select>
           <Button
             icon={<ReloadOutlined />}
