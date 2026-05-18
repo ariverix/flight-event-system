@@ -53,6 +53,8 @@ public class IntegrationService implements ConditionQueryPort {
         Set<String> conditions = activeConditions.get(aircraftId);
         if (conditions != null) {
             conditions.remove(conditionName);
+            // чистим запись целиком если conditions пуст —
+            // иначе map растёт неограниченно при большом числе ВС
             if (conditions.isEmpty()) {
                 activeConditions.remove(aircraftId);
             }

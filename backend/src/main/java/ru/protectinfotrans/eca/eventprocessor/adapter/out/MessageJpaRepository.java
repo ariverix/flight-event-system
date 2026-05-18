@@ -15,12 +15,8 @@ import java.time.LocalDateTime;
  */
 public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Long> {
 
-    /**
-     * Проверка существования сообщения без фильтра по времени.
-     * PostgreSQL не поддерживает IS NULL для параметров с неизвестным типом (ошибка 42P18),
-     * поэтому запросы с временны́м фильтром и без него разделены на уровне адаптера.
-     *
-     */
+    // workaround: PostgreSQL 42P18 (indeterminate datatype) при null-параметре в IS NULL —
+    // два отдельных метода вместо одного с nullable afterTime
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
            "WHERE m.aircraftId = :aircraftId " +
            "AND m.messageType = :messageType " +
@@ -31,10 +27,7 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
             @Param("templateName") String templateName
     );
 
-    /**
-     * Проверка существования сообщения с фильтром по времени (fromThisPointOnly в WAIT-шагах).
-     *
-     */
+    // вариант с afterTime — для fromThisPointOnly=true в WAIT-шагах
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
            "WHERE m.aircraftId = :aircraftId " +
            "AND m.messageType = :messageType " +
@@ -47,10 +40,7 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
             @Param("afterTime") LocalDateTime afterTime
     );
 
-    /**
-     * Проверка позиционного отчёта за последние N минут.
-     * Позиционный отчёт — DOWNLINK с templateName содержащим "POSITION" или "POS".
-     */
+    // NOTE: "POSITION" и "POS" — эвристика, в проде нужен enum шаблонов или отдельный тип
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
            "WHERE m.aircraftId = :aircraftId " +
            "AND m.messageType = 'DOWNLINK' " +
@@ -61,18 +51,7 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
             @Param("sinceTime") LocalDateTime sinceTime
     );
 
-    /**
-     * Поиск сообщений по ВС с пагинацией.
-     */
     Page<IncomingMessage> findByAircraftId(String aircraftId, Pageable pageable);
-
-    /**
-     * Поиск сообщений по типу с пагинацией.
-     */
     Page<IncomingMessage> findByMessageType(MessageType messageType, Pageable pageable);
-
-    /**
-     * Поиск сообщений по ВС и типу с пагинацией.
-     */
     Page<IncomingMessage> findByAircraftIdAndMessageType(String aircraftId, MessageType messageType, Pageable pageable);
 }

@@ -7,11 +7,8 @@ import org.springframework.stereotype.Component;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.out.EventPublisherPort;
 
-/**
- * Адаптер для публикации событий через Spring ApplicationEventPublisher.
- * Реализует паттерн Transactional Outbox через Spring Modulith Event Publication Registry.
- *
- */
+// Spring Modulith Event Publication Registry пишет событие в той же транзакции что и данные —
+// при падении до commit событие не уйдёт, retry гарантирует at-least-once доставку
 @Component
 @RequiredArgsConstructor
 @Slf4j
