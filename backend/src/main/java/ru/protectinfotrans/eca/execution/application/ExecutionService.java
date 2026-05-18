@@ -97,6 +97,9 @@ public class ExecutionService {
             String type = (String) criteria.get("type");
 
             if ("MESSAGE_RECEIVED".equals(type)) {
+                // сравниваем с текущим событием напрямую, не лезем в БД:
+                // к моменту проверки сообщение уже сохранено, запрос вернул бы true
+                // для всех предыдущих совпадений — запускали бы лишние экземпляры
                 if (event.messageType() == null || event.templateName() == null) return false;
                 String requiredType = (String) criteria.get("messageType");
                 String requiredTemplate = (String) criteria.get("templateName");
@@ -137,6 +140,8 @@ public class ExecutionService {
     }
 
     private void processWaitingInstances(NormalizedEvent event) {
+        // findActiveByAircraftId возвращает RUNNING+WAITING, фильтруем здесь —
+        // один запрос вместо двух, и список уже в транзакции
         List<ExecutionInstance> waitingInstances = executionRepository.findActiveByAircraftId(event.aircraftId())
                 .stream()
                 .filter(inst -> inst.getStatus() == ExecutionStatus.WAITING)
@@ -290,6 +295,8 @@ public class ExecutionService {
                 }
             }
             case GOTO -> {
+                // невалидный GOTO → ABORT, не исключение:
+                // последовательность не должна ронять весь поток событий для других ВС
                 if (transitionTarget == null || transitionTarget < 1 || transitionTarget > sequence.getSteps().size()) {
                     log.error("Invalid GOTO target {} for instance {}", transitionTarget, instance.getId());
                     abortExecution(instance);
@@ -360,6 +367,8 @@ public class ExecutionService {
     @Scheduled(fixedRate = 10000)
     public void checkWaitTimeouts() {
         LocalDateTime now = LocalDateTime.now();
+        // NOTE: нужен составной индекс по (status, wait_timeout_at) —
+        // без него при сотнях активных экземпляров это full scan каждые 10 сек
         List<ExecutionInstance> expiredInstances = executionRepository.findWaitingWithExpiredTimeout(now);
 
         for (ExecutionInstance instance : expiredInstances) {
@@ -412,6 +421,8 @@ public class ExecutionService {
                 additionalData.put("activeConditions", conditionsMap);
             }
         }
+        // INIT как нейтральная стадия при запуске первого шага —
+        // реальная стадия придёт с первым NormalizedEvent для этого ВС
         return new ExecutionContext(
                 aircraftId,
                 flightNumber,

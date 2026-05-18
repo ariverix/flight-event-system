@@ -29,9 +29,7 @@ public interface ExecutionJpaRepository extends JpaRepository<ExecutionInstance,
            "AND e.status IN ('RUNNING', 'WAITING')")
     List<ExecutionInstance> findActiveByAircraftId(@Param("aircraftId") String aircraftId);
 
-    /**
-     * Найти все WAITING экземпляры с истёкшим таймаутом.
-     */
+    // NOTE: эффективность зависит от индекса (status, wait_timeout_at) на таблице execution_instances
     @Query("SELECT e FROM ExecutionInstance e WHERE e.status = 'WAITING' " +
            "AND e.waitTimeoutAt IS NOT NULL AND e.waitTimeoutAt <= :now")
     List<ExecutionInstance> findWaitingWithExpiredTimeout(@Param("now") LocalDateTime now);
