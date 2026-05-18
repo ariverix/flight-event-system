@@ -200,12 +200,13 @@ export const SequenceForm: React.FC = () => {
     {
       title: 'Действия',
       key: 'actions',
+      width: 280,
       render: (_: any, record: StepResponse) => {
         const steps = sequence?.steps ?? [];
         const sortedSteps = [...steps].sort((a, b) => a.orderIndex - b.orderIndex);
         const idx = sortedSteps.findIndex(s => s.id === record.id);
         return (
-          <Space size={4}>
+          <Space size={4} wrap>
             {isAdmin && (
               <Button
                 size="small"
@@ -318,6 +319,7 @@ export const SequenceForm: React.FC = () => {
               dataSource={sequence.steps}
               rowKey="id"
               pagination={false}
+              scroll={{ x: 900 }}
             />
           </Card>
 
