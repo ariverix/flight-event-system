@@ -39,11 +39,17 @@ public class CriterionEvaluator {
             CriterionType type = CriterionType.valueOf((String) criteria.get("type"));
 
             return switch (type) {
+                // история сообщений в БД — единственный источник правды для входящих событий
                 case MESSAGE_RECEIVED -> evaluateMessageReceived(criteria, context, waitStartedAt);
+                // стадия берётся из контекста текущего события, не из БД
                 case FLIGHT_STAGE -> evaluateFlightStage(criteria, context);
+                // POS-репорты ищем в скользящем временном окне в таблице messages
                 case POSITION_REPORTED -> evaluatePositionReported(criteria, context);
+                // ETD/ETA и т.п. должны быть заранее положены в context.additionalData
                 case TIME_COMPARISON -> evaluateTimeComparison(criteria, context);
+                // активные алерты живут в IntegrationService (in-memory), пробрасываются в контекст
                 case CONDITION_ACTIVE -> evaluateConditionActive(criteria, context);
+                // рекурсивный AND/OR — передаём waitStartedAt вглубь для fromThisPointOnly
                 case COMPOUND -> evaluateCompound(criteria, context, waitStartedAt);
             };
         } catch (Exception e) {
@@ -57,6 +63,8 @@ public class CriterionEvaluator {
         String templateName = (String) criteria.get("templateName");
         Boolean fromThisPointOnly = (Boolean) criteria.getOrDefault("fromThisPointOnly", false);
 
+        // fromThisPointOnly=true — учитываем только сообщения после начала ожидания,
+        // иначе старый POSITION_REPORT из прошлого рейса закроет WAIT-шаг сразу
         LocalDateTime afterTime = (fromThisPointOnly && waitStartedAt != null) ? waitStartedAt : null;
 
         return messageRepository.existsByAircraftAndTypeAndTemplate(
@@ -76,6 +84,8 @@ public class CriterionEvaluator {
             return false;
         }
 
+        // FlightStage объявлен в хронологическом порядке (INIT→OUT→OFF→ON→IN),
+        // поэтому ordinal() корректен для сравнений "раньше/позже"
         return switch (operator) {
             case EQUALS -> currentStage == targetStage;
             case NOT_EQUALS -> currentStage != targetStage;
@@ -132,6 +142,8 @@ public class CriterionEvaluator {
             return false;
         }
 
+        // allMatch/anyMatch дают short-circuit: AND останавливается на первом false,
+        // OR — на первом true, что важно при дорогих критериях типа MESSAGE_RECEIVED
         if ("AND".equals(operator)) {
             return children.stream().allMatch(child -> {
                 try {

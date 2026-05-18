@@ -45,8 +45,11 @@ public class EcaRuleEngine {
         rules.register(waitStepRule);
 
         DefaultRulesEngine rulesEngine = new DefaultRulesEngine();
+        // fire() запустит ровно одно правило — @Condition взаимоисключающие по StepType
         rulesEngine.fire(rules, facts);
 
+        // читаем результат только из того правила чей @Condition сработал,
+        // остальные два остались с result=null
         StepResult result = switch (step.getStepType()) {
             case ACTION -> actionStepRule.getResult();
             case EVALUATE -> evaluateStepRule.getResult();
