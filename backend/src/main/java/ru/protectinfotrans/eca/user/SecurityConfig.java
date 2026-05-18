@@ -21,27 +21,7 @@ import ru.protectinfotrans.eca.user.auth.JwtAuthenticationFilter;
 
 import java.util.List;
 
-/**
- * Конфигурация Spring Security с JWT-аутентификацией.
- *
- * Настройки:
- * - JWT-based аутентификация (stateless)
- * - CSRF отключен (не требуется для JWT)
- * - CORS для фронтенда (localhost:5173, localhost:3000)
- * - Роли: OPERATOR, ADMIN
- *
- * Правила авторизации:
- * - /api/v1/auth/login — открыт для всех
- * - /api/v1/messages/**, /api/v1/flights/** — открыт для внешних систем (UC-06)
- * - /api/v1/auth/register, /api/v1/users/** — только ADMIN (UC-09)
- * - /api/v1/sequences/**, /api/v1/executions/** — OPERATOR или ADMIN
- * - /actuator/health — открыт (Docker healthcheck)
- * - /actuator/** (кроме /health) — только ADMIN
- * - /swagger-ui/**, /v3/api-docs/** — открыт для всех
- * - Статика и SPA-маршруты — открыты (защита только на API)
- *
- * См. диплом: раздел 1.3.5 (акторы), Глава 2 (технологический стек - Spring Security, JJWT)
- */
+/** Stateless JWT security. CSRF отключён, CORS разрешён для dev-сервера фронта. */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -57,25 +37,19 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Публичные эндпоинты (без аутентификации)
                         .requestMatchers("/api/v1/auth/login").permitAll()
-                        .requestMatchers("/api/v1/messages/**").permitAll()   // UC-06: Внешние системы
-                        .requestMatchers("/api/v1/flights/**").permitAll()    // UC-06: Внешние системы
+                        .requestMatchers("/api/v1/messages/**").permitAll()
+                        .requestMatchers("/api/v1/flights/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()      // Docker healthcheck
-
-                        // Эндпоинты только для ADMIN
+                        .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/api/v1/auth/register").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/users/**").hasRole("ADMIN")       // UC-09
-                        .requestMatchers("/api/v1/audit-log/**").hasRole("ADMIN")   // Журнал аудита
+                        .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/audit-log/**").hasRole("ADMIN")
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
-
-                        // Эндпоинты для OPERATOR и ADMIN
                         .requestMatchers("/api/v1/sequences/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/executions/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/auth/me").authenticated()
-
-                        // Статические ресурсы и SPA-маршруты — открыты (защита только на /api/**)
+                        // статика и SPA — без защиты, закрываем только /api/**
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
@@ -83,10 +57,6 @@ public class SecurityConfig {
                 .build();
     }
 
-    /**
-     * CORS конфигурация для фронтенда.
-     * Разрешает запросы с localhost:5173 (Vite dev server) и localhost:3000.
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -100,9 +70,6 @@ public class SecurityConfig {
         return source;
     }
 
-    /**
-     * PasswordEncoder для хеширования паролей (BCrypt).
-     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

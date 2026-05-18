@@ -13,12 +13,7 @@ import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
 import ru.protectinfotrans.eca.sequence.domain.Step;
 import ru.protectinfotrans.eca.sequence.domain.StepType;
 
-/**
- * Easy Rules правило для шагов типа EVALUATE.
- * Мгновенно проверяет условие и возвращает SUCCESS (true) или FAILURE (false).
- *
- * См. диплом: раздел 1.2.2 (Sequencer — Evaluate IF), раздел 1.3.3 (ECA модель), таблица 1.3
- */
+/** Правило для EVALUATE-шагов — проверяет условие прямо сейчас. */
 @Rule(name = "EvaluateStepRule", description = "Evaluates EVALUATE IF steps")
 @Component
 @org.springframework.context.annotation.Scope("prototype")
@@ -41,7 +36,6 @@ public class EvaluateStepRule {
             @Fact("context") ExecutionContext context
     ) {
         try {
-            // Для EVALUATE нет fromThisPointOnly, поэтому waitStartedAt = null
             boolean evaluationResult = criterionEvaluator.evaluate(step.getConfigJson(), context, null);
 
             result = evaluationResult ? StepResult.SUCCESS : StepResult.FAILURE;

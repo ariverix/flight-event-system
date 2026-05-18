@@ -16,12 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Оценщик критериев ECA-модели.
- * Поддерживает все 6 типов критериев + составные (COMPOUND).
- *
- * См. диплом: раздел 1.2.2 (Sequencer Criteria), раздел 1.3.3 (ECA)
- */
+/** Вычисляет критерии ECA — все 6 типов плюс COMPOUND (AND/OR). */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -31,12 +26,7 @@ public class CriterionEvaluator {
     private final ObjectMapper objectMapper;
 
     /**
-     * Оценить критерий на основе JSON-конфигурации и контекста выполнения.
-     *
-     * @param criteriaJson JSON-представление критерия
-     * @param context контекст выполнения (aircraftId, flightStage, время)
-     * @param waitStartedAt время начала ожидания (для fromThisPointOnly в WAIT-шагах, null для EVALUATE)
-     * @return true если критерий выполнен
+     * @param waitStartedAt для fromThisPointOnly в WAIT-шагах, null в EVALUATE
      */
     public boolean evaluate(String criteriaJson, ExecutionContext context, LocalDateTime waitStartedAt) {
         if (criteriaJson == null || criteriaJson.isBlank()) {
@@ -62,10 +52,6 @@ public class CriterionEvaluator {
         }
     }
 
-    /**
-     * MESSAGE_RECEIVED: Получено ли сообщение определённого типа и шаблона.
-     * JSON: { "type": "MESSAGE_RECEIVED", "messageType": "DOWNLINK", "templateName": "...", "fromThisPointOnly": true/false }
-     */
     private boolean evaluateMessageReceived(Map<String, Object> criteria, ExecutionContext context, LocalDateTime waitStartedAt) {
         MessageType messageType = MessageType.valueOf((String) criteria.get("messageType"));
         String templateName = (String) criteria.get("templateName");
@@ -81,10 +67,6 @@ public class CriterionEvaluator {
         );
     }
 
-    /**
-     * FLIGHT_STAGE: Проверка текущей стадии полёта.
-     * JSON: { "type": "FLIGHT_STAGE", "operator": "EQUALS", "targetStage": "OFF" }
-     */
     private boolean evaluateFlightStage(Map<String, Object> criteria, ExecutionContext context) {
         ComparisonOperator operator = ComparisonOperator.valueOf((String) criteria.get("operator"));
         FlightStage targetStage = FlightStage.valueOf((String) criteria.get("targetStage"));
@@ -104,22 +86,14 @@ public class CriterionEvaluator {
         };
     }
 
-    /**
-     * POSITION_REPORTED: Получен ли позиционный отчёт за последние N минут.
-     * JSON: { "type": "POSITION_REPORTED", "minutesAgo": 30 }
-     */
     private boolean evaluatePositionReported(Map<String, Object> criteria, ExecutionContext context) {
         Integer minutesAgo = (Integer) criteria.get("minutesAgo");
         return messageRepository.existsPositionReportWithinMinutes(context.aircraftId(), minutesAgo);
     }
 
-    /**
-     * TIME_COMPARISON: Сравнение текущего времени с временной отметкой полёта.
-     * JSON: { "type": "TIME_COMPARISON", "operator": "IS_AFTER", "referencePoint": "ETD", "offsetMinutes": 10 }
-     */
     private boolean evaluateTimeComparison(Map<String, Object> criteria, ExecutionContext context) {
-        String operator = (String) criteria.get("operator"); // IS_BEFORE, IS_EQUAL, IS_AFTER
-        String referencePoint = (String) criteria.get("referencePoint"); // ETD, ETA, Off, On, In, Out
+        String operator = (String) criteria.get("operator");
+        String referencePoint = (String) criteria.get("referencePoint");
         Integer offsetMinutes = (Integer) criteria.getOrDefault("offsetMinutes", 0);
 
         LocalDateTime referenceTime = getReferenceTime(referencePoint, context);
@@ -139,14 +113,9 @@ public class CriterionEvaluator {
         };
     }
 
-    /**
-     * CONDITION_ACTIVE: Активно ли пользовательское условие (алерт).
-     * JSON: { "type": "CONDITION_ACTIVE", "conditionName": "DELAYED" }
-     */
     private boolean evaluateConditionActive(Map<String, Object> criteria, ExecutionContext context) {
         String conditionName = (String) criteria.get("conditionName");
 
-        // Условия хранятся в additionalData контекста
         @SuppressWarnings("unchecked")
         Map<String, Boolean> activeConditions = (Map<String, Boolean>)
                 context.additionalData().getOrDefault("activeConditions", Map.of());
@@ -154,12 +123,8 @@ public class CriterionEvaluator {
         return activeConditions.getOrDefault(conditionName, false);
     }
 
-    /**
-     * COMPOUND: Составной критерий (AND/OR).
-     * JSON: { "type": "COMPOUND", "operator": "AND", "children": [...] }
-     */
     private boolean evaluateCompound(Map<String, Object> criteria, ExecutionContext context, LocalDateTime waitStartedAt) {
-        String operator = (String) criteria.get("operator"); // AND, OR
+        String operator = (String) criteria.get("operator");
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> children = (List<Map<String, Object>>) criteria.get("children");
 
@@ -168,7 +133,6 @@ public class CriterionEvaluator {
         }
 
         if ("AND".equals(operator)) {
-            // Все дочерние критерии должны быть true
             return children.stream().allMatch(child -> {
                 try {
                     String childJson = objectMapper.writeValueAsString(child);
@@ -179,7 +143,6 @@ public class CriterionEvaluator {
                 }
             });
         } else if ("OR".equals(operator)) {
-            // Хотя бы один дочерний критерий должен быть true
             return children.stream().anyMatch(child -> {
                 try {
                     String childJson = objectMapper.writeValueAsString(child);
@@ -194,10 +157,6 @@ public class CriterionEvaluator {
         return false;
     }
 
-    /**
-     * Получить временную отметку из контекста.
-     * Временные отметки (ETD, ETA, Off, On, In, Out) хранятся в additionalData.
-     */
     private LocalDateTime getReferenceTime(String referencePoint, ExecutionContext context) {
         return (LocalDateTime) context.additionalData().get(referencePoint.toLowerCase() + "Time");
     }

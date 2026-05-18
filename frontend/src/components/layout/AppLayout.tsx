@@ -73,7 +73,7 @@ export const AppLayout: React.FC = () => {
         bgContainer: '#ffffff',
       };
 
-  // Poll for active executions every 10 s
+  // опрашиваем активные выполнения каждые 10 сек для счётчика в сайдбаре
   useEffect(() => {
     const load = async () => {
       try {

@@ -34,7 +34,7 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
       if (initialValues.stepType === 'ACTION') {
         setActionType(config.actionType);
       } else {
-        // Поддержка обоих форматов: 'type' (БД/миграции) и 'criterionType' (старый UI)
+        // старый UI писал 'criterionType', бэкенд и миграции используют 'type'
         const ct = config.type || config.criterionType;
         setCriterionType(ct);
       }
@@ -48,7 +48,7 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
         onFailureGotoStep: initialValues.onFailureGotoStep,
         onFailureNotify: initialValues.onFailureNotify,
         ...config,
-        // Нормализация ключей: 'type' → 'criterionType', 'targetStage' → 'expectedStage'
+        // маппим ключи к тому формату, что ожидает форма
         criterionType: config.type || config.criterionType,
         expectedStage: config.targetStage || config.expectedStage,
         criteriaMessageType: config.messageType,
@@ -88,7 +88,7 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
           break;
       }
     } else {
-      // Используем ключ 'type' — формат, ожидаемый бэкендом (CriterionEvaluator)
+      // бэкенд читает 'type', не 'criterionType'
       configJson.type = values.criterionType;
       switch (values.criterionType) {
         case 'MESSAGE_RECEIVED':
@@ -96,7 +96,7 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
           if (values.templateName) configJson.templateName = values.templateName;
           break;
         case 'FLIGHT_STAGE':
-          // Бэкенд ожидает 'targetStage' и 'operator'
+          // CriterionEvaluator ждёт именно targetStage + operator
           configJson.targetStage = values.expectedStage;
           configJson.operator = 'EQUALS';
           break;

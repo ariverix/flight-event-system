@@ -11,11 +11,6 @@ import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-/**
- * JPA-адаптер для хранения входящих сообщений в PostgreSQL.
- *
- * См. диплом: раздел 1.4.4, таблица 1.6
- */
 @Repository
 @RequiredArgsConstructor
 public class MessageJpaAdapter implements MessageRepositoryPort {
@@ -39,8 +34,8 @@ public class MessageJpaAdapter implements MessageRepositoryPort {
             String templateName,
             LocalDateTime afterTime
     ) {
-        // PostgreSQL выдаёт 42P18 (indeterminate datatype) при NULL-параметре в IS NULL.
-        // Поэтому ветвимся на уровне адаптера: два отдельных запроса без NULL-параметра.
+        // PostgreSQL 42P18: передача null в параметризованный IS NULL вызывает ошибку типа.
+        // Решение — два отдельных запроса вместо одного с nullable-параметром.
         if (afterTime == null) {
             return jpaRepository.existsByAircraftAndTypeAndTemplateAnyTime(aircraftId, messageType, templateName);
         }

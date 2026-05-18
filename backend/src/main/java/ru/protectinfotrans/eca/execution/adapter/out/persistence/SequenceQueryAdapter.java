@@ -10,12 +10,6 @@ import ru.protectinfotrans.eca.sequence.port.out.SequenceRepositoryPort;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Адаптер для чтения последовательностей из Sequence Manager модуля.
- * Делегирует вызовы в SequenceRepositoryPort из sequence модуля.
- *
- * См. диплом: раздел 1.4.1 (модульные границы через Named Interfaces)
- */
 @Component
 @RequiredArgsConstructor
 public class SequenceQueryAdapter implements SequenceQueryPort {
@@ -29,7 +23,6 @@ public class SequenceQueryAdapter implements SequenceQueryPort {
 
     @Override
     public List<Sequence> findAllByStatus(SequenceStatus status) {
-        // Page в List для упрощения (все активные последовательности обычно помещаются на одной странице)
         return sequenceRepository.findByStatus(status, org.springframework.data.domain.Pageable.unpaged())
                 .getContent();
     }

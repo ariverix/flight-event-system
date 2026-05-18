@@ -48,7 +48,7 @@ public class Step {
     @Column(name = "timeout_seconds")
     private Integer timeoutSeconds;
 
-    // --- Result Decision Maker: SUCCESS ---
+    // при SUCCESS
 
     @Enumerated(EnumType.STRING)
     @Column(name = "on_success_action", nullable = false)
@@ -58,12 +58,11 @@ public class Step {
     @Column(name = "on_success_goto_step")
     private Integer onSuccessGotoStep;
 
-    /** Уведомить оператора при успехе. См. диплом: раздел 1.2.2 (Notify) */
     @Builder.Default
     @Column(name = "on_success_notify")
     private Boolean onSuccessNotify = false;
 
-    // --- Result Decision Maker: FAILURE ---
+    // при FAILURE
 
     @Enumerated(EnumType.STRING)
     @Column(name = "on_failure_action", nullable = false)

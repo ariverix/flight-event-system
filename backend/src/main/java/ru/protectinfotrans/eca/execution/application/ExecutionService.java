@@ -37,17 +37,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Центральный сервис выполнения последовательностей.
- * Реализует 4 информационных потока из раздела 1.4.3 диплома.
- *
- * Основные обязанности:
- * - Слушать NormalizedEvent и обрабатывать события (UC-06)
- * - Проверять start/stop критерии
- * - Управлять жизненным циклом экземпляров выполнения
- * - Координировать переходы между шагами через EcaRuleEngine
- * - Обрабатывать таймауты WAIT-шагов (UC-08)
- *
- * См. диплом: раздел 1.3.5 (UC-06, UC-07, UC-08), раздел 1.4.3
+ * Основной сервис выполнения последовательностей.
+ * Слушает NormalizedEvent, проверяет start/stop критерии,
+ * управляет жизненным циклом экземпляров и таймаутами WAIT-шагов.
  */
 @Service
 @Transactional
@@ -65,9 +57,7 @@ public class ExecutionService {
     private final ObjectMapper objectMapper;
 
     /**
-     * UC-06: Обработать входящее событие.
-     * Основная точка входа при получении любого события от Event Processor.
-     * Слушает NormalizedEvent через Spring Modulith events.
+     * Точка входа для всех событий от Event Processor.
      */
     @ApplicationModuleListener
     public void processEvent(NormalizedEvent event) {
@@ -80,11 +70,8 @@ public class ExecutionService {
     }
 
     /**
-     * Проверить start критерии всех активных последовательностей.
-     * Если критерии совпадают — запустить новый экземпляр для данного ВС.
-     *
-     * Для MESSAGE_RECEIVED используется прямое сравнение с текущим событием,
-     * а не запрос истории БД — иначе старые сообщения вызывали бы повторный запуск.
+     * Для MESSAGE_RECEIVED сравниваем с текущим событием напрямую —
+     * запрос к БД давал ложные срабатывания на старых сообщениях.
      */
     private void checkStartCriteria(NormalizedEvent event) {
         List<Sequence> activeSequences = sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE);
@@ -104,11 +91,6 @@ public class ExecutionService {
         }
     }
 
-    /**
-     * Проверяет, соответствует ли текущее событие критерию запуска.
-     * MESSAGE_RECEIVED: прямое сравнение с событием (не запрос к БД).
-     * Остальные типы: стандартный CriterionEvaluator.
-     */
     private boolean matchesStartCriteria(String criteriaJson, NormalizedEvent event) {
         try {
             Map<String, Object> criteria = objectMapper.readValue(criteriaJson, new TypeReference<>() {});
@@ -130,10 +112,6 @@ public class ExecutionService {
         }
     }
 
-    /**
-     * Проверить stop критерии всех активных экземпляров данного ВС.
-     * Если критерии совпадают — прервать выполнение (ABORT).
-     */
     private void checkStopCriteria(NormalizedEvent event) {
         List<ExecutionInstance> activeInstances = executionRepository.findActiveByAircraftId(event.aircraftId());
 
@@ -145,7 +123,7 @@ public class ExecutionService {
             }
 
             if (sequence.getStopCriteriaJson() == null || sequence.getStopCriteriaJson().isBlank()) {
-                continue; // Нет stop критериев
+                continue;
             }
 
             ExecutionContext context = buildContext(event);
@@ -158,10 +136,6 @@ public class ExecutionService {
         }
     }
 
-    /**
-     * Обработать все WAITING экземпляры данного ВС.
-     * Попытаться снова выполнить WAIT-шаг — возможно условие уже выполнено.
-     */
     private void processWaitingInstances(NormalizedEvent event) {
         List<ExecutionInstance> waitingInstances = executionRepository.findActiveByAircraftId(event.aircraftId())
                 .stream()
@@ -173,9 +147,6 @@ public class ExecutionService {
         }
     }
 
-    /**
-     * Попытаться возобновить WAITING экземпляр.
-     */
     private void tryResumeWaitingInstance(ExecutionInstance instance, NormalizedEvent event) {
         Sequence sequence = sequenceQuery.findById(instance.getSequenceId()).orElse(null);
         if (sequence == null) {
@@ -197,16 +168,11 @@ public class ExecutionService {
         StepResult result = ecaRuleEngine.executeStep(currentStep, instance, context);
 
         if (result != null) {
-            // Условие выполнено или таймаут истёк
             log.info("WAIT step resolved with result {} for instance {}", result, instance.getId());
             advanceExecution(instance, currentStep, result);
         }
-        // Иначе продолжаем ждать
     }
 
-    /**
-     * Создать новый экземпляр выполнения и запустить первый шаг.
-     */
     public void startExecution(Long sequenceId, String aircraftId, String flightNumber) {
         Sequence sequence = sequenceQuery.findById(sequenceId)
                 .orElseThrow(() -> new IllegalArgumentException("Sequence not found: " + sequenceId));
@@ -235,7 +201,7 @@ public class ExecutionService {
                 flightNumber
         ));
 
-        // Выполнить первый шаг (по orderIndex, не по позиции в списке)
+        // берём по orderIndex, а не по позиции в списке — порядок может расходиться
         Step firstStep = sequence.getSteps().stream()
                 .min(java.util.Comparator.comparingInt(Step::getOrderIndex))
                 .orElseThrow();
@@ -247,13 +213,7 @@ public class ExecutionService {
         }
     }
 
-    /**
-     * Продвинуть выполнение: определить transition, записать историю, перейти к следующему шагу.
-     * Result Decision Maker: CONTINUE → следующий по порядку, GOTO → указанный шаг, END → завершить, ABORT → прервать.
-     * Если notify=true для данного результата → опубликовать StepNotificationEvent.
-     */
     public void advanceExecution(ExecutionInstance instance, Step step, StepResult result) {
-        // Определить действие на основе результата
         TransitionAction action;
         Integer transitionTarget = null;
         boolean notify;
@@ -268,7 +228,6 @@ public class ExecutionService {
             notify = step.getOnFailureNotify() != null && step.getOnFailureNotify();
         }
 
-        // Записать в историю
         StepExecution stepExecution = StepExecution.builder()
                 .executionInstance(instance)
                 .stepIndex(step.getOrderIndex())
@@ -280,7 +239,6 @@ public class ExecutionService {
 
         instance.getStepHistory().add(stepExecution);
 
-        // Опубликовать событие перехода
         Integer nextStepIndex = determineNextStep(instance, action, transitionTarget);
         eventPublisher.publishEvent(new StepTransitionEvent(
                 instance.getId(),
@@ -290,12 +248,10 @@ public class ExecutionService {
                 action
         ));
 
-        // Уведомление
         if (notify) {
             notifyStepCompletion(instance, step, result);
         }
 
-        // Выполнить переход
         executeTransition(instance, action, transitionTarget);
     }
 
@@ -318,7 +274,6 @@ public class ExecutionService {
                     instance.setStatus(ExecutionStatus.RUNNING);
                     executionRepository.save(instance);
 
-                    // Выполнить следующий шаг
                     Step nextStep = sequence.getSteps().stream()
                             .filter(s -> s.getOrderIndex().equals(nextIndex))
                             .findFirst()
@@ -331,7 +286,6 @@ public class ExecutionService {
                         advanceExecution(instance, nextStep, result);
                     }
                 } else {
-                    // Достигнут конец последовательности
                     completeExecution(instance);
                 }
             }
@@ -346,7 +300,6 @@ public class ExecutionService {
                 instance.setStatus(ExecutionStatus.RUNNING);
                 executionRepository.save(instance);
 
-                // Выполнить целевой шаг
                 Step targetStep = sequence.getSteps().stream()
                         .filter(s -> s.getOrderIndex().equals(transitionTarget))
                         .findFirst()
@@ -403,10 +356,7 @@ public class ExecutionService {
         ));
     }
 
-    /**
-     * UC-08: Периодическая проверка WAITING экземпляров с истёкшим таймаутом.
-     * Выполняется каждые 10 секунд.
-     */
+    /** каждые 10 сек переводим просроченные WAIT-шаги в FAILURE */
     @Scheduled(fixedRate = 10000)
     public void checkWaitTimeouts() {
         LocalDateTime now = LocalDateTime.now();
@@ -426,7 +376,6 @@ public class ExecutionService {
                     .orElse(null);
 
             if (currentStep != null) {
-                // По истичению таймаута, результат FAILURE
                 advanceExecution(instance, currentStep, StepResult.FAILURE);
             }
         }
@@ -435,7 +384,6 @@ public class ExecutionService {
     private ExecutionContext buildContext(NormalizedEvent event) {
         Map<String, Object> additionalData = new HashMap<>();
 
-        // Добавляем активные условия для CONDITION_ACTIVE критерия
         if (event.aircraftId() != null) {
             Set<String> activeConditions = conditionQueryPort.getActiveConditions(event.aircraftId());
             Map<String, Boolean> conditionsMap = new HashMap<>();

@@ -18,15 +18,8 @@ import ru.protectinfotrans.eca.sequence.domain.StepType;
 import java.time.LocalDateTime;
 
 /**
- * Easy Rules правило для шагов типа WAIT.
- * Проверяет критерий с учётом таймаута и fromThisPointOnly.
- *
- * Логика:
- * - Если критерий выполнен → SUCCESS
- * - Если таймаут истёк → FAILURE
- * - Иначе → null (продолжаем ждать, статус WAITING)
- *
- * См. диплом: раздел 1.2.2 (Sequencer — Wait FOR), раздел 1.3.3 (ECA модель), таблица 1.3
+ * Правило для WAIT-шагов.
+ * SUCCESS если критерий выполнен, FAILURE по таймауту, null — продолжаем ждать.
  */
 @Rule(name = "WaitStepRule", description = "Executes WAIT FOR steps")
 @Component
@@ -53,15 +46,12 @@ public class WaitStepRule {
         try {
             LocalDateTime now = context.currentTime();
 
-            // Проверяем таймаут
             if (instance.getWaitTimeoutAt() != null && now.isAfter(instance.getWaitTimeoutAt())) {
                 log.info("WaitStepRule: timeout expired at {}", instance.getWaitTimeoutAt());
                 result = StepResult.FAILURE;
                 return;
             }
 
-            // Проверяем критерий с учётом fromThisPointOnly
-            // waitStartedAt передаётся в CriterionEvaluator для MESSAGE_RECEIVED
             boolean criterionMet = criterionEvaluator.evaluate(
                     step.getConfigJson(),
                     context,
@@ -75,7 +65,6 @@ public class WaitStepRule {
                 log.debug("WaitStepRule: criterion not met yet, continue waiting");
                 result = null;
                 instance.setStatus(ExecutionStatus.WAITING);
-                // Инициализируем таймаут при первом входе в WAITING
                 if (instance.getWaitTimeoutAt() == null && step.getTimeoutSeconds() != null) {
                     instance.setWaitStartedAt(now);
                     instance.setWaitTimeoutAt(now.plusSeconds(step.getTimeoutSeconds()));

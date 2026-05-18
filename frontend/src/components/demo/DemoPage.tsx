@@ -246,7 +246,7 @@ export const DemoPage: React.FC = () => {
       return;
     }
 
-    // Запоминаем максимальный ID выполнения ДО отправки события
+    // нужен чтобы потом отличить новое выполнение от уже существующих
     let maxExistingId = 0;
     try {
       const existing = await executionApi.getExecutions(0, 1, undefined, sc.aircraft);
@@ -279,7 +279,7 @@ export const DemoPage: React.FC = () => {
         attempts++;
         try {
           const page = await executionApi.getExecutions(0, 20, undefined, sc.aircraft);
-          // Ищем новое выполнение (ID > maxExistingId) для нужной последовательности
+          // ищем выполнение, которое появилось после отправки события
           const match = page.content.find(
             e => e.sequenceId === seqId && e.id > maxExistingId
           );
@@ -371,7 +371,7 @@ export const DemoPage: React.FC = () => {
         {/* ── LEFT: controls ── */}
         <div style={{ flex: '1 1 340px', minWidth: 300 }}>
           <Card
-            style={{ border: `1px solid ${c.border}`, background: c.bgContainer, maxHeight: 300, overflowY: 'auto' }}
+            style={{ border: `1px solid ${c.border}`, background: c.bgContainer }}
             styles={{ body: { padding: '12px 16px' } }}
           >
             <div style={{ marginBottom: 10 }}>
@@ -568,46 +568,6 @@ export const DemoPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Demo order guide ── */}
-      <Card style={{ border: `1px solid ${c.border}`, background: c.bgContainer, marginTop: 20 }}>
-        <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 14 }}>
-          Рекомендуемый порядок демонстрации на защите
-        </Text>
-        <div style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
-          {[
-            { n: '1', label: 'Вход', desc: 'admin/admin', color: '#1677ff' },
-            { n: '2', label: 'Панель управления', desc: 'Статистика', color: '#1677ff' },
-            { n: '3', label: 'Последовательности', desc: 'UC-01..UC-05', color: '#722ed1' },
-            { n: '4', label: 'Метеоинформация', desc: 'Быстрый показ', color: '#faad14' },
-            { n: '5', label: 'Задержка рейса', desc: 'EVALUATE-ветка', color: '#faad14' },
-            { n: '6', label: 'Предполётная', desc: 'WAIT + авто-ответ', color: '#00c853' },
-            { n: '7', label: 'Контроль связи', desc: 'Тайм-аут 30 сек', color: '#ff4d4f' },
-            { n: '8', label: 'Журнал аудита', desc: 'ADMIN-права', color: '#848d97' },
-          ].map((step, i, arr) => (
-            <React.Fragment key={i}>
-              <div style={{ textAlign: 'center', minWidth: 90, padding: '0 4px' }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: '50%',
-                  background: `${step.color}22`,
-                  border: `2px solid ${step.color}66`,
-                  color: step.color,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 700, fontSize: 13, margin: '0 auto 6px',
-                }}>
-                  {step.n}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: c.text }}>{step.label}</div>
-                <div style={{ fontSize: 11, color: c.textDimmer, marginTop: 2 }}>{step.desc}</div>
-              </div>
-              {i < arr.length - 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', padding: '0 2px', paddingBottom: 20 }}>
-                  <RightOutlined style={{ color: c.border, fontSize: 10 }} />
-                </div>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 };

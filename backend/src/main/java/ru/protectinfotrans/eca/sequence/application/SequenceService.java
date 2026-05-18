@@ -22,13 +22,7 @@ import ru.protectinfotrans.eca.sequence.port.out.SequenceRepositoryPort;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-/**
- * Сервис управления последовательностями — реализация бизнес-логики.
- * Реализует UC-01 (Создать), UC-02 (Добавить шаг), UC-03 (Настроить переходы),
- * UC-04 (Активировать).
- *
- * См. диплом: раздел 1.4.3 (поток пользовательских операций)
- */
+/** Бизнес-логика для создания, редактирования и активации последовательностей. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -240,7 +234,6 @@ public class SequenceService implements SequenceManagementUseCase {
                     "Шаг с id=" + stepId + " не найден в последовательности id=" + sequenceId);
         }
 
-        // Перенумеровать оставшиеся шаги
         List<Step> steps = sequence.getSteps();
         for (int i = 0; i < steps.size(); i++) {
             steps.get(i).setOrderIndex(i + 1);
@@ -281,8 +274,6 @@ public class SequenceService implements SequenceManagementUseCase {
                 .map(this::toStepResponse)
                 .toList();
     }
-
-    // --- Вспомогательные методы ---
 
     private Sequence findSequenceOrThrow(Long id) {
         return sequenceRepository.findById(id)

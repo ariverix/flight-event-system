@@ -22,12 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Easy Rules правило для шагов типа ACTION.
- * Выполняет действие и возвращает SUCCESS или FAILURE.
- *
- * См. диплом: раздел 1.2.2 (Sequencer — Actions), раздел 1.3.3 (ECA модель), таблица 1.3
- */
+/** Правило для ACTION-шагов — выполняет действие, возвращает SUCCESS/FAILURE. */
 @Rule(name = "ActionStepRule", description = "Executes ACTION steps")
 @Component
 @org.springframework.context.annotation.Scope("prototype")
@@ -110,11 +105,8 @@ public class ActionStepRule {
         return messageOutputPort.closeCondition(context.aircraftId(), conditionName);
     }
 
-    /**
-     * WAIT_TIME: Установить таймаут ожидания.
-     * НЕ используем Thread.sleep! Записываем waitTimeoutAt и меняем статус на WAITING.
-     * @Scheduled в ExecutionService обнаружит истечение таймаута.
-     */
+    // Thread.sleep нельзя — пишем waitTimeoutAt и уходим в WAITING.
+    // Планировщик в ExecutionService сам поднимет по истечению.
     private boolean executeWaitTime(Map<String, Object> config, ExecutionInstance instance, ExecutionContext context) {
         Integer durationSeconds = (Integer) config.get("durationSeconds");
 
@@ -125,8 +117,6 @@ public class ActionStepRule {
 
         log.info("WAIT_TIME: Set timeout for {} seconds until {}", durationSeconds, instance.getWaitTimeoutAt());
 
-        // Возвращаем true — переход в WAITING не является ошибкой
-        // Когда таймаут истечёт, @Scheduled checkWaitTimeouts() установит result = FAILURE и продолжит выполнение
         return true;
     }
 }
