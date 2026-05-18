@@ -46,6 +46,8 @@ public class WaitStepRule {
         try {
             LocalDateTime now = context.currentTime();
 
+            // таймаут проверяем ДО критерия: checkWaitTimeouts() мог уже выставить expired,
+            // хотим одинаковое поведение независимо от источника вызова
             if (instance.getWaitTimeoutAt() != null && now.isAfter(instance.getWaitTimeoutAt())) {
                 log.info("WaitStepRule: timeout expired at {}", instance.getWaitTimeoutAt());
                 result = StepResult.FAILURE;
@@ -63,8 +65,10 @@ public class WaitStepRule {
                 result = StepResult.SUCCESS;
             } else {
                 log.debug("WaitStepRule: criterion not met yet, continue waiting");
+                // null result сигнализирует EcaRuleEngine что шаг ещё не завершён
                 result = null;
                 instance.setStatus(ExecutionStatus.WAITING);
+                // таймаут устанавливаем только при первом входе в WAITING
                 if (instance.getWaitTimeoutAt() == null && step.getTimeoutSeconds() != null) {
                     instance.setWaitStartedAt(now);
                     instance.setWaitTimeoutAt(now.plusSeconds(step.getTimeoutSeconds()));

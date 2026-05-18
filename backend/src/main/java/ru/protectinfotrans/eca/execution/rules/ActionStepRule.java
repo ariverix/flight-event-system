@@ -117,6 +117,7 @@ public class ActionStepRule {
 
         log.info("WAIT_TIME: Set timeout for {} seconds until {}", durationSeconds, instance.getWaitTimeoutAt());
 
+        // возвращаем true — переход в WAITING не является ошибкой действия
         return true;
     }
 }
