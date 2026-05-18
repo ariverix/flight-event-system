@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.execution.port.out;
+﻿package ru.protectinfotrans.eca.execution.port.out;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,7 +12,6 @@ import java.util.Optional;
 /**
  * Выходной порт для хранения экземпляров выполнения.
  *
- * См. диплом: раздел 1.4.4, таблица 1.6 (ExecutionRepositoryPort)
  */
 public interface ExecutionRepositoryPort {
 

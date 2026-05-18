@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.sequence.dto;
+﻿package ru.protectinfotrans.eca.sequence.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -7,7 +7,6 @@ import ru.protectinfotrans.eca.sequence.domain.TransitionAction;
 
 /**
  * Запрос на добавление шага в последовательность.
- * См. диплом: раздел 1.3.5 (UC-02 Добавить шаг)
  */
 public record StepCreateRequest(
 

@@ -5,12 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/**
- * Шаг последовательности — единица выполнения (ACTION, EVALUATE или WAIT).
- * Каждый шаг содержит Result Decision Maker для управления потоком.
- *
- * См. диплом: раздел 1.2.2 (Sequencer — 3 типа шагов), раздел 1.3.4
- */
+// onSuccess*/onFailure* — это Result Decision Maker: что делать после выполнения шага
 @Entity
 @Table(name = "steps")
 @Getter
@@ -54,7 +49,6 @@ public class Step {
     @Column(name = "on_success_action", nullable = false)
     private TransitionAction onSuccessAction;
 
-    /** Номер шага для GOTO (null если не GOTO) */
     @Column(name = "on_success_goto_step")
     private Integer onSuccessGotoStep;
 
@@ -69,7 +63,7 @@ public class Step {
     private TransitionAction onFailureAction;
 
     @Column(name = "on_failure_goto_step")
-    private Integer onFailureGotoStep;
+    private Integer onFailureGotoStep; // null если не GOTO
 
     @Builder.Default
     @Column(name = "on_failure_notify")

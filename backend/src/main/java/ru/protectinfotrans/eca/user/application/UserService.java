@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.user.application;
+﻿package ru.protectinfotrans.eca.user.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,18 +15,6 @@ import ru.protectinfotrans.eca.user.domain.User;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Сервис управления пользователями.
- * Реализует UC-09 (Управлять пользователями).
- *
- * Обязанности:
- * - Регистрация новых пользователей (только ADMIN)
- * - Проверка пароля при аутентификации
- * - Получение списка пользователей
- * - Включение/отключение пользователей
- *
- * См. диплом: раздел 1.3.5 (UC-09), раздел 1.3.5 (акторы)
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -38,17 +26,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
 
-    /**
-     * UC-09: Регистрация нового пользователя.
-     * Доступно только для администраторов.
-     *
-     * @param username логин
-     * @param password пароль (будет хеширован)
-     * @param fullName полное имя
-     * @param role роль (OPERATOR или ADMIN)
-     * @return созданный пользователь
-     * @throws IllegalArgumentException если пользователь уже существует
-     */
+    /** @throws IllegalArgumentException если username уже занят */
     public User registerUser(String username, String password, String fullName, Role role) {
         if (userRepository.existsByUsername(username)) {
             log.warn("Registration failed: username '{}' already exists", username);
@@ -102,23 +80,11 @@ public class UserService {
         return passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 
-    /**
-     * UC-09: Получить список всех пользователей.
-     * Доступно только для администраторов.
-     */
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
-    /**
-     * UC-09: Включить/отключить пользователя.
-     * Доступно только для администраторов.
-     *
-     * @param userId ID пользователя
-     * @return обновлённый пользователь
-     * @throws IllegalArgumentException если пользователь не найден
-     */
     public User toggleUserEnabled(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: id=" + userId));
@@ -138,9 +104,6 @@ public class UserService {
         return updatedUser;
     }
 
-    /**
-     * Проверка существования пользователя с заданным username.
-     */
     @Transactional(readOnly = true)
     public boolean existsByUsername(String username) {
         return userRepository.existsByUsername(username);

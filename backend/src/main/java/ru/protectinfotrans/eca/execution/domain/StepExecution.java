@@ -9,11 +9,6 @@ import ru.protectinfotrans.eca.sequence.domain.TransitionAction;
 
 import java.time.LocalDateTime;
 
-/**
- * Запись истории выполнения шага — фиксирует результат и принятое решение.
- *
- * См. диплом: раздел 1.3.4 (ключевые сущности)
- */
 @Entity
 @Table(name = "step_executions")
 @Getter
@@ -39,14 +34,11 @@ public class StepExecution {
     @Enumerated(EnumType.STRING)
     private StepResult result;
 
-    /** Какое решение Result Decision Maker было принято */
     @Enumerated(EnumType.STRING)
     private TransitionAction transitionAction;
 
-    /** Номер шага для GOTO (null для остальных) */
-    private Integer transitionTarget;
+    private Integer transitionTarget; // null если не GOTO
 
-    /** JSONB — детали выполнения */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String detailsJson;

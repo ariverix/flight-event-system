@@ -7,11 +7,6 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
-/**
- * Журнал аудита — запись значимых операций в системе.
- *
- * См. диплом: раздел 1.3.4 (ключевые сущности)
- */
 @Entity
 @Table(name = "audit_log")
 @Getter

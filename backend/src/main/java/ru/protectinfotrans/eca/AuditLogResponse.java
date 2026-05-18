@@ -1,19 +1,13 @@
-package ru.protectinfotrans.eca;
+﻿package ru.protectinfotrans.eca;
 
 import lombok.Builder;
 import lombok.Value;
 
 import java.time.LocalDateTime;
 
-/**
- * DTO ответа для журнала аудита.
- *
- * См. диплом: раздел 1.3.4 (AuditLog — журнал аудита)
- */
 @Value
 @Builder
 public class AuditLogResponse {
-
 
     Long id;
     Long userId;
@@ -23,7 +17,6 @@ public class AuditLogResponse {
     String detailsJson;
     LocalDateTime createdAt;
 
-    /** Конвертация из сущности в DTO */
     public static AuditLogResponse fromEntity(AuditLog log) {
         return AuditLogResponse.builder()
                 .id(log.getId())

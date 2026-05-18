@@ -9,14 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 import ru.protectinfotrans.eca.sequence.dto.PageResponse;
 
-/**
- * REST-контроллер журнала аудита системы.
- * Доступен только администраторам.
- *
- * GET /api/v1/audit-log — список записей с пагинацией и фильтрами.
- *
- * См. диплом: раздел 1.3.4 (AuditLog — журнал аудита), раздел 1.3.5 (UC-09)
- */
+// Доступен только администраторам — проверка настроена через SecurityConfig
 @Tag(name = "AuditLog", description = "Журнал аудита операций (только ADMIN)")
 @RestController
 @RequestMapping("/api/v1/audit-log")
@@ -25,15 +18,6 @@ public class AuditLogController {
 
     private final AuditLogQueryRepository repository;
 
-    /**
-     * GET /api/v1/audit-log
-     * Возвращает записи журнала аудита с пагинацией и опциональными фильтрами.
-     *
-     * @param page       номер страницы (0-based)
-     * @param size       размер страницы
-     * @param entityType фильтр по типу сущности (SEQUENCE, EXECUTION, USER)
-     * @param action     фильтр по типу операции (CREATE_SEQUENCE, USER_LOGIN и т.д.)
-     */
     @GetMapping
     @Operation(summary = "Журнал аудита",
                description = "Получить записи журнала аудита с пагинацией (только ADMIN)")

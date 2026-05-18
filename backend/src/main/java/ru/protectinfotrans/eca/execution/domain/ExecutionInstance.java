@@ -9,12 +9,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Экземпляр выполнения последовательности, привязанный к конкретному ВС.
- * sequenceId хранится как Long БЕЗ FK — межмодульное разделение (execution не ссылается на sequence напрямую).
- *
- * См. диплом: раздел 1.3.4 (ключевые сущности — ExecutionInstance)
- */
+// sequenceId — без FK намеренно: модуль execution не должен зависеть от sequence напрямую
 @Entity
 @Table(name = "execution_instances")
 @Getter
@@ -28,11 +23,9 @@ public class ExecutionInstance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** БЕЗ FK — межмодульная граница */
     @Column(name = "sequence_id", nullable = false)
     private Long sequenceId;
 
-    /** Привязка к воздушному судну */
     @Column(name = "aircraft_id", nullable = false)
     private String aircraftId;
 

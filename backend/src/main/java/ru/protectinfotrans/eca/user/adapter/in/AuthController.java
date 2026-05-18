@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.user.adapter.in;
+﻿package ru.protectinfotrans.eca.user.adapter.in;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,12 +23,6 @@ import ru.protectinfotrans.eca.user.dto.UserResponse;
 
 import java.util.Map;
 
-/**
- * REST-контроллер для аутентификации пользователей.
- * Реализует endpoint'ы для логина, регистрации и получения текущего пользователя.
- *
- * См. диплом: раздел 1.3.5 (UC-09), раздел 1.4.1 (гексагональная архитектура - driving adapter)
- */
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -41,12 +35,6 @@ public class AuthController {
     private final ru.protectinfotrans.eca.user.port.out.AuditLogPort auditLogPort;
     private final ObjectMapper objectMapper;
 
-    /**
-     * POST /api/v1/auth/login — Аутентификация пользователя.
-     * Доступно без авторизации (permitAll).
-     *
-     * @return JWT-токен при успехе
-     */
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Authenticate user and return JWT token")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
@@ -93,10 +81,6 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * POST /api/v1/auth/register — Регистрация нового пользователя.
-     * Доступно только для администраторов (SecurityConfig).
-     */
     @PostMapping("/register")
     @Operation(summary = "Register user", description = "Register new user (ADMIN only)")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
@@ -120,10 +104,6 @@ public class AuthController {
         }
     }
 
-    /**
-     * GET /api/v1/auth/me — Получить информацию о текущем пользователе.
-     * Доступно для авторизованных пользователей.
-     */
     @GetMapping("/me")
     @Operation(summary = "Get current user", description = "Get information about currently authenticated user")
     public ResponseEntity<?> getCurrentUser() {

@@ -1,15 +1,7 @@
 package ru.protectinfotrans.eca.execution.domain;
 
-/**
- * Результат выполнения шага — определяет какой Result Decision Maker будет применён.
- *
- * См. диплом: раздел 1.2.2 (Sequencer — Result Decision Maker)
- */
+// Определяет какую ветку Result Decision Maker использовать (onSuccess vs onFailure)
 public enum StepResult {
-
-    /** Шаг завершился успешно (Successful / True) */
     SUCCESS,
-
-    /** Шаг завершился неуспешно (Failed / False) */
     FAILURE
 }

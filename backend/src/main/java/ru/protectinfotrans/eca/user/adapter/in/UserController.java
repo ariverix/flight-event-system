@@ -14,13 +14,6 @@ import ru.protectinfotrans.eca.user.dto.UserResponse;
 import java.util.List;
 import java.util.Map;
 
-/**
- * REST-контроллер для управления пользователями.
- * Реализует UC-09 (Управлять пользователями).
- * Доступно только для администраторов (настроено в SecurityConfig).
- *
- * См. диплом: раздел 1.3.5 (UC-09)
- */
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
@@ -30,10 +23,6 @@ public class UserController {
 
     private final UserService userService;
 
-    /**
-     * GET /api/v1/users — Получить список всех пользователей.
-     * UC-09: Управлять пользователями (ADMIN only).
-     */
     @GetMapping
     @Operation(summary = "List users", description = "Get all users (ADMIN only)")
     public ResponseEntity<List<UserResponse>> listUsers() {
@@ -47,10 +36,6 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * PUT /api/v1/users/{id}/toggle — Включить/отключить пользователя.
-     * UC-09: Управлять пользователями (ADMIN only).
-     */
     @PutMapping("/{id}/toggle")
     @Operation(summary = "Toggle user", description = "Enable or disable user account (ADMIN only)")
     public ResponseEntity<?> toggleUser(@PathVariable Long id) {

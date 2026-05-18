@@ -15,13 +15,6 @@ import ru.protectinfotrans.eca.user.application.UserService;
 
 import java.util.List;
 
-/**
- * REST-контроллер модуля Sequence Manager.
- * Маппинг: /api/v1/sequences
- *
- * См. диплом: раздел 1.3.5 (UC-01..UC-04),
- *             раздел 1.4.4 (REST-адаптер для UserCommandPort)
- */
 @Tag(name = "Sequences", description = "Управление последовательностями ECA (UC-01..UC-04)")
 @RestController
 @RequestMapping("/api/v1/sequences")
@@ -31,7 +24,6 @@ public class SequenceController {
     private final SequenceManagementUseCase sequenceUseCase;
     private final UserService userService;
 
-    /** UC-01: Создать последовательность */
     @Operation(summary = "Создать последовательность",
                description = "UC-01: Создаёт новую последовательность в статусе DRAFT")
     @ApiResponse(responseCode = "201", description = "Последовательность создана")
@@ -42,7 +34,6 @@ public class SequenceController {
         return sequenceUseCase.createSequence(request, resolveUserId(auth));
     }
 
-    /** UC-05: Список последовательностей с пагинацией */
     @Operation(summary = "Список последовательностей",
                description = "Получить список всех последовательностей с пагинацией и фильтрацией по статусу")
     @GetMapping
@@ -53,7 +44,6 @@ public class SequenceController {
         return sequenceUseCase.listSequences(page, size, status);
     }
 
-    /** UC-05: Получить последовательность с шагами */
     @Operation(summary = "Получить последовательность",
                description = "Получить последовательность вместе со всеми шагами по ID")
     @ApiResponse(responseCode = "200", description = "Последовательность найдена")
@@ -63,7 +53,6 @@ public class SequenceController {
         return sequenceUseCase.getSequence(id);
     }
 
-    /** UC-01: Обновить метаданные последовательности */
     @Operation(summary = "Обновить последовательность",
                description = "UC-01: Обновить название, описание и критерии (только DRAFT)")
     @PutMapping("/{id}")
@@ -74,7 +63,6 @@ public class SequenceController {
         return sequenceUseCase.updateSequence(id, request, resolveUserId(auth));
     }
 
-    /** UC-01: Удалить последовательность (только DRAFT) */
     @Operation(summary = "Удалить последовательность",
                description = "UC-01: Удалить последовательность в статусе DRAFT")
     @ApiResponse(responseCode = "204", description = "Последовательность удалена")
@@ -85,7 +73,6 @@ public class SequenceController {
         sequenceUseCase.deleteSequence(id, resolveUserId(auth));
     }
 
-    /** UC-04: Активировать последовательность */
     @Operation(summary = "Активировать последовательность",
                description = "UC-04: Перевести в статус ACTIVE — начинает обрабатывать события")
     @PostMapping("/{id}/activate")
@@ -94,7 +81,6 @@ public class SequenceController {
         return sequenceUseCase.activateSequence(id, resolveUserId(auth));
     }
 
-    /** UC-04: Деактивировать последовательность */
     @Operation(summary = "Деактивировать последовательность",
                description = "UC-04: Перевести из ACTIVE обратно в DRAFT")
     @PostMapping("/{id}/deactivate")
@@ -103,7 +89,6 @@ public class SequenceController {
         return sequenceUseCase.deactivateSequence(id, resolveUserId(auth));
     }
 
-    /** UC-02: Добавить шаг в последовательность */
     @Operation(summary = "Добавить шаг", tags = {"Steps"},
                description = "UC-02: Добавить шаг типа ACTION, EVALUATE или WAIT")
     @ApiResponse(responseCode = "201", description = "Шаг добавлен")
@@ -116,7 +101,6 @@ public class SequenceController {
         return sequenceUseCase.addStep(id, request, resolveUserId(auth));
     }
 
-    /** UC-02, UC-03: Обновить шаг (включая настройку переходов) */
     @Operation(summary = "Обновить шаг", tags = {"Steps"},
                description = "UC-02/UC-03: Обновить параметры шага и настроить переходы (CONTINUE/GOTO/END/ABORT)")
     @PutMapping("/{id}/steps/{stepId}")
@@ -128,7 +112,6 @@ public class SequenceController {
         return sequenceUseCase.updateStep(id, stepId, request, resolveUserId(auth));
     }
 
-    /** UC-02: Удалить шаг */
     @Operation(summary = "Удалить шаг", tags = {"Steps"},
                description = "UC-02: Удалить шаг из последовательности (только DRAFT)")
     @ApiResponse(responseCode = "204", description = "Шаг удалён")
@@ -139,7 +122,6 @@ public class SequenceController {
         sequenceUseCase.deleteStep(id, stepId, resolveUserId(auth));
     }
 
-    /** UC-02: Изменить порядок шагов */
     @Operation(summary = "Изменить порядок шагов", tags = {"Steps"},
                description = "UC-02: Переупорядочить шаги по списку ID")
     @PutMapping("/{id}/steps/reorder")
@@ -150,7 +132,6 @@ public class SequenceController {
         return sequenceUseCase.reorderSteps(id, stepIds, resolveUserId(auth));
     }
 
-    /** Извлечь userId из JWT-аутентификации. */
     private Long resolveUserId(Authentication auth) {
         if (auth == null || auth.getName() == null) return null;
         var user = userService.findByUsername(auth.getName());

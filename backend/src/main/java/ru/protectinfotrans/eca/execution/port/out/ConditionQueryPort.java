@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.execution.port.out;
+﻿package ru.protectinfotrans.eca.execution.port.out;
 
 import java.util.Set;
 
@@ -6,11 +6,9 @@ import java.util.Set;
  * Выходной порт для запроса активных пользовательских условий.
  * Используется CriterionEvaluator для CONDITION_ACTIVE критерия.
  *
- * Гексагональная архитектура: это Driven Port (выходной порт) — доменная логика execution
  * модуля вызывает этот порт для проверки активных условий, а адаптеры в integration модуле
  * реализуют его.
  *
- * См. диплом: раздел 1.4.4, таблица 1.6
  */
 public interface ConditionQueryPort {
 

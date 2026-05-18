@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca;
+﻿package ru.protectinfotrans.eca;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * Все запросы, не соответствующие API и статическим ресурсам, перенаправляются
  * на index.html, чтобы React Router обработал маршрут на стороне клиента.
  *
- * См. диплом: раздел 1.4.2 (Web UI — компонент системы)
  */
 @Controller
 public class SpaController {

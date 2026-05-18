@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.eventprocessor.adapter.out;
+﻿package ru.protectinfotrans.eca.eventprocessor.adapter.out;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +20,6 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
      * PostgreSQL не поддерживает IS NULL для параметров с неизвестным типом (ошибка 42P18),
      * поэтому запросы с временны́м фильтром и без него разделены на уровне адаптера.
      *
-     * См. диплом: раздел 1.4.4 (MessageRepositoryPort)
      */
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
            "WHERE m.aircraftId = :aircraftId " +
@@ -35,7 +34,6 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
     /**
      * Проверка существования сообщения с фильтром по времени (fromThisPointOnly в WAIT-шагах).
      *
-     * См. диплом: раздел 1.4.4 (MessageRepositoryPort)
      */
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
            "WHERE m.aircraftId = :aircraftId " +

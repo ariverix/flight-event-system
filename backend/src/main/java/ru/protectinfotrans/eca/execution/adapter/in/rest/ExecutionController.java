@@ -11,12 +11,6 @@ import ru.protectinfotrans.eca.execution.dto.ExecutionInstanceResponse;
 import ru.protectinfotrans.eca.execution.port.in.ExecutionManagementUseCase;
 import ru.protectinfotrans.eca.sequence.dto.PageResponse;
 
-/**
- * REST-контроллер для просмотра статуса выполнения последовательностей.
- * Реализует UC-05.
- *
- * См. диплом: раздел 1.3.5 (UC-05 Просмотр статуса выполнения)
- */
 @Tag(name = "Executions", description = "Статус выполнения последовательностей (UC-05)")
 @RestController
 @RequestMapping("/api/v1/executions")
@@ -25,9 +19,6 @@ public class ExecutionController {
 
     private final ExecutionManagementUseCase executionManagement;
 
-    /**
-     * UC-05: Получить список экземпляров выполнения с фильтрацией и пагинацией.
-     */
     @Operation(summary = "Список экземпляров выполнения", description = "Получить список всех экземпляров с фильтрацией по статусу, ВС и последовательности")
     @GetMapping
     @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
@@ -44,9 +35,6 @@ public class ExecutionController {
         return ResponseEntity.ok(result);
     }
 
-    /**
-     * UC-05: Получить детали экземпляра с историей шагов.
-     */
     @Operation(summary = "Детали экземпляра", description = "Получить полную информацию об экземпляре выполнения включая историю шагов")
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")

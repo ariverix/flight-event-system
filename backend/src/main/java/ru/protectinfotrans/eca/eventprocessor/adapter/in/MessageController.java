@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.eventprocessor.adapter.in;
+﻿package ru.protectinfotrans.eca.eventprocessor.adapter.in;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,11 +24,8 @@ import java.util.Map;
 
 /**
  * REST контроллер для приёма входящих сообщений от внешних систем.
- * Реализует UC-06 (Обработать входящее сообщение).
  *
- * Гексагональная архитектура: REST-адаптер (Driving Adapter) — вызывает входной порт MessageInputPort.
  *
- * См. диплом: раздел 1.3.5 (UC-06), раздел 1.4.4 (таблица 1.6)
  */
 @Tag(name = "Messages", description = "Приём входящих сообщений и журнал (UC-06)")
 @RestController
@@ -42,7 +39,7 @@ public class MessageController {
     private final ObjectMapper objectMapper;
 
     /**
-     * UC-06: Принять входящее сообщение от внешней системы.
+     * Принять входящее сообщение от внешней системы.
      * Доступ: permitAll (внешние системы без аутентификации).
      *
      * @param request данные входящего сообщения
@@ -78,7 +75,7 @@ public class MessageController {
     }
 
     /**
-     * UC-06: Уведомить об изменении стадии полёта.
+     * Уведомить об изменении стадии полёта.
      * Доступ: permitAll (внешние системы без аутентификации).
      *
      * @param request данные изменения стадии

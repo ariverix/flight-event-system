@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.execution.port.out;
+﻿package ru.protectinfotrans.eca.execution.port.out;
 
 import ru.protectinfotrans.eca.sequence.domain.Sequence;
 import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;
@@ -11,7 +11,6 @@ import java.util.Optional;
  * Execution модуль использует этот порт для получения активных последовательностей
  * и проверки start/stop критериев.
  *
- * См. диплом: раздел 1.4.1 (модульные границы), раздел 1.4.2
  */
 public interface SequenceQueryPort {
 

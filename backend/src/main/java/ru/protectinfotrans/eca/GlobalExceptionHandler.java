@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca;
+﻿package ru.protectinfotrans.eca;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -13,7 +13,6 @@ import java.util.NoSuchElementException;
  * Глобальный обработчик исключений для всех REST-контроллеров.
  * Возвращает ответы в формате RFC 7807 (Problem Details).
  *
- * См. диплом: раздел 1.4.2
  */
 @Slf4j
 @RestControllerAdvice

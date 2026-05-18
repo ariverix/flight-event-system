@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.eventprocessor.adapter.out;
+﻿package ru.protectinfotrans.eca.eventprocessor.adapter.out;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +11,6 @@ import ru.protectinfotrans.eca.eventprocessor.port.out.EventPublisherPort;
  * Адаптер для публикации событий через Spring ApplicationEventPublisher.
  * Реализует паттерн Transactional Outbox через Spring Modulith Event Publication Registry.
  *
- * См. диплом: раздел 1.4.1 (событийно-ориентированный паттерн, Transactional Outbox)
  */
 @Component
 @RequiredArgsConstructor

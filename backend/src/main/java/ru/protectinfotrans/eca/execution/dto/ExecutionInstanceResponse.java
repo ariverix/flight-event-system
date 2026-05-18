@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.execution.dto;
+﻿package ru.protectinfotrans.eca.execution.dto;
 
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 
@@ -8,7 +8,6 @@ import java.util.List;
 /**
  * DTO для экземпляра выполнения последовательности.
  *
- * См. диплом: раздел 1.3.5 (UC-05 Просмотр статуса выполнения)
  */
 public record ExecutionInstanceResponse(
         Long id,

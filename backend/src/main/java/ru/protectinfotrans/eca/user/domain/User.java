@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.user.domain;
+﻿package ru.protectinfotrans.eca.user.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 /**
  * Пользователь системы — оператор или администратор.
  *
- * См. диплом: раздел 1.3.4 (ключевые сущности), раздел 1.3.5 (акторы)
  */
 @Entity
 @Table(name = "users")

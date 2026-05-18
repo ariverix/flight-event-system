@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.execution.application;
+﻿package ru.protectinfotrans.eca.execution.application;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,9 +21,7 @@ import java.util.NoSuchElementException;
 
 /**
  * Сервис для запросов данных о выполнении последовательностей.
- * Реализует UC-05 (Просмотр статуса выполнения).
  *
- * См. диплом: раздел 1.3.5 (UC-05)
  */
 @Service
 @Transactional(readOnly = true)

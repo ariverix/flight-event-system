@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.eventprocessor.application;
+﻿package ru.protectinfotrans.eca.eventprocessor.application;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -12,7 +12,6 @@ import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
 /**
  * Сервис для запросов к журналу сообщений.
  *
- * См. диплом: раздел 1.3.5 (UC-06, просмотр журнала событий/сообщений)
  */
 @Service
 @Transactional(readOnly = true)

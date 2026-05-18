@@ -1,18 +1,8 @@
 package ru.protectinfotrans.eca;
 
-/**
- * Типы сообщений ACARS.
- *
- * См. диплом: раздел 1.1.2
- */
+/** Типы сообщений ACARS: направление передачи данных */
 public enum MessageType {
-
-    /** Борт -> земля */
-    DOWNLINK,
-
-    /** Земля -> борт */
-    UPLINK,
-
-    /** Земля -> земля */
-    GROUND
+    DOWNLINK,  // борт -> земля
+    UPLINK,    // земля -> борт
+    GROUND     // земля -> земля
 }

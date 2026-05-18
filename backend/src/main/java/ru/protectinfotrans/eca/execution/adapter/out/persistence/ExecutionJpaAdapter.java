@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.execution.adapter.out.persistence;
+﻿package ru.protectinfotrans.eca.execution.adapter.out.persistence;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -15,7 +15,6 @@ import java.util.Optional;
 /**
  * JPA-адаптер для хранения экземпляров выполнения в PostgreSQL.
  *
- * См. диплом: раздел 1.4.4, таблица 1.6 (ExecutionRepositoryPort → JPA-адаптер)
  */
 @Repository
 @RequiredArgsConstructor

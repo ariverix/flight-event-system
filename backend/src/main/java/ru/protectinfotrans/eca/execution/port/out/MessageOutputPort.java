@@ -1,21 +1,18 @@
-package ru.protectinfotrans.eca.execution.port.out;
+﻿package ru.protectinfotrans.eca.execution.port.out;
 
 import java.util.List;
 import java.util.Map;
 
 /**
  * Выходной порт для отправки исходящих сообщений и управления пользовательскими условиями.
- * Реализует UC-07.
  *
- * Гексагональная архитектура: это Driven Port (выходной порт) — доменная логика execution
  * модуля вызывает этот порт, а адаптеры в integration модуле реализуют его.
  *
- * См. диплом: раздел 1.4.4, таблица 1.6 (MessageOutputPort — выходной порт)
  */
 public interface MessageOutputPort {
 
     /**
-     * UC-07: Отправить сообщение на борт (uplink).
+     * Отправить сообщение на борт (uplink).
      *
      * @param aircraftId идентификатор ВС
      * @param templateName имя шаблона сообщения
@@ -25,7 +22,7 @@ public interface MessageOutputPort {
     boolean sendUplink(String aircraftId, String templateName, Map<String, Object> params);
 
     /**
-     * UC-07: Отправить наземное сообщение (ground).
+     * Отправить наземное сообщение (ground).
      *
      * @param recipients список получателей
      * @param templateName имя шаблона сообщения

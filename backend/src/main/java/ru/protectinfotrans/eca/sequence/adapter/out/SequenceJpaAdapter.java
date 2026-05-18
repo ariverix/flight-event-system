@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.sequence.adapter.out;
+﻿package ru.protectinfotrans.eca.sequence.adapter.out;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,7 +13,6 @@ import java.util.Optional;
 /**
  * JPA-адаптер для хранения последовательностей в PostgreSQL.
  *
- * См. диплом: раздел 1.4.4, таблица 1.6 (SequenceRepositoryPort → JPA-адаптер)
  */
 @Repository
 @RequiredArgsConstructor

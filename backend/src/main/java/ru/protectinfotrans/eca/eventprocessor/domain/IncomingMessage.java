@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.eventprocessor.domain;
+﻿package ru.protectinfotrans.eca.eventprocessor.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 /**
  * Входящее сообщение ACARS, полученное от внешней системы.
  *
- * См. диплом: раздел 1.1.2 (архитектура ACARS), раздел 1.3.4 (ключевые сущности)
  */
 @Entity
 @Table(name = "messages")

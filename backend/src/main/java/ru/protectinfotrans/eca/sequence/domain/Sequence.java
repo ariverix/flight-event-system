@@ -9,12 +9,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Последовательность — набор настраиваемых действий и критериев, организованных в шаги.
- * Аналог Sequence из модуля Sequencer (ASP Administrator Guide, раздел 5.13).
- *
- * См. диплом: раздел 1.3.4 (ключевые сущности)
- */
 @Entity
 @Table(name = "sequences")
 @Getter

@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.eventprocessor.port.in;
+﻿package ru.protectinfotrans.eca.eventprocessor.port.in;
 
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
@@ -7,17 +7,14 @@ import java.util.Map;
 
 /**
  * Входной порт для приёма сообщений от внешних систем.
- * Реализует UC-06 (Обработать входящее сообщение).
  *
- * Гексагональная архитектура: это Driving Port (входной порт) — внешние системы
  * вызывают этот порт через REST-адаптер для отправки сообщений.
  *
- * См. диплом: раздел 1.4.4, таблица 1.6 (MessageInputPort — входной порт)
  */
 public interface MessageInputPort {
 
     /**
-     * UC-06: Принять входящее сообщение от внешней системы.
+     * Принять входящее сообщение от внешней системы.
      *
      * @param messageType тип сообщения (DOWNLINK, UPLINK, GROUND)
      * @param templateName имя шаблона сообщения
@@ -37,7 +34,7 @@ public interface MessageInputPort {
     );
 
     /**
-     * UC-06: Уведомить об изменении стадии полёта.
+     * Уведомить об изменении стадии полёта.
      *
      * @param aircraftId идентификатор ВС
      * @param flightNumber номер рейса

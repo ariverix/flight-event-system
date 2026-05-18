@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.sequence.port.out;
+﻿package ru.protectinfotrans.eca.sequence.port.out;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,7 +10,6 @@ import java.util.Optional;
 /**
  * Выходной порт для хранения последовательностей.
  *
- * См. диплом: раздел 1.4.4, таблица 1.6 (SequenceRepositoryPort)
  */
 public interface SequenceRepositoryPort {
 

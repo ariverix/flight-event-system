@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.sequence.dto;
+﻿package ru.protectinfotrans.eca.sequence.dto;
 
 import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;
 
@@ -7,7 +7,6 @@ import java.util.List;
 
 /**
  * Ответ с данными последовательности.
- * См. диплом: раздел 1.3.5 (UC-05 Просмотреть статус выполнения)
  */
 public record SequenceResponse(
         Long id,
