@@ -194,9 +194,9 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stat cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }} className="stagger-container">
         {statCards.map(card => (
-          <Col xs={24} sm={12} lg={6} key={card.title} style={{ display: 'flex' }}>
+          <Col xs={24} sm={12} lg={6} key={card.title} style={{ display: 'flex' }} className="stagger-item">
             {loading ? (
               <Card style={{ flex: 1, borderColor: c.borderSecondary }}>
                 <Skeleton active paragraph={{ rows: 2 }} />

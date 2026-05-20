@@ -1,27 +1,48 @@
 import dagre from 'dagre';
 import { Node, Edge, Position } from '@xyflow/react';
-import { StepResponse, StepType, TransitionAction } from '../types/sequence';
+import { StepResponse, TransitionAction } from '../types/sequence';
 import { StepExecutionResponse } from '../types/execution';
+import { StepNodeData } from '../components/flow/CustomStepNode';
 
-const nodeWidth = 200;
+const nodeWidth  = 180;
 const nodeHeight = 80;
 
-const TYPE_COLOR: Record<StepType, string> = {
-  ACTION:   '#1677ff',
-  EVALUATE: '#faad14',
-  WAIT:     '#722ed1',
+const CONFIG_LABEL: Record<string, string> = {
+  WAIT_TIME:         'Пауза по времени',
+  SEND_UPLINK:       'Отправка команды',
+  SEND_GROUND:       'Передача на землю',
+  RAISE_CONDITION:   'Поднять алерт',
+  CLOSE_CONDITION:   'Снять алерт',
+  MESSAGE_RECEIVED:  'Получено сообщение',
+  FLIGHT_STAGE:      'Фаза полёта',
+  POSITION_REPORTED: 'Позиционный отчёт',
+  TIME_COMPARISON:   'Сравнение времени',
+  CONDITION_ACTIVE:  'Условие активно',
+  COMPOUND:          'Составное условие',
 };
 
-const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
+function getConfigLabel(step: StepResponse): string {
+  try {
+    const cfg = JSON.parse(step.configJson);
+    const key = cfg.actionType || cfg.type || cfg.criterionType;
+    const friendly = key ? (CONFIG_LABEL[key] ?? key) : '';
+    if (cfg.templateName) return `${friendly}: ${cfg.templateName}`;
+    if (cfg.conditionName) return `${friendly}: ${cfg.conditionName}`;
+    if (cfg.targetStage)   return `${friendly}: ${cfg.targetStage}`;
+    if (cfg.durationSeconds) return `${friendly}: ${cfg.durationSeconds}s`;
+    return friendly || '—';
+  } catch {
+    return '—';
+  }
+}
+
+const layout = (nodes: Node[], edges: Edge[]) => {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: 'TB', nodesep: 50, ranksep: 100 });
-
+  g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 90 });
   nodes.forEach(n => g.setNode(n.id, { width: nodeWidth, height: nodeHeight }));
   edges.forEach(e => g.setEdge(e.source, e.target));
-
   dagre.layout(g);
-
   return {
     nodes: nodes.map(n => {
       const pos = g.node(n.id);
@@ -31,59 +52,52 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   };
 };
 
+const makeEdge = (
+  src: string, tgt: string,
+  label: string,
+  isSuccess: boolean,
+  traversed = false,
+  dimmed = false,
+): Edge => ({
+  id: `${src}-${isSuccess ? 's' : 'f'}-${tgt}`,
+  source: src, target: tgt,
+  type: 'smoothstep',
+  animated: traversed,
+  label,
+  labelStyle: { fill: traversed ? (isSuccess ? '#3fb950' : '#f85149') : '#484f58', fontSize: 10, fontWeight: 600 },
+  labelBgStyle: { fill: 'transparent' },
+  style: {
+    stroke: traversed ? (isSuccess ? '#3fb950' : '#f85149') : '#30363d',
+    strokeWidth: traversed ? 2.5 : 1,
+    strokeDasharray: isSuccess ? '0' : '5,4',
+    opacity: dimmed ? 0.2 : traversed ? 1 : 0.55,
+    transition: 'stroke 0.4s ease, opacity 0.4s ease',
+  },
+});
+
 export const convertStepsToFlow = (steps: StepResponse[]) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
-  let hasEnd = false;
-  let hasAbort = false;
-
-  const endNode: Node = {
-    id: 'END', type: 'default',
-    data: { label: 'END' },
-    position: { x: 0, y: 0 },
-    style: { background: '#52c41a', color: 'white', border: '2px solid #389e0d', borderRadius: 8, padding: 10, fontWeight: 'bold' },
-    sourcePosition: Position.Bottom, targetPosition: Position.Top,
-  };
-
-  const abortNode: Node = {
-    id: 'ABORT', type: 'default',
-    data: { label: 'ABORT' },
-    position: { x: 0, y: 0 },
-    style: { background: '#ff4d4f', color: 'white', border: '2px solid #cf1322', borderRadius: 8, padding: 10, fontWeight: 'bold' },
-    sourcePosition: Position.Bottom, targetPosition: Position.Top,
-  };
+  let hasEnd = false, hasAbort = false;
 
   steps.forEach(step => {
-    let config: any = {};
-    try { config = JSON.parse(step.configJson); } catch { /* keep empty */ }
-
-    const typeLabel = config.actionType || config.type || config.criterionType || '';
-    const label = `${step.orderIndex}. ${step.stepType}${typeLabel ? `\n${typeLabel}` : ''}`;
-    const color = TYPE_COLOR[step.stepType] ?? '#d9d9d9';
-
     nodes.push({
       id: `step-${step.orderIndex}`,
-      type: 'default',
-      data: { label },
+      type: 'stepNode',
+      data: {
+        label: `Step ${step.orderIndex}`,
+        stepType: step.stepType,
+        configLabel: getConfigLabel(step),
+        orderIndex: step.orderIndex,
+        state: 'idle',
+      } satisfies StepNodeData,
       position: { x: 0, y: 0 },
-      style: {
-        background: color,
-        color: 'white',
-        border: `2px solid ${color}`,
-        borderRadius: 8,
-        padding: 10,
-        fontSize: 12,
-        whiteSpace: 'pre-line',
-      },
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
     });
 
-    const pushEdge = (action: TransitionAction, gotoStep: number | null, isSuccess: boolean) => {
+    const push = (action: TransitionAction, gotoStep: number | null, isSuccess: boolean) => {
       const src = `step-${step.orderIndex}`;
-      const edgeColor = isSuccess ? '#52c41a' : '#ff4d4f';
-      const label = isSuccess ? 'success' : 'failure';
-
       let tgt: string | null = null;
       switch (action) {
         case 'CONTINUE': {
@@ -91,42 +105,32 @@ export const convertStepsToFlow = (steps: StepResponse[]) => {
           if (next) tgt = `step-${next.orderIndex}`;
           break;
         }
-        case 'GOTO':
-          if (gotoStep !== null) tgt = `step-${gotoStep}`;
-          break;
-        case 'END':
-          hasEnd = true;
-          tgt = 'END';
-          break;
-        case 'ABORT':
-          hasAbort = true;
-          tgt = 'ABORT';
-          break;
+        case 'GOTO': if (gotoStep !== null) tgt = `step-${gotoStep}`; break;
+        case 'END': hasEnd = true; tgt = 'END'; break;
+        case 'ABORT': hasAbort = true; tgt = 'ABORT'; break;
       }
-
       if (!tgt) return;
-
-      edges.push({
-        id: `${src}-${isSuccess ? 's' : 'f'}-${tgt}`,
-        source: src,
-        target: tgt,
-        type: 'smoothstep',
-        animated: true,
-        style: { stroke: edgeColor, strokeDasharray: isSuccess ? '0' : '5,5', strokeWidth: 2 },
-        label,
-        labelStyle: { fill: edgeColor, fontSize: 11, fontWeight: 600 },
-        labelBgStyle: { fill: 'transparent' },
-      });
+      edges.push(makeEdge(src, tgt, isSuccess ? 'ok' : 'fail', isSuccess));
     };
-
-    pushEdge(step.onSuccessAction, step.onSuccessGotoStep, true);
-    pushEdge(step.onFailureAction, step.onFailureGotoStep, false);
+    push(step.onSuccessAction, step.onSuccessGotoStep, true);
+    push(step.onFailureAction, step.onFailureGotoStep, false);
   });
 
-  if (hasEnd)   nodes.push(endNode);
-  if (hasAbort) nodes.push(abortNode);
+  if (hasEnd) nodes.push({
+    id: 'END', type: 'endNode',
+    data: { label: 'END', reached: false },
+    position: { x: 0, y: 0 },
+    sourcePosition: Position.Bottom, targetPosition: Position.Top,
+  });
 
-  return getLayoutedElements(nodes, edges);
+  if (hasAbort) nodes.push({
+    id: 'ABORT', type: 'endNode',
+    data: { label: 'ABORT', reached: false },
+    position: { x: 0, y: 0 },
+    sourcePosition: Position.Bottom, targetPosition: Position.Top,
+  });
+
+  return layout(nodes, edges);
 };
 
 export const convertStepsToFlowWithHighlight = (
@@ -136,10 +140,9 @@ export const convertStepsToFlowWithHighlight = (
 ) => {
   const { nodes, edges } = convertStepsToFlow(steps);
 
-  // Build a set of completed step indices and their transition actions
   const completedMap = new Map<number, { result: string; action: string | null; target: number | null }>();
   for (const se of stepExecutions) {
-    if (se.result === 'SUCCESS' || se.result === 'FAILURE') {
+    if (se.result) {
       completedMap.set(se.stepIndex, {
         result: se.result,
         action: se.transitionAction ?? null,
@@ -148,57 +151,10 @@ export const convertStepsToFlowWithHighlight = (
     }
   }
 
-  // Highlight nodes
-  const highlightedNodes = nodes.map(node => {
-    if (!node.id.startsWith('step-')) return node;
-
-    const stepIdx = parseInt(node.id.replace('step-', ''), 10);
-
-    // Show yellow pulse only for the actively executing step (not yet completed)
-    if (stepIdx === currentStepIndex && !completedMap.has(stepIdx)) {
-      return {
-        ...node,
-        className: 'rf-pulse',
-        style: {
-          ...node.style,
-          background: '#faad14',
-          border: '3px solid #d48806',
-          color: 'white',
-          opacity: 1,
-        },
-      };
-    }
-
-    if (completedMap.has(stepIdx)) {
-      const info = completedMap.get(stepIdx)!;
-      const isSuccess = info.result === 'SUCCESS';
-      return {
-        ...node,
-        style: {
-          ...node.style,
-          background: isSuccess ? '#52c41a' : '#ff4d4f',
-          border: `3px solid ${isSuccess ? '#389e0d' : '#cf1322'}`,
-          color: 'white',
-          opacity: 1,
-        },
-      };
-    }
-
-    // Unreached step
-    return {
-      ...node,
-      style: {
-        ...node.style,
-        background: '#484f58',
-        border: '2px solid #30363d',
-        color: '#9da3ab',
-        opacity: 0.55,
-      },
-    };
-  });
-
-  // Highlight edges: mark edges that were actually traversed
+  // Build set of traversed edge IDs
   const traversedEdges = new Set<string>();
+  const reachedTerminals = new Set<string>();
+
   for (const [stepIdx, info] of completedMap) {
     const src = `step-${stepIdx}`;
     const suffix = info.result === 'SUCCESS' ? 's' : 'f';
@@ -213,44 +169,47 @@ export const convertStepsToFlowWithHighlight = (
         }
         break;
       }
-      case 'GOTO':
-        if (info.target !== null) tgt = `step-${info.target}`;
-        break;
-      case 'END':
-        tgt = 'END';
-        break;
-      case 'ABORT':
-        tgt = 'ABORT';
-        break;
+      case 'GOTO': if (info.target !== null) tgt = `step-${info.target}`; break;
+      case 'END': tgt = 'END'; reachedTerminals.add('END'); break;
+      case 'ABORT': tgt = 'ABORT'; reachedTerminals.add('ABORT'); break;
     }
-
     if (tgt) traversedEdges.add(`${src}-${suffix}-${tgt}`);
   }
 
-  const highlightedEdges = edges.map(edge => {
-    if (traversedEdges.has(edge.id)) {
-      const isSuccess = edge.id.includes('-s-');
+  // Highlight nodes
+  const highlightedNodes = nodes.map(node => {
+    if (node.type === 'endNode') {
       return {
-        ...edge,
-        animated: true,
-        style: {
-          ...edge.style,
-          stroke: isSuccess ? '#52c41a' : '#ff4d4f',
-          strokeWidth: 3,
-          opacity: 1,
-        },
+        ...node,
+        data: { ...node.data, reached: reachedTerminals.has(node.id as string) },
       };
     }
-    // Dim non-traversed edges
+
+    if (!node.id.startsWith('step-')) return node;
+    const stepIdx = parseInt(node.id.replace('step-', ''), 10);
+
+    let state: StepNodeData['state'] = 'unreached';
+
+    if (stepIdx === currentStepIndex && !completedMap.has(stepIdx)) {
+      state = 'active';
+    } else if (completedMap.has(stepIdx)) {
+      const info = completedMap.get(stepIdx)!;
+      state = info.result === 'SUCCESS' ? 'success' : 'failure';
+    }
+
     return {
-      ...edge,
-      animated: false,
-      style: {
-        ...edge.style,
-        opacity: 0.25,
-        strokeWidth: 1,
-      },
+      ...node,
+      data: { ...(node.data as StepNodeData), state },
     };
+  });
+
+  // Highlight edges
+  const anyTraversed = traversedEdges.size > 0;
+  const highlightedEdges = edges.map(edge => {
+    const isTraversed = traversedEdges.has(edge.id);
+    const isSuccess = edge.id.includes('-s-');
+    const dimmed = anyTraversed && !isTraversed;
+    return makeEdge(edge.source, edge.target, (edge.label as string) ?? '', isSuccess, isTraversed, dimmed);
   });
 
   return { nodes: highlightedNodes, edges: highlightedEdges };

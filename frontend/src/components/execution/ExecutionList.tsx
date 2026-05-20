@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Tag, notification, Select, Input, Space, Button } from 'antd';
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons';
+import { usePolling } from '../../hooks/usePolling';
 import { useNavigate } from 'react-router-dom';
 import { executionApi } from '../../api/executionApi';
 import { ExecutionInstanceResponse, ExecutionStatus } from '../../types/execution';
@@ -48,9 +49,18 @@ export const ExecutionList: React.FC = () => {
     }
   }, []);
 
+  const [hasActive, setHasActive] = useState(false);
+
   useEffect(() => {
     loadExecutions(0, 10, statusFilter, aircraftIdFilter);
   }, [statusFilter, aircraftIdFilter, loadExecutions]);
+
+  useEffect(() => {
+    setHasActive(executions.some(e => e.status === 'RUNNING' || e.status === 'WAITING'));
+  }, [executions]);
+
+  // Auto-refresh when there are active executions
+  usePolling(() => loadExecutions(0, 10, statusFilter, aircraftIdFilter), 4000, hasActive && !statusFilter);
 
   const handleTableChange = (pg: any) => {
     loadExecutions(pg.current - 1, pg.pageSize, statusFilter, aircraftIdFilter);
@@ -71,9 +81,12 @@ export const ExecutionList: React.FC = () => {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
-      width: 130,
+      width: 140,
       render: (status: ExecutionStatus) => (
-        <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
+        <Space size={4}>
+          {(status === 'RUNNING' || status === 'WAITING') && <span className="online-dot" />}
+          <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
+        </Space>
       ),
     },
     {
@@ -149,12 +162,23 @@ export const ExecutionList: React.FC = () => {
         </Space>
       </div>
 
+      {hasActive && (
+        <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#848d97' }}>
+          <span className="online-dot" />
+          Автообновление активно — есть выполнения в процессе
+        </div>
+      )}
       <Table
         columns={columns}
         dataSource={executions}
         loading={loading}
         rowKey="id"
         scroll={{ x: 900 }}
+        rowClassName={(record) =>
+          record.status === 'RUNNING' ? 'execution-row-running'
+          : record.status === 'WAITING' ? 'execution-row-waiting'
+          : ''
+        }
         pagination={{
           ...pagination,
           showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
