@@ -3,8 +3,9 @@ import { IncomingMessageRequest, FlightStageChangeRequest, MessageResponse } fro
 import { PageResponse } from '../types/sequence';
 
 export const messageApi = {
-  sendMessage: async (request: IncomingMessageRequest): Promise<void> => {
-    await api.post('/messages/incoming', request);
+  sendMessage: async (request: IncomingMessageRequest): Promise<{ messageId: number; status: string }> => {
+    const response = await api.post<{ messageId: number; status: string }>('/messages/incoming', request);
+    return response.data;
   },
 
   changeFlightStage: async (request: FlightStageChangeRequest): Promise<void> => {

@@ -1,18 +1,27 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
+import { Spin } from 'antd';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { LoginPage } from './components/user/LoginPage';
-import { UserManagement } from './components/user/UserManagement';
-import { ProfilePage } from './components/user/ProfilePage';
-import { Dashboard } from './components/Dashboard';
-import { SequenceList } from './components/sequence/SequenceList';
-import { SequenceForm } from './components/sequence/SequenceForm';
-import { ExecutionList } from './components/execution/ExecutionList';
-import { ExecutionDetail } from './components/execution/ExecutionDetail';
-import { MessageSimulator } from './components/message/MessageSimulator';
-import { MessageLog } from './components/message/MessageLog';
-import { AuditLogPage } from './components/audit/AuditLogPage';
-import { DemoPage } from './components/demo/DemoPage';
+
+const Dashboard        = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const SequenceList     = lazy(() => import('./components/sequence/SequenceList').then(m => ({ default: m.SequenceList })));
+const SequenceForm     = lazy(() => import('./components/sequence/SequenceForm').then(m => ({ default: m.SequenceForm })));
+const ExecutionList    = lazy(() => import('./components/execution/ExecutionList').then(m => ({ default: m.ExecutionList })));
+const ExecutionDetail  = lazy(() => import('./components/execution/ExecutionDetail').then(m => ({ default: m.ExecutionDetail })));
+const MessageSimulator = lazy(() => import('./components/message/MessageSimulator').then(m => ({ default: m.MessageSimulator })));
+const MessageLog       = lazy(() => import('./components/message/MessageLog').then(m => ({ default: m.MessageLog })));
+const AuditLogPage     = lazy(() => import('./components/audit/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
+const DemoPage         = lazy(() => import('./components/demo/DemoPage').then(m => ({ default: m.DemoPage })));
+const UserManagement   = lazy(() => import('./components/user/UserManagement').then(m => ({ default: m.UserManagement })));
+const ProfilePage      = lazy(() => import('./components/user/ProfilePage').then(m => ({ default: m.ProfilePage })));
+
+const PageLoader = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+    <Spin size="large" />
+  </div>
+);
 
 function App() {
   return (
@@ -28,21 +37,21 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
-          <Route path="sequences" element={<SequenceList />} />
-          <Route path="sequences/:id" element={<SequenceForm />} />
-          <Route path="sequences/:id/edit" element={<SequenceForm />} />
-          <Route path="executions" element={<ExecutionList />} />
-          <Route path="executions/:id" element={<ExecutionDetail />} />
-          <Route path="messages" element={<MessageLog />} />
-          <Route path="simulator" element={<MessageSimulator />} />
-          <Route path="demo" element={<DemoPage />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route index element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+          <Route path="sequences" element={<Suspense fallback={<PageLoader />}><SequenceList /></Suspense>} />
+          <Route path="sequences/:id" element={<Suspense fallback={<PageLoader />}><SequenceForm /></Suspense>} />
+          <Route path="sequences/:id/edit" element={<Suspense fallback={<PageLoader />}><SequenceForm /></Suspense>} />
+          <Route path="executions" element={<Suspense fallback={<PageLoader />}><ExecutionList /></Suspense>} />
+          <Route path="executions/:id" element={<Suspense fallback={<PageLoader />}><ExecutionDetail /></Suspense>} />
+          <Route path="messages" element={<Suspense fallback={<PageLoader />}><MessageLog /></Suspense>} />
+          <Route path="simulator" element={<Suspense fallback={<PageLoader />}><MessageSimulator /></Suspense>} />
+          <Route path="demo" element={<Suspense fallback={<PageLoader />}><DemoPage /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
           <Route
             path="audit-log"
             element={
               <ProtectedRoute adminOnly>
-                <AuditLogPage />
+                <Suspense fallback={<PageLoader />}><AuditLogPage /></Suspense>
               </ProtectedRoute>
             }
           />
@@ -50,7 +59,7 @@ function App() {
             path="users"
             element={
               <ProtectedRoute adminOnly>
-                <UserManagement />
+                <Suspense fallback={<PageLoader />}><UserManagement /></Suspense>
               </ProtectedRoute>
             }
           />

@@ -11,30 +11,14 @@ interface ExecutionFlowProps {
   stepExecutions: StepExecutionResponse[];
 }
 
-export const ExecutionFlow: React.FC<ExecutionFlowProps> = ({ steps, currentStepIndex, stepExecutions }) => {
-  const completedStepIndices = useMemo(
-    () => stepExecutions.filter((se) => se.result === 'SUCCESS').map((se) => se.stepIndex),
-    [stepExecutions]
-  );
-
+const ExecutionFlowInner: React.FC<ExecutionFlowProps> = ({ steps, currentStepIndex, stepExecutions }) => {
   const { nodes, edges } = useMemo(
-    () => convertStepsToFlowWithHighlight(steps, currentStepIndex, completedStepIndices),
-    [steps, currentStepIndex, completedStepIndices]
+    () => convertStepsToFlowWithHighlight(steps, currentStepIndex, stepExecutions),
+    [steps, currentStepIndex, stepExecutions],
   );
 
   return (
-    <div style={{ height: '600px', width: '100%' }}>
-      <style>
-        {`
-          @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 20px #faad14; }
-            50% { box-shadow: 0 0 40px #faad14; }
-          }
-          .pulse-animation {
-            animation: pulse 2s infinite;
-          }
-        `}
-      </style>
+    <div style={{ height: 600, width: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -52,3 +36,5 @@ export const ExecutionFlow: React.FC<ExecutionFlowProps> = ({ steps, currentStep
     </div>
   );
 };
+
+export const ExecutionFlow = React.memo(ExecutionFlowInner);

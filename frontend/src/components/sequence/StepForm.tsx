@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Select, Input, InputNumber, Button, Space, Checkbox, Divider } from 'antd';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Form, Select, Input, InputNumber, Button, Space, Checkbox, Divider, Typography } from 'antd';
 import {
   StepCreateRequest,
   StepResponse,
@@ -8,6 +8,9 @@ import {
   CriterionType,
   TransitionAction,
 } from '../../types/sequence';
+import { useTheme } from '../../context/ThemeContext';
+
+const { Text } = Typography;
 
 interface StepFormProps {
   onSubmit: (data: StepCreateRequest) => void;
@@ -22,6 +25,10 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
   const [criterionType, setCriterionType] = useState<CriterionType | null>(null);
   const [onSuccessAction, setOnSuccessAction] = useState<TransitionAction>('CONTINUE');
   const [onFailureAction, setOnFailureAction] = useState<TransitionAction>('ABORT');
+  const [formValues, setFormValues] = useState<any>({});
+  const { isDark } = useTheme();
+  const previewBg = isDark ? '#0d1117' : '#f6f8fa';
+  const previewBorder = isDark ? '#30363d' : '#d0d7de';
 
   useEffect(() => {
     if (initialValues) {
@@ -66,6 +73,48 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
       'criteriaMessageType', 'timeoutSeconds',
     ]);
   };
+
+  const configPreview = useMemo(() => {
+    const values = formValues;
+    const config: any = {};
+    if (stepType === 'ACTION') {
+      if (values.actionType) config.actionType = values.actionType;
+      if (values.actionType === 'SEND_UPLINK' || values.actionType === 'SEND_GROUND') {
+        if (values.templateName) config.templateName = values.templateName;
+        if (values.parameters) {
+          try { config.parameters = JSON.parse(values.parameters); } catch { config.parameters = values.parameters; }
+        }
+      }
+      if (values.actionType === 'RAISE_CONDITION' || values.actionType === 'CLOSE_CONDITION') {
+        if (values.conditionName) config.conditionName = values.conditionName;
+        if (values.alertLevel) config.alertLevel = values.alertLevel;
+      }
+      if (values.actionType === 'WAIT_TIME' && values.durationSeconds) {
+        config.durationSeconds = values.durationSeconds;
+      }
+    } else {
+      if (values.criterionType) config.type = values.criterionType;
+      if (values.criterionType === 'MESSAGE_RECEIVED') {
+        if (values.criteriaMessageType) config.messageType = values.criteriaMessageType;
+        if (values.templateName) config.templateName = values.templateName;
+      }
+      if (values.criterionType === 'FLIGHT_STAGE' && values.expectedStage) {
+        config.targetStage = values.expectedStage;
+        config.operator = 'EQUALS';
+      }
+      if (values.criterionType === 'TIME_COMPARISON') {
+        if (values.comparisonOperator) config.operator = values.comparisonOperator;
+        if (values.thresholdSeconds != null) config.thresholdSeconds = values.thresholdSeconds;
+      }
+      if (values.criterionType === 'CONDITION_ACTIVE' && values.conditionName) {
+        config.conditionName = values.conditionName;
+      }
+      if (stepType === 'WAIT' && values.timeoutSeconds) {
+        config.timeoutSeconds = values.timeoutSeconds;
+      }
+    }
+    return Object.keys(config).length > 0 ? JSON.stringify(config, null, 2) : null;
+  }, [formValues, stepType]);
 
   const handleFinish = (values: any) => {
     const configJson: any = {};
@@ -128,7 +177,12 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
   };
 
   return (
-    <Form form={form} layout="vertical" onFinish={handleFinish}>
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={handleFinish}
+      onValuesChange={(_, all) => setFormValues(all)}
+    >
       <Form.Item
         name="stepType"
         label="Тип шага"
@@ -355,6 +409,28 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
           </Form.Item>
         </div>
       </div>
+
+      {configPreview && (
+        <>
+          <Divider>Превью конфига шага</Divider>
+          <div
+            style={{
+              background: previewBg,
+              border: `1px solid ${previewBorder}`,
+              borderRadius: 8,
+              padding: '12px 14px',
+              marginBottom: 16,
+            }}
+          >
+            <Text style={{ fontSize: 11, color: '#848d97', display: 'block', marginBottom: 6 }}>
+              configJson (будет сохранено в БД):
+            </Text>
+            <pre style={{ margin: 0, fontSize: 12, color: '#52c41a', lineHeight: 1.6 }}>
+              {configPreview}
+            </pre>
+          </div>
+        </>
+      )}
 
       <Form.Item>
         <Space>

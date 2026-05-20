@@ -50,6 +50,17 @@ body[data-theme='light'] ::-webkit-scrollbar-corner { background: #e8ecf0; }
 /* ── Utility ───────────────────────────────────────────────── */
 .fade-in-up { animation: fade-in-up 0.3s ease forwards; }
 
+/* ── React Flow node animations ─────────────────────────────── */
+@keyframes rf-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(250, 173, 20, 0.7), 0 0 16px rgba(250, 173, 20, 0.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(250, 173, 20, 0), 0 0 32px rgba(250, 173, 20, 0.8); }
+}
+
+.react-flow__node.rf-pulse .react-flow__node-default,
+.react-flow__node.rf-pulse > div {
+  animation: rf-pulse 1.8s ease-in-out infinite !important;
+}
+
 .online-dot {
   display: inline-block;
   width: 7px; height: 7px;
@@ -200,6 +211,30 @@ body[data-theme='light'] ::-webkit-scrollbar-corner { background: #e8ecf0; }
   font-weight: 600;
   color: #e6edf3;
   margin: 0;
+}
+
+/* ── Table row hover effects ─────────────────────────────── */
+.sequence-table-row {
+  transition: background 0.15s ease;
+}
+
+.sequence-table-row .row-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sequence-table-row:hover .row-actions {
+  opacity: 1;
+}
+
+/* Always show actions if they contain a focused/open element */
+.sequence-table-row .row-actions:focus-within {
+  opacity: 1;
+}
+
+/* ── Skeleton animation override ────────────────────────────── */
+.ant-skeleton-paragraph li {
+  border-radius: 6px !important;
 }
 
 /* ── Light theme overrides ───────────────────────────────── */

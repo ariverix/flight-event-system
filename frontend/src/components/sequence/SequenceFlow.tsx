@@ -8,11 +8,11 @@ interface SequenceFlowProps {
   steps: StepResponse[];
 }
 
-export const SequenceFlow: React.FC<SequenceFlowProps> = ({ steps }) => {
+const SequenceFlowInner: React.FC<SequenceFlowProps> = ({ steps }) => {
   const { nodes, edges } = useMemo(() => convertStepsToFlow(steps), [steps]);
 
   return (
-    <div style={{ height: '600px', width: '100%' }}>
+    <div style={{ height: 600, width: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -30,3 +30,5 @@ export const SequenceFlow: React.FC<SequenceFlowProps> = ({ steps }) => {
     </div>
   );
 };
+
+export const SequenceFlow = React.memo(SequenceFlowInner);

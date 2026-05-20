@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Tag, notification, Select, Input, Space, Button } from 'antd';
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -27,7 +27,7 @@ export const ExecutionList: React.FC = () => {
   const [aircraftIdFilter, setAircraftIdFilter] = useState<string | undefined>();
   const navigate = useNavigate();
 
-  const loadExecutions = async (
+  const loadExecutions = useCallback(async (
     page = 0,
     size = 10,
     status?: ExecutionStatus,
@@ -37,7 +37,7 @@ export const ExecutionList: React.FC = () => {
     try {
       const data = await executionApi.getExecutions(page, size, status, aircraftId);
       setExecutions(data.content);
-      setPagination({ current: page + 1, pageSize: size, total: data.totalElements });
+      setPagination(prev => ({ ...prev, current: page + 1, pageSize: size, total: data.totalElements }));
     } catch (error: any) {
       notification.error({
         message: 'Ошибка загрузки выполнений',
@@ -46,11 +46,11 @@ export const ExecutionList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadExecutions(0, pagination.pageSize, statusFilter, aircraftIdFilter);
-  }, [statusFilter, aircraftIdFilter]);
+    loadExecutions(0, 10, statusFilter, aircraftIdFilter);
+  }, [statusFilter, aircraftIdFilter, loadExecutions]);
 
   const handleTableChange = (pg: any) => {
     loadExecutions(pg.current - 1, pg.pageSize, statusFilter, aircraftIdFilter);

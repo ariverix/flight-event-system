@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Tooltip } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Tooltip, Skeleton } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
@@ -20,8 +20,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  ACTIVE:   'green',
-  INACTIVE: 'default',
+  ACTIVE:   'success',
+  INACTIVE: 'warning',
   DRAFT:    'default',
 };
 
@@ -34,12 +34,12 @@ export const SequenceList: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
 
-  const loadSequences = async (page = 0, size = 10, status?: SequenceStatus) => {
+  const loadSequences = useCallback(async (page = 0, size = 10, status?: SequenceStatus) => {
     setLoading(true);
     try {
       const data = await sequenceApi.getSequences(page, size, status);
       setSequences(data.content);
-      setPagination({ current: page + 1, pageSize: size, total: data.totalElements });
+      setPagination(prev => ({ ...prev, current: page + 1, pageSize: size, total: data.totalElements }));
     } catch (error: any) {
       notification.error({
         message: 'Ошибка загрузки последовательностей',
@@ -48,11 +48,11 @@ export const SequenceList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadSequences(0, pagination.pageSize, statusFilter);
-  }, [statusFilter]);
+    loadSequences(0, 10, statusFilter);
+  }, [statusFilter, loadSequences]);
 
   const handleTableChange = (pg: any) => {
     loadSequences(pg.current - 1, pg.pageSize, statusFilter);
@@ -107,10 +107,10 @@ export const SequenceList: React.FC = () => {
       ellipsis: true,
       filteredValue: searchText ? [searchText] : null,
       onFilter: (value: any, record: SequenceResponse) =>
-        record.name.toLowerCase().includes(value.toLowerCase()),
+        record.name.toLowerCase().includes((value as string).toLowerCase()),
       render: (text: string) => (
         <Tooltip title={text} placement="topLeft">
-          <span>{text}</span>
+          <span style={{ fontWeight: 500 }}>{text}</span>
         </Tooltip>
       ),
     },
@@ -138,8 +138,10 @@ export const SequenceList: React.FC = () => {
     {
       title: 'Шаги',
       key: 'steps',
-      width: 80,
-      render: (_: any, record: SequenceResponse) => record.steps.length,
+      width: 70,
+      render: (_: any, record: SequenceResponse) => (
+        <Tag>{record.steps.length}</Tag>
+      ),
     },
     {
       title: 'Создан',
@@ -151,12 +153,12 @@ export const SequenceList: React.FC = () => {
     {
       title: 'Действия',
       key: 'actions',
-      width: isAdmin ? 320 : 100,
+      width: isAdmin ? 300 : 100,
       fixed: 'right' as const,
       render: (_: any, record: SequenceResponse) => (
-        <Space size="small">
+        <Space size={2} className="row-actions">
           <Button
-            type="link"
+            type="text"
             size="small"
             icon={<EyeOutlined />}
             onClick={() => navigate(`/sequences/${record.id}`)}
@@ -165,7 +167,7 @@ export const SequenceList: React.FC = () => {
           </Button>
           {isAdmin && (
             <Button
-              type="link"
+              type="text"
               size="small"
               icon={<EditOutlined />}
               onClick={() => navigate(`/sequences/${record.id}/edit`)}
@@ -175,7 +177,7 @@ export const SequenceList: React.FC = () => {
           )}
           {isAdmin && (record.status === 'ACTIVE' ? (
             <Button
-              type="link"
+              type="text"
               size="small"
               icon={<PauseCircleOutlined />}
               onClick={() => handleDeactivate(record.id)}
@@ -184,7 +186,7 @@ export const SequenceList: React.FC = () => {
             </Button>
           ) : (
             <Button
-              type="link"
+              type="text"
               size="small"
               icon={<PlayCircleOutlined />}
               onClick={() => handleActivate(record.id)}
@@ -202,7 +204,7 @@ export const SequenceList: React.FC = () => {
               cancelText="Отмена"
               okButtonProps={{ danger: true }}
             >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              <Button type="text" size="small" danger icon={<DeleteOutlined />}>
                 Удалить
               </Button>
             </Popconfirm>
@@ -242,18 +244,23 @@ export const SequenceList: React.FC = () => {
         </Space>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={sequences}
-        loading={loading}
-        rowKey="id"
-        scroll={{ x: 1200 }}
-        pagination={{
-          ...pagination,
-          showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
-        }}
-        onChange={handleTableChange}
-      />
+      {loading && sequences.length === 0 ? (
+        <Skeleton active paragraph={{ rows: 8 }} />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={sequences}
+          loading={loading}
+          rowKey="id"
+          scroll={{ x: 1100 }}
+          rowClassName="sequence-table-row"
+          pagination={{
+            ...pagination,
+            showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+          }}
+          onChange={handleTableChange}
+        />
+      )}
     </div>
   );
 };
