@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Tooltip, Skeleton } from 'antd';
+import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Skeleton } from 'antd';
 import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
-  EyeOutlined,
+  PlusOutlined, EditOutlined, DeleteOutlined,
+  PlayCircleOutlined, PauseCircleOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { sequenceApi } from '../../api/sequenceApi';
@@ -64,10 +60,7 @@ export const SequenceList: React.FC = () => {
       notification.success({ message: 'Последовательность удалена' });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
-      notification.error({
-        message: 'Ошибка удаления',
-        description: error.response?.data?.message || error.message,
-      });
+      notification.error({ message: 'Ошибка удаления', description: error.response?.data?.message || error.message });
     }
   };
 
@@ -77,10 +70,7 @@ export const SequenceList: React.FC = () => {
       notification.success({ message: 'Последовательность активирована' });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
-      notification.error({
-        message: 'Ошибка активации',
-        description: error.response?.data?.message || error.message,
-      });
+      notification.error({ message: 'Ошибка активации', description: error.response?.data?.message || error.message });
     }
   };
 
@@ -90,47 +80,45 @@ export const SequenceList: React.FC = () => {
       notification.success({ message: 'Последовательность деактивирована' });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
-      notification.error({
-        message: 'Ошибка деактивации',
-        description: error.response?.data?.message || error.message,
-      });
+      notification.error({ message: 'Ошибка деактивации', description: error.response?.data?.message || error.message });
     }
   };
 
+  // Live search filter
+  const filtered = searchText
+    ? sequences.filter(s => s.name.toLowerCase().includes(searchText.toLowerCase()))
+    : sequences;
+
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60, fixed: 'left' as const },
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 55,
+    },
     {
       title: 'Название',
       dataIndex: 'name',
       key: 'name',
-      width: 220,
-      ellipsis: true,
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value: any, record: SequenceResponse) =>
-        record.name.toLowerCase().includes((value as string).toLowerCase()),
+      ellipsis: { showTitle: false },
       render: (text: string) => (
-        <Tooltip title={text} placement="topLeft">
-          <span style={{ fontWeight: 500 }}>{text}</span>
-        </Tooltip>
+        <span title={text} style={{ fontWeight: 500 }}>{text}</span>
       ),
     },
     {
       title: 'Описание',
       dataIndex: 'description',
       key: 'description',
-      ellipsis: true,
-      width: 220,
+      ellipsis: { showTitle: false },
       render: (text: string) => (
-        <Tooltip title={text} placement="topLeft">
-          <span>{text}</span>
-        </Tooltip>
+        <span title={text} style={{ color: 'var(--text-2)', fontSize: 13 }}>{text || '—'}</span>
       ),
     },
     {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
+      width: 110,
       render: (status: SequenceStatus) => (
         <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
       ),
@@ -138,60 +126,43 @@ export const SequenceList: React.FC = () => {
     {
       title: 'Шаги',
       key: 'steps',
-      width: 70,
+      width: 55,
       render: (_: any, record: SequenceResponse) => (
-        <Tag>{record.steps.length}</Tag>
+        <Tag style={{ minWidth: 28, textAlign: 'center' }}>{record.steps.length}</Tag>
       ),
     },
     {
       title: 'Создан',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 120,
+      width: 100,
       render: (date: string) => new Date(date).toLocaleDateString('ru-RU'),
     },
     {
       title: 'Действия',
       key: 'actions',
-      width: isAdmin ? 300 : 100,
-      fixed: 'right' as const,
+      width: isAdmin ? 260 : 90,
       render: (_: any, record: SequenceResponse) => (
-        <Space size={2} className="row-actions">
-          <Button
-            type="text"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/sequences/${record.id}`)}
-          >
+        <Space size={2} className="row-actions" wrap={false}>
+          <Button type="text" size="small" icon={<EyeOutlined />}
+            onClick={() => navigate(`/sequences/${record.id}`)}>
             Просмотр
           </Button>
           {isAdmin && (
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => navigate(`/sequences/${record.id}/edit`)}
-            >
+            <Button type="text" size="small" icon={<EditOutlined />}
+              onClick={() => navigate(`/sequences/${record.id}/edit`)}>
               Изменить
             </Button>
           )}
           {isAdmin && (record.status === 'ACTIVE' ? (
-            <Button
-              type="text"
-              size="small"
-              icon={<PauseCircleOutlined />}
-              onClick={() => handleDeactivate(record.id)}
-            >
+            <Button type="text" size="small" icon={<PauseCircleOutlined />}
+              onClick={() => handleDeactivate(record.id)}>
               Деактив.
             </Button>
           ) : (
-            <Button
-              type="text"
-              size="small"
-              icon={<PlayCircleOutlined />}
+            <Button type="text" size="small" icon={<PlayCircleOutlined />}
               onClick={() => handleActivate(record.id)}
-              disabled={record.steps.length === 0}
-            >
+              disabled={record.steps.length === 0}>
               Активировать
             </Button>
           ))}
@@ -200,10 +171,8 @@ export const SequenceList: React.FC = () => {
               title="Удалить последовательность?"
               description="Это действие нельзя отменить."
               onConfirm={() => handleDelete(record.id)}
-              okText="Удалить"
-              cancelText="Отмена"
-              okButtonProps={{ danger: true }}
-            >
+              okText="Удалить" cancelText="Отмена"
+              okButtonProps={{ danger: true }}>
               <Button type="text" size="small" danger icon={<DeleteOutlined />}>
                 Удалить
               </Button>
@@ -218,16 +187,18 @@ export const SequenceList: React.FC = () => {
     <div className="fade-in-up">
       <div className="page-header">
         <h2 className="page-title">Последовательности событий</h2>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="Поиск по названию"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
             onSearch={setSearchText}
-            style={{ width: 220 }}
+            style={{ width: 210 }}
             allowClear
           />
           <Select
             placeholder="Фильтр по статусу"
-            style={{ width: 170 }}
+            style={{ width: 160 }}
             allowClear
             onChange={setStatusFilter}
             value={statusFilter}
@@ -249,15 +220,16 @@ export const SequenceList: React.FC = () => {
       ) : (
         <Table
           columns={columns}
-          dataSource={sequences}
+          dataSource={filtered}
           loading={loading}
           rowKey="id"
-          scroll={{ x: 1100 }}
+          tableLayout="fixed"
           rowClassName={(record: SequenceResponse) =>
-          `sequence-table-row seq-${record.status.toLowerCase()}`
-        }
+            `sequence-table-row seq-${record.status.toLowerCase()}`
+          }
           pagination={{
             ...pagination,
+            total: filtered.length < sequences.length ? filtered.length : pagination.total,
             showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
           }}
           onChange={handleTableChange}

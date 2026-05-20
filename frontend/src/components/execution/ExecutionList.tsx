@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, notification, Select, Input, Space, Button } from 'antd';
-import { EyeOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Table, Tag, notification, Select, Input, Space, Button, Skeleton } from 'antd';
+import {
+  EyeOutlined, ReloadOutlined,
+  CheckCircleFilled, CloseCircleFilled, SyncOutlined, ClockCircleOutlined,
+} from '@ant-design/icons';
 import { usePolling } from '../../hooks/usePolling';
 import { useNavigate } from 'react-router-dom';
 import { executionApi } from '../../api/executionApi';
@@ -20,19 +23,25 @@ const STATUS_COLOR: Record<string, string> = {
   WAITING:   'warning',
 };
 
+const StatusIcon: React.FC<{ status: ExecutionStatus }> = ({ status }) => {
+  if (status === 'COMPLETED') return <CheckCircleFilled style={{ color: 'var(--accent-green)', marginRight: 5 }} />;
+  if (status === 'ABORTED')   return <CloseCircleFilled  style={{ color: 'var(--accent-red)',   marginRight: 5 }} />;
+  if (status === 'RUNNING')   return <SyncOutlined spin  style={{ color: 'var(--accent-blue)',  marginRight: 5 }} />;
+  if (status === 'WAITING')   return <ClockCircleOutlined style={{ color: 'var(--accent-amber)', marginRight: 5 }} />;
+  return null;
+};
+
 export const ExecutionList: React.FC = () => {
   const [executions, setExecutions] = useState<ExecutionInstanceResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [statusFilter, setStatusFilter] = useState<ExecutionStatus | undefined>();
   const [aircraftIdFilter, setAircraftIdFilter] = useState<string | undefined>();
+  const [hasActive, setHasActive] = useState(false);
   const navigate = useNavigate();
 
   const loadExecutions = useCallback(async (
-    page = 0,
-    size = 10,
-    status?: ExecutionStatus,
-    aircraftId?: string,
+    page = 0, size = 10, status?: ExecutionStatus, aircraftId?: string,
   ) => {
     setLoading(true);
     try {
@@ -49,8 +58,6 @@ export const ExecutionList: React.FC = () => {
     }
   }, []);
 
-  const [hasActive, setHasActive] = useState(false);
-
   useEffect(() => {
     loadExecutions(0, 10, statusFilter, aircraftIdFilter);
   }, [statusFilter, aircraftIdFilter, loadExecutions]);
@@ -59,62 +66,70 @@ export const ExecutionList: React.FC = () => {
     setHasActive(executions.some(e => e.status === 'RUNNING' || e.status === 'WAITING'));
   }, [executions]);
 
-  // Auto-refresh when there are active executions
   usePolling(() => loadExecutions(0, 10, statusFilter, aircraftIdFilter), 4000, hasActive && !statusFilter);
 
-  const handleTableChange = (pg: any) => {
-    loadExecutions(pg.current - 1, pg.pageSize, statusFilter, aircraftIdFilter);
-  };
-
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 65, fixed: 'left' as const },
-    { title: 'Последовательность', dataIndex: 'sequenceName', key: 'sequenceName', minWidth: 160 },
-    { title: 'Идент. ВС', dataIndex: 'aircraftId', key: 'aircraftId', width: 110 },
     {
-      title: 'Номер рейса',
-      dataIndex: 'flightNumber',
-      key: 'flightNumber',
-      width: 110,
-      render: (v: string | null) => v || '—',
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 55,
+    },
+    {
+      title: 'Последовательность',
+      dataIndex: 'sequenceName',
+      key: 'sequenceName',
+      ellipsis: { showTitle: false },
+      render: (v: string) => <span title={v}>{v}</span>,
+    },
+    {
+      title: 'Борт / Рейс',
+      key: 'aircraft',
+      width: 140,
+      render: (_: any, r: ExecutionInstanceResponse) => (
+        <span style={{ fontSize: 13 }}>
+          ✈ {r.aircraftId}{r.flightNumber ? ` · ${r.flightNumber}` : ''}
+        </span>
+      ),
     },
     {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
-      width: 140,
+      width: 150,
       render: (status: ExecutionStatus) => (
-        <Space size={4}>
-          {(status === 'RUNNING' || status === 'WAITING') && <span className="online-dot" />}
-          <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
-        </Space>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <StatusIcon status={status} />
+          <Tag color={STATUS_COLOR[status]} style={{ margin: 0 }}>
+            {STATUS_LABEL[status] ?? status}
+          </Tag>
+        </span>
       ),
     },
     {
-      title: 'Текущий шаг',
+      title: 'Шаг',
       dataIndex: 'currentStepIndex',
       key: 'currentStepIndex',
-      width: 110,
-      render: (step: number | null) => step !== null ? `Шаг ${step}` : '—',
+      width: 70,
+      render: (step: number | null) => step !== null
+        ? <Tag style={{ fontVariantNumeric: 'tabular-nums' }}>#{step}</Tag>
+        : <span style={{ color: 'var(--text-3)' }}>—</span>,
     },
     {
       title: 'Начало',
       dataIndex: 'startedAt',
       key: 'startedAt',
-      width: 150,
-      render: (date: string) => new Date(date).toLocaleString('ru-RU'),
-    },
-    {
-      title: 'Завершение',
-      dataIndex: 'completedAt',
-      key: 'completedAt',
-      width: 150,
-      render: (date: string | null) => date ? new Date(date).toLocaleString('ru-RU') : 'В процессе',
+      width: 145,
+      render: (date: string) => (
+        <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+          {new Date(date).toLocaleString('ru-RU')}
+        </span>
+      ),
     },
     {
       title: '',
       key: 'actions',
-      width: 90,
-      fixed: 'right' as const,
+      width: 85,
       render: (_: any, record: ExecutionInstanceResponse) => (
         <Button
           type="link"
@@ -132,16 +147,16 @@ export const ExecutionList: React.FC = () => {
     <div className="fade-in-up">
       <div className="page-header">
         <h2 className="page-title">Экземпляры выполнений</h2>
-        <Space>
+        <Space wrap>
           <Input
-            placeholder="Фильтр по идент. ВС"
-            style={{ width: 200 }}
+            placeholder="Фильтр по борту"
+            style={{ width: 180 }}
             allowClear
             onChange={(e) => setAircraftIdFilter(e.target.value || undefined)}
           />
           <Select
             placeholder="Фильтр по статусу"
-            style={{ width: 180 }}
+            style={{ width: 170 }}
             allowClear
             onChange={setStatusFilter}
             value={statusFilter}
@@ -153,9 +168,7 @@ export const ExecutionList: React.FC = () => {
           </Select>
           <Button
             icon={<ReloadOutlined />}
-            onClick={() =>
-              loadExecutions(pagination.current - 1, pagination.pageSize, statusFilter, aircraftIdFilter)
-            }
+            onClick={() => loadExecutions(pagination.current - 1, pagination.pageSize, statusFilter, aircraftIdFilter)}
           >
             Обновить
           </Button>
@@ -163,28 +176,33 @@ export const ExecutionList: React.FC = () => {
       </div>
 
       {hasActive && (
-        <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#848d97' }}>
+        <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-2)' }}>
           <span className="online-dot" />
-          Автообновление активно — есть выполнения в процессе
+          Автообновление — есть активные выполнения
         </div>
       )}
-      <Table
-        columns={columns}
-        dataSource={executions}
-        loading={loading}
-        rowKey="id"
-        scroll={{ x: 900 }}
-        rowClassName={(record) =>
-          record.status === 'RUNNING' ? 'execution-row-running'
-          : record.status === 'WAITING' ? 'execution-row-waiting'
-          : ''
-        }
-        pagination={{
-          ...pagination,
-          showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
-        }}
-        onChange={handleTableChange}
-      />
+
+      {loading && executions.length === 0 ? (
+        <Skeleton active paragraph={{ rows: 8 }} />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={executions}
+          loading={loading}
+          rowKey="id"
+          tableLayout="fixed"
+          rowClassName={(record) =>
+            record.status === 'RUNNING' ? 'execution-row-running'
+            : record.status === 'WAITING' ? 'execution-row-waiting'
+            : ''
+          }
+          pagination={{
+            ...pagination,
+            showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+          }}
+          onChange={(pg) => loadExecutions(pg.current! - 1, pg.pageSize!, statusFilter, aircraftIdFilter)}
+        />
+      )}
     </div>
   );
 };

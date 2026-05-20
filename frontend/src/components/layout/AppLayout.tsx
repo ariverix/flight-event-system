@@ -192,7 +192,7 @@ export const AppLayout: React.FC = () => {
       <Sider
         breakpoint="lg"
         collapsedWidth="0"
-        width={220}
+        width={240}
         style={{
           overflow: 'auto',
           height: '100vh',
@@ -236,7 +236,7 @@ export const AppLayout: React.FC = () => {
         </div>
       </Sider>
 
-      <Layout style={{ marginLeft: 220 }}>
+      <Layout style={{ marginLeft: 240 }}>
         <Header
           style={{
             padding: '0 24px',

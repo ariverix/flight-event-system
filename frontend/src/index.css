@@ -673,6 +673,31 @@ body[data-theme='light'] .react-flow__attribution {
   border-radius: var(--r-md);
 }
 
+/* ── Fixed column background fix ────────────────────────────────── */
+.ant-table-cell-fix-right,
+.ant-table-cell-fix-left { background: inherit !important; }
+.ant-table-tbody > tr:hover .ant-table-cell-fix-right,
+.ant-table-tbody > tr:hover .ant-table-cell-fix-left {
+  background: rgba(59,130,246,0.06) !important;
+}
+body[data-theme='light'] .ant-table-cell-fix-right,
+body[data-theme='light'] .ant-table-cell-fix-left { background: #fff !important; }
+body[data-theme='light'] .ant-table-tbody > tr:hover .ant-table-cell-fix-right {
+  background: rgba(59,130,246,0.04) !important;
+}
+
+/* ── Table hover row ─────────────────────────────────────────────── */
+.ant-table-tbody > tr:hover > td {
+  background: rgba(59,130,246,0.05) !important;
+  transition: background 0.15s ease !important;
+}
+body[data-theme='light'] .ant-table-tbody > tr:hover > td {
+  background: rgba(59,130,246,0.03) !important;
+}
+
+/* ── React Flow attribution hide ────────────────────────────────── */
+.react-flow__attribution { display: none !important; }
+
 /* ── CSV export button ───────────────────────────────────────────── */
 .btn-export {
   background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)) !important;

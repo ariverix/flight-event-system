@@ -15,7 +15,9 @@ import { useTheme } from '../../context/ThemeContext';
 const { Text } = Typography;
 
 const RECENT_AIRCRAFT_KEY = 'eca:recent_aircraft';
+const SIM_HISTORY_KEY = 'eca:sim_history';
 const MAX_RECENT = 8;
+const MAX_HISTORY = 5;
 
 const getRecentAircraft = (): string[] => {
   try { return JSON.parse(localStorage.getItem(RECENT_AIRCRAFT_KEY) ?? '[]'); } catch { return []; }
@@ -24,6 +26,22 @@ const getRecentAircraft = (): string[] => {
 const saveRecentAircraft = (id: string) => {
   const list = [id, ...getRecentAircraft().filter(x => x !== id)].slice(0, MAX_RECENT);
   localStorage.setItem(RECENT_AIRCRAFT_KEY, JSON.stringify(list));
+};
+
+interface SimHistoryEntry {
+  type: 'message' | 'stage';
+  label: string;
+  aircraft: string;
+  ts: string;
+}
+
+const getSimHistory = (): SimHistoryEntry[] => {
+  try { return JSON.parse(localStorage.getItem(SIM_HISTORY_KEY) ?? '[]'); } catch { return []; }
+};
+
+const addSimHistory = (entry: SimHistoryEntry) => {
+  const list = [entry, ...getSimHistory()].slice(0, MAX_HISTORY);
+  localStorage.setItem(SIM_HISTORY_KEY, JSON.stringify(list));
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -43,6 +61,7 @@ export const MessageSimulator: React.FC = () => {
   const [recentAircraft, setRecentAircraft] = useState<string[]>(getRecentAircraft);
   const [triggeredExecs, setTriggeredExecs] = useState<ExecutionInstanceResponse[] | null>(null);
   const [checkingExecs, setCheckingExecs] = useState(false);
+  const [history, setHistory] = useState<SimHistoryEntry[]>(getSimHistory);
   const { isDark } = useTheme();
   const navigate = useNavigate();
 
@@ -78,6 +97,8 @@ export const MessageSimulator: React.FC = () => {
       notification.success({ message: 'Сообщение отправлено успешно' });
       saveRecentAircraft(values.aircraftId);
       setRecentAircraft(getRecentAircraft());
+      addSimHistory({ type: 'message', label: `${values.messageType} / ${values.templateName}`, aircraft: values.aircraftId, ts: new Date().toISOString() });
+      setHistory(getSimHistory());
       form.resetFields(['templateName', 'metadataJson']);
       fetchRecentExecutions(values.aircraftId);
     } catch (error: any) {
@@ -102,6 +123,8 @@ export const MessageSimulator: React.FC = () => {
       notification.success({ message: 'Фаза полёта изменена успешно' });
       saveRecentAircraft(values.aircraftId);
       setRecentAircraft(getRecentAircraft());
+      addSimHistory({ type: 'stage', label: `FlightStage → ${values.newStage}`, aircraft: values.aircraftId, ts: new Date().toISOString() });
+      setHistory(getSimHistory());
       form.resetFields(['newStage']);
       fetchRecentExecutions(values.aircraftId);
     } catch (error: any) {
@@ -324,6 +347,32 @@ export const MessageSimulator: React.FC = () => {
               showIcon
             />
           )}
+        </Card>
+      )}
+
+      {/* Send history */}
+      {history.length > 0 && (
+        <Card
+          title={<span style={{ color: c.text }}>Последние отправленные</span>}
+          extra={
+            <Button type="text" size="small" style={{ color: c.textDimmer, fontSize: 11 }}
+              onClick={() => { localStorage.removeItem(SIM_HISTORY_KEY); setHistory([]); }}>
+              Очистить
+            </Button>
+          }
+          style={{ marginTop: 16, borderColor: c.borderSecondary }}
+        >
+          <Space wrap>
+            {history.map((h, i) => (
+              <Tag key={i} color={h.type === 'message' ? 'processing' : 'warning'}
+                style={{ cursor: 'default', borderRadius: 20, padding: '3px 10px' }}>
+                ✈ {h.aircraft} · {h.label}
+                <span style={{ color: c.textDimmer, marginLeft: 6, fontSize: 10 }}>
+                  {new Date(h.ts).toLocaleTimeString('ru-RU')}
+                </span>
+              </Tag>
+            ))}
+          </Space>
         </Card>
       )}
 

@@ -64,7 +64,7 @@ const STEP_ICON: Record<string, React.ReactNode> = {
   WAIT:     <ClockCircleOutlined />,
 };
 
-const StepTimelineItem: React.FC<{ se: StepExecutionResponse; isDark: boolean }> = ({ se, isDark }) => {
+const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecutionResponse; isDark: boolean }> = ({ se, prevSe, isDark }) => {
   const c = isDark
     ? { bg: '#1c2128', border: '#21262d', text: '#e6edf3', muted: '#848d97' }
     : { bg: '#f6f8fa', border: '#d8dee4', text: '#1f2328', muted: '#636c76' };
@@ -103,6 +103,15 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; isDark: boolean }>
       <Text style={{ color: c.muted, fontSize: 12, marginLeft: 'auto' }}>
         {new Date(se.executedAt).toLocaleString('ru-RU')}
       </Text>
+      {prevSe && (() => {
+        const dur = Math.round((new Date(se.executedAt).getTime() - new Date(prevSe.executedAt).getTime()) / 1000);
+        if (dur > 0) return (
+          <span style={{ fontSize: 11, color: c.muted, background: 'rgba(255,255,255,0.06)',
+            borderRadius: 10, padding: '1px 7px', marginLeft: 4 }}>
+            {dur >= 60 ? `${Math.floor(dur/60)}м ${dur%60}с` : `${dur}с`}
+          </span>
+        );
+      })()}
     </div>
   );
 
@@ -206,11 +215,17 @@ export const ExecutionDetail: React.FC = () => {
     : execution.status === 'COMPLETED' ? 'success'
     : 'active';
 
-  const timelineItems = execution.stepExecutions.map(se => ({
+  const timelineItems = execution.stepExecutions.map((se, idx) => ({
     key: se.id,
     dot: getTimelineDot(se),
     color: se.result === 'SUCCESS' ? 'green' : se.result === 'FAILURE' ? 'red' : 'blue',
-    children: <StepTimelineItem se={se} isDark={isDark} />,
+    children: (
+      <StepTimelineItem
+        se={se}
+        prevSe={idx > 0 ? execution.stepExecutions[idx - 1] : undefined}
+        isDark={isDark}
+      />
+    ),
   }));
 
   return (
@@ -273,9 +288,23 @@ export const ExecutionDetail: React.FC = () => {
               : 'В процессе'}
           </Descriptions.Item>
           <Descriptions.Item label="Контекст" span={2}>
-            <pre style={{ fontSize: 11, margin: 0 }}>
-              {(() => { try { return JSON.stringify(JSON.parse(execution.contextJson), null, 2); } catch { return execution.contextJson; } })()}
-            </pre>
+            {(() => {
+              try {
+                const parsed = JSON.parse(execution.contextJson);
+                if (Object.keys(parsed).length === 0) return <span style={{ color: 'var(--text-3)' }}>—</span>;
+                return (
+                  <pre style={{ fontSize: 11, margin: 0, maxHeight: 160, overflow: 'auto',
+                    background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px',
+                    border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {JSON.stringify(parsed, null, 2)}
+                  </pre>
+                );
+              } catch {
+                return execution.contextJson
+                  ? <span style={{ fontSize: 12 }}>{execution.contextJson}</span>
+                  : <span style={{ color: 'var(--text-3)' }}>—</span>;
+              }
+            })()}
           </Descriptions.Item>
         </Descriptions>
       </Card>
