@@ -350,7 +350,8 @@ export const AppLayout: React.FC = () => {
 
         <Content style={{ margin: '24px', overflow: 'initial' }}>
           <div
-            className="fade-in-up"
+            key={location.pathname}
+            className="page-enter"
             style={{
               padding: 24,
               background: c.bgContainer,

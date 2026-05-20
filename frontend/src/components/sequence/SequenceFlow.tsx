@@ -4,50 +4,50 @@ import '@xyflow/react/dist/style.css';
 import { StepResponse } from '../../types/sequence';
 import { convertStepsToFlow } from '../../utils/flowUtils';
 import { CustomStepNode, CustomEndNode } from '../flow/CustomStepNode';
+import { useTheme } from '../../context/ThemeContext';
 
-const nodeTypes = {
-  stepNode: CustomStepNode,
-  endNode: CustomEndNode,
-};
+const nodeTypes = { stepNode: CustomStepNode, endNode: CustomEndNode };
 
-interface SequenceFlowProps {
-  steps: StepResponse[];
-}
+interface SequenceFlowProps { steps: StepResponse[]; }
 
 const SequenceFlowInner: React.FC<SequenceFlowProps> = ({ steps }) => {
-  const { nodes, edges } = useMemo(() => convertStepsToFlow(steps), [steps]);
+  const { isDark } = useTheme();
+  const { nodes, edges } = useMemo(() => convertStepsToFlow(steps, isDark), [steps, isDark]);
+
+  const bgColor    = isDark ? '#0d1117' : '#f6f8fa';
+  const dotColor   = isDark ? '#21262d' : '#d0d7de';
+  const miniMask   = isDark ? 'rgba(13,17,23,0.75)' : 'rgba(246,248,250,0.75)';
+  const miniStyle  = isDark
+    ? { background: '#161b22', border: '1px solid #30363d' }
+    : { background: '#ffffff', border: '1px solid #d0d7de' };
 
   return (
-    <div style={{ height: 560, width: '100%', borderRadius: 8, overflow: 'hidden' }}>
+    <div style={{ height: 520, width: '100%', borderRadius: 8, overflow: 'hidden', background: bgColor }}>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={nodes} edges={edges}
         nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        nodesDraggable={false}
-        nodesConnectable={false}
+        fitView fitViewOptions={{ padding: 0.22 }}
+        nodesDraggable={false} nodesConnectable={false}
         elementsSelectable={false}
-        panOnDrag={true}
-        zoomOnScroll={true}
-        minZoom={0.3}
-        maxZoom={2}
+        panOnDrag zoomOnScroll
+        minZoom={0.25} maxZoom={2.5}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#21262d" />
-        <Controls />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color={dotColor} />
+        <Controls style={{ background: isDark ? '#161b22' : '#fff', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }} />
         <MiniMap
-          nodeColor={(n) => {
-            const d = n.data as any;
-            if (d?.state === 'success') return '#3fb950';
-            if (d?.state === 'failure') return '#f85149';
-            if (d?.state === 'active') return '#faad14';
-            if (d?.stepType === 'ACTION') return '#1677ff';
-            if (d?.stepType === 'EVALUATE') return '#faad14';
-            if (d?.stepType === 'WAIT') return '#7c3aed';
-            return '#30363d';
+          nodeColor={n => {
+            const s = (n.data as any)?.state;
+            if (s === 'success') return isDark ? '#3fb950' : '#22c55e';
+            if (s === 'failure') return isDark ? '#f85149' : '#ef4444';
+            if (s === 'active')  return '#faad14';
+            const t = (n.data as any)?.stepType;
+            if (t === 'ACTION')   return '#1677ff';
+            if (t === 'EVALUATE') return '#d48806';
+            if (t === 'WAIT')     return '#7c3aed';
+            return isDark ? '#30363d' : '#d0d7de';
           }}
-          maskColor="rgba(13,17,23,0.7)"
-          style={{ background: '#161b22', border: '1px solid #30363d' }}
+          maskColor={miniMask}
+          style={miniStyle}
         />
       </ReactFlow>
     </div>

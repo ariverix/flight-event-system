@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Form, Input, Button, Space, notification, Card, Modal, Table, Tag, Tooltip } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PlusOutlined, DeleteOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
@@ -37,11 +37,7 @@ export const SequenceForm: React.FC = () => {
     ? { borderSecondary: '#21262d', text: '#e6edf3' }
     : { borderSecondary: '#d8dee4', text: '#1f2328' };
 
-  useEffect(() => {
-    if (isEditMode) loadSequence();
-  }, [id]);
-
-  const loadSequence = async () => {
+  const loadSequence = useCallback(async () => {
     if (!id || id === 'new') return;
     setLoading(true);
     try {
@@ -62,7 +58,11 @@ export const SequenceForm: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate, form]);
+
+  useEffect(() => {
+    if (isEditMode) loadSequence();
+  }, [isEditMode, loadSequence]);
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
@@ -105,7 +105,7 @@ export const SequenceForm: React.FC = () => {
       }
       setIsStepModalOpen(false);
       setEditingStep(null);
-      loadSequence();
+      void loadSequence();
     } catch (error: any) {
       notification.error({
         message: 'Ошибка сохранения шага',
@@ -123,7 +123,7 @@ export const SequenceForm: React.FC = () => {
     [steps[idx], steps[swapIdx]] = [steps[swapIdx], steps[idx]];
     try {
       await sequenceApi.reorderSteps(sequence.id, steps.map(s => s.id));
-      loadSequence();
+      void loadSequence();
     } catch (error: any) {
       notification.error({
         message: 'Ошибка изменения порядка шагов',
@@ -137,7 +137,7 @@ export const SequenceForm: React.FC = () => {
     try {
       await sequenceApi.deleteStep(sequence.id, stepId);
       notification.success({ message: 'Шаг удалён' });
-      loadSequence();
+      void loadSequence();
     } catch (error: any) {
       notification.error({
         message: 'Ошибка удаления шага',

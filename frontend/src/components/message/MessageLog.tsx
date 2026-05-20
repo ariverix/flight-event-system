@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Tag, notification, Select, Input, Space, Button, DatePicker, Tooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { messageApi } from '../../api/messageApi';
@@ -28,7 +28,7 @@ export const MessageLog: React.FC = () => {
   const [aircraftIdFilter, setAircraftIdFilter] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
 
-  const loadMessages = async (
+  const loadMessages = useCallback(async (
     page = 0,
     size = 20,
     aircraftId?: string,
@@ -49,13 +49,13 @@ export const MessageLog: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const startDate = dateRange?.[0]?.format('YYYY-MM-DD');
     const endDate = dateRange?.[1]?.format('YYYY-MM-DD');
     loadMessages(0, pagination.pageSize, aircraftIdFilter, messageTypeFilter, startDate, endDate);
-  }, [messageTypeFilter, aircraftIdFilter, dateRange]);
+  }, [messageTypeFilter, aircraftIdFilter, dateRange, loadMessages]);
 
   const handleTableChange = (pg: any) => {
     const startDate = dateRange?.[0]?.format('YYYY-MM-DD');

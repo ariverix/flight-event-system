@@ -114,9 +114,14 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb:hover { background: #636c76; 
 }
 
 /* ── Utility ────────────────────────────────────────────────── */
-.fade-in-up { animation: fade-in-up 0.35s ease forwards; }
-.fade-in    { animation: fade-in 0.3s ease forwards; }
-.float      { animation: float 3s ease-in-out infinite; }
+.fade-in-up  { animation: fade-in-up 0.35s ease forwards; }
+.fade-in     { animation: fade-in 0.3s ease forwards; }
+.float       { animation: float 3s ease-in-out infinite; }
+
+/* Page enter transition — keyed by pathname */
+.page-enter {
+  animation: fade-in-up 0.28s cubic-bezier(0.16,1,0.3,1) forwards;
+}
 
 .online-dot {
   display: inline-block;
@@ -379,6 +384,30 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb:hover { background: #636c76; 
 /* ── Skeleton animation override ───────────────────────────── */
 .ant-skeleton-paragraph li {
   border-radius: 6px !important;
+}
+
+/* ── React Flow light-theme overrides ──────────────────────────── */
+body[data-theme='light'] .react-flow__pane {
+  background: #f6f8fa;
+}
+body[data-theme='light'] .react-flow__controls button {
+  background: #fff;
+  border-color: #d0d7de;
+  color: #1f2328;
+}
+body[data-theme='light'] .react-flow__controls button:hover {
+  background: #f0f3f6;
+}
+body[data-theme='light'] .react-flow__edge-path {
+  stroke: #d0d7de;
+}
+body[data-theme='light'] .react-flow__minimap {
+  background: #fff;
+  border-color: #d0d7de;
+}
+body[data-theme='light'] .react-flow__attribution {
+  background: rgba(255,255,255,0.7);
+  color: #636c76;
 }
 
 /* ── Light theme overrides ───────────────────────────────────── */
