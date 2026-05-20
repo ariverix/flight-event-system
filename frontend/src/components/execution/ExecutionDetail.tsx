@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Descriptions, Tag, notification, Button, Spin, Timeline, Collapse, Typography,
+  Card, Descriptions, Tag, notification, Button, Spin, Timeline, Collapse, Typography, Progress,
 } from 'antd';
 import {
   ArrowLeftOutlined, ReloadOutlined,
   CheckCircleFilled, CloseCircleFilled, LoadingOutlined,
-  ThunderboltOutlined, EyeOutlined, ClockCircleOutlined,
+  ThunderboltOutlined, EyeOutlined, ClockCircleOutlined, FieldTimeOutlined,
 } from '@ant-design/icons';
 import { executionApi } from '../../api/executionApi';
 import { sequenceApi } from '../../api/sequenceApi';
@@ -137,10 +137,21 @@ export const ExecutionDetail: React.FC = () => {
   const [execution, setExecution] = useState<ExecutionInstanceResponse | null>(null);
   const [sequence, setSequence] = useState<SequenceResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { isDark } = useTheme();
   const c = isDark
-    ? { borderSecondary: '#21262d', text: '#e6edf3', muted: '#848d97' }
-    : { borderSecondary: '#d8dee4', text: '#1f2328', muted: '#636c76' };
+    ? { borderSecondary: 'rgba(255,255,255,0.08)', text: 'var(--text-1)', muted: 'var(--text-2)' }
+    : { borderSecondary: 'rgba(0,0,0,0.08)', text: '#1f2328', muted: '#636c76' };
+
+  const fmtElapsed = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return `${h}ч ${m}м ${sec}с`;
+    if (m > 0) return `${m}м ${sec}с`;
+    return `${sec}с`;
+  };
 
   const loadExecution = useCallback(async () => {
     if (!id) return;
@@ -166,6 +177,20 @@ export const ExecutionDetail: React.FC = () => {
   const isActive = execution?.status === 'RUNNING' || execution?.status === 'WAITING';
   usePolling(loadExecution, 5000, isActive);
 
+  // Elapsed timer
+  useEffect(() => {
+    if (elapsedRef.current) clearInterval(elapsedRef.current);
+    if (!execution) return;
+    const startMs = new Date(execution.startedAt).getTime();
+    const endMs   = execution.completedAt ? new Date(execution.completedAt).getTime() : null;
+    if (endMs) { setElapsed(Math.floor((endMs - startMs) / 1000)); return; }
+    setElapsed(Math.floor((Date.now() - startMs) / 1000));
+    elapsedRef.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startMs) / 1000));
+    }, 1000);
+    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
+  }, [execution?.startedAt, execution?.completedAt]);
+
   if (loading || !execution || !sequence) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
@@ -173,6 +198,13 @@ export const ExecutionDetail: React.FC = () => {
       </div>
     );
   }
+
+  const totalSteps = sequence.steps.length;
+  const doneSteps  = execution.stepExecutions.filter(s => s.result != null).length;
+  const progressPct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
+  const progressStatus = execution.status === 'ABORTED' ? 'exception'
+    : execution.status === 'COMPLETED' ? 'success'
+    : 'active';
 
   const timelineItems = execution.stepExecutions.map(se => ({
     key: se.id,
@@ -208,6 +240,29 @@ export const ExecutionDetail: React.FC = () => {
           <Descriptions.Item label="Номер рейса">{execution.flightNumber || '—'}</Descriptions.Item>
           <Descriptions.Item label="Текущий шаг">
             {execution.currentStepIndex !== null ? `Шаг ${execution.currentStepIndex}` : '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Прогресс" span={2}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <Progress
+                  percent={progressPct}
+                  status={progressStatus}
+                  size="small"
+                  strokeColor={
+                    execution.status === 'ABORTED' ? '#ef4444'
+                    : execution.status === 'COMPLETED' ? '#10b981'
+                    : { from: '#3b82f6', to: '#8b5cf6' }
+                  }
+                />
+              </div>
+              <span style={{ fontSize: 12, color: c.muted, flexShrink: 0 }}>
+                {doneSteps}/{totalSteps} шагов
+              </span>
+              <span className="elapsed-badge">
+                <FieldTimeOutlined />
+                {fmtElapsed(elapsed)}
+              </span>
+            </div>
           </Descriptions.Item>
           <Descriptions.Item label="Начало">
             {new Date(execution.startedAt).toLocaleString('ru-RU')}

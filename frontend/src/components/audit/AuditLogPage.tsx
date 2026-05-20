@@ -1,31 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Tag, Select, Space, Button, notification, Tooltip } from 'antd';
-import { ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SafetyCertificateOutlined, DownloadOutlined } from '@ant-design/icons';
 import { auditApi, AuditLogEntry } from '../../api/auditApi';
-import { useTheme } from '../../context/ThemeContext';
 
 const ENTITY_TYPE_COLORS: Record<string, string> = {
   SEQUENCE:  'blue',
-  EXECUTION: 'green',
+  EXECUTION: 'success',
   USER:      'purple',
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  CREATE_SEQUENCE:     'cyan',
+  CREATE_SEQUENCE:     'blue',
   UPDATE_SEQUENCE:     'geekblue',
-  DELETE_SEQUENCE:     'red',
-  ACTIVATE_SEQUENCE:   'green',
-  DEACTIVATE_SEQUENCE: 'orange',
-  ADD_STEP:            'cyan',
+  DELETE_SEQUENCE:     'error',
+  ACTIVATE_SEQUENCE:   'success',
+  DEACTIVATE_SEQUENCE: 'warning',
+  ADD_STEP:            'blue',
   UPDATE_STEP:         'geekblue',
-  DELETE_STEP:         'volcano',
-  REORDER_STEPS:       'blue',
-  EXECUTION_STARTED:   'green',
+  DELETE_STEP:         'error',
+  REORDER_STEPS:       'processing',
+  EXECUTION_STARTED:   'processing',
   EXECUTION_COMPLETED: 'success',
-  EXECUTION_ABORTED:   'red',
+  EXECUTION_ABORTED:   'error',
   USER_LOGIN:          'purple',
-  CREATE_USER:         'cyan',
-  TOGGLE_USER:         'orange',
+  CREATE_USER:         'blue',
+  TOGGLE_USER:         'warning',
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -43,7 +42,7 @@ const ACTION_LABELS: Record<string, string> = {
   EXECUTION_ABORTED:   'Выполнение прервано',
   USER_LOGIN:          'Вход в систему',
   CREATE_USER:         'Создан пользователь',
-  TOGGLE_USER:         'Изменение статуса пользователя',
+  TOGGLE_USER:         'Изменение статуса',
 };
 
 const ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -58,15 +57,13 @@ export const AuditLogPage: React.FC = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [entityTypeFilter, setEntityTypeFilter] = useState<string | undefined>();
   const [actionFilter, setActionFilter] = useState<string | undefined>();
-  const { isDark } = useTheme();
-  const c = isDark ? { textMuted: '#848d97' } : { textMuted: '#636c76' };
 
-  const loadLogs = async (page = 0, size = 20, entityType?: string, action?: string) => {
+  const loadLogs = useCallback(async (page = 0, size = 20, entityType?: string, action?: string) => {
     setLoading(true);
     try {
       const data = await auditApi.getLogs(page, size, entityType, action);
       setLogs(data.content);
-      setPagination({ current: page + 1, pageSize: size, total: data.totalElements });
+      setPagination(prev => ({ ...prev, current: page + 1, pageSize: size, total: data.totalElements }));
     } catch (error: any) {
       notification.error({
         message: 'Ошибка загрузки журнала аудита',
@@ -75,15 +72,42 @@ export const AuditLogPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadLogs(0, pagination.pageSize, entityTypeFilter, actionFilter);
-  }, [entityTypeFilter, actionFilter]);
+  }, [entityTypeFilter, actionFilter, loadLogs]);
 
   const handleTableChange = (pg: any) => {
     loadLogs(pg.current - 1, pg.pageSize, entityTypeFilter, actionFilter);
   };
+
+  const exportCSV = useCallback(() => {
+    const BOM = '﻿';
+    const headers = ['ID', 'Операция', 'Тип сущности', 'ID сущности', 'Пользователь', 'Детали', 'Время'];
+    const rows = logs.map(l => [
+      l.id,
+      ACTION_LABELS[l.action] ?? l.action,
+      ENTITY_TYPE_LABELS[l.entityType ?? ''] ?? (l.entityType ?? ''),
+      l.entityId ?? '',
+      l.userId != null ? `ID ${l.userId}` : 'Система',
+      l.detailsJson ?? '',
+      new Date(l.createdAt).toLocaleString('ru-RU'),
+    ]);
+    const csv = [headers, ...rows]
+      .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    notification.success({ message: `Экспортировано ${logs.length} записей` });
+  }, [logs]);
 
   const columns = [
     {
@@ -91,7 +115,6 @@ export const AuditLogPage: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       width: 70,
-      defaultSortOrder: 'ascend' as const,
       sorter: (a: AuditLogEntry, b: AuditLogEntry) => a.id - b.id,
     },
     {
@@ -114,17 +137,21 @@ export const AuditLogPage: React.FC = () => {
             {ENTITY_TYPE_LABELS[type] ?? type}
           </Tag>
           {record.entityId && (
-            <span style={{ color: c.textMuted, fontSize: 12 }}>#{record.entityId}</span>
+            <span style={{ color: 'var(--text-3)', fontSize: 12 }}>#{record.entityId}</span>
           )}
         </Space>
       ) : '—',
     },
     {
-      title: 'Пользователь ID',
+      title: 'Пользователь',
       dataIndex: 'userId',
       key: 'userId',
       width: 130,
-      render: (id: number | null) => id ? `ID ${id}` : 'Система',
+      render: (id: number | null) => id ? (
+        <span style={{ fontSize: 12, color: 'var(--text-2)' }}>ID {id}</span>
+      ) : (
+        <Tag color="purple" style={{ fontSize: 10 }}>Система</Tag>
+      ),
     },
     {
       title: 'Детали',
@@ -135,16 +162,14 @@ export const AuditLogPage: React.FC = () => {
         if (!details) return '—';
         try {
           const parsed = JSON.parse(details);
-          const text = JSON.stringify(parsed, null, 2);
+          const preview = Object.entries(parsed).slice(0, 2).map(([k, v]) => `${k}: ${String(v).slice(0, 20)}`).join(', ');
           return (
-            <Tooltip title={<pre style={{ fontSize: 11, margin: 0 }}>{text}</pre>}>
-              <span style={{ cursor: 'help', color: c.textMuted, fontSize: 12 }}>
-                {Object.keys(parsed).slice(0, 2).join(', ')}…
-              </span>
+            <Tooltip title={<pre style={{ fontSize: 11, margin: 0, maxWidth: 340 }}>{JSON.stringify(parsed, null, 2)}</pre>}>
+              <span style={{ cursor: 'help', color: 'var(--text-2)', fontSize: 12 }}>{preview}</span>
             </Tooltip>
           );
         } catch {
-          return details;
+          return <span style={{ fontSize: 12 }}>{details}</span>;
         }
       },
     },
@@ -152,7 +177,12 @@ export const AuditLogPage: React.FC = () => {
       title: 'Время',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleString('ru-RU'),
+      width: 160,
+      render: (date: string) => (
+        <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+          {new Date(date).toLocaleString('ru-RU')}
+        </span>
+      ),
     },
   ];
 
@@ -160,8 +190,13 @@ export const AuditLogPage: React.FC = () => {
     <div className="fade-in-up">
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <SafetyCertificateOutlined style={{ fontSize: 20, color: '#1677ff' }} />
+          <SafetyCertificateOutlined style={{ fontSize: 20, color: 'var(--accent-blue)' }} />
           <h2 className="page-title">Журнал аудита</h2>
+          {logs.length > 0 && (
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              {pagination.total} записей
+            </span>
+          )}
         </div>
         <Space>
           <Select
@@ -183,16 +218,22 @@ export const AuditLogPage: React.FC = () => {
             value={actionFilter}
           >
             <Select.Option value="CREATE_SEQUENCE">Создание последовательности</Select.Option>
-            <Select.Option value="ACTIVATE_SEQUENCE">Активация последовательности</Select.Option>
-            <Select.Option value="DEACTIVATE_SEQUENCE">Деактивация последовательности</Select.Option>
-            <Select.Option value="DELETE_SEQUENCE">Удаление последовательности</Select.Option>
+            <Select.Option value="ACTIVATE_SEQUENCE">Активация</Select.Option>
+            <Select.Option value="DEACTIVATE_SEQUENCE">Деактивация</Select.Option>
+            <Select.Option value="DELETE_SEQUENCE">Удаление</Select.Option>
             <Select.Option value="EXECUTION_STARTED">Старт выполнения</Select.Option>
-            <Select.Option value="EXECUTION_COMPLETED">Завершение выполнения</Select.Option>
-            <Select.Option value="EXECUTION_ABORTED">Прерывание выполнения</Select.Option>
+            <Select.Option value="EXECUTION_COMPLETED">Завершение</Select.Option>
+            <Select.Option value="EXECUTION_ABORTED">Прерывание</Select.Option>
             <Select.Option value="USER_LOGIN">Вход в систему</Select.Option>
-            <Select.Option value="CREATE_USER">Создание пользователя</Select.Option>
-            <Select.Option value="TOGGLE_USER">Изменение статуса пользователя</Select.Option>
           </Select>
+          <Button
+            className="btn-export"
+            icon={<DownloadOutlined />}
+            onClick={exportCSV}
+            disabled={logs.length === 0}
+          >
+            Экспорт CSV
+          </Button>
           <Button
             icon={<ReloadOutlined />}
             onClick={() => loadLogs(pagination.current - 1, pagination.pageSize, entityTypeFilter, actionFilter)}

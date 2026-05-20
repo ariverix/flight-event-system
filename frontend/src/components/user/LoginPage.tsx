@@ -36,11 +36,12 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="login-bg">
+      <div className="login-bg-orb2" />
       <div className="login-card fade-in-up">
         {/* Logo */}
         <div className="login-logo">
           <div className="login-logo-icon">
-            <RocketOutlined style={{ fontSize: 40, color: '#1677ff' }} />
+            <RocketOutlined style={{ fontSize: 28, color: '#60a5fa' }} />
           </div>
           <h1 className="login-title">СИСТЕМА ЕСА</h1>
           <p className="login-subtitle">

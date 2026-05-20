@@ -253,7 +253,9 @@ export const SequenceList: React.FC = () => {
           loading={loading}
           rowKey="id"
           scroll={{ x: 1100 }}
-          rowClassName="sequence-table-row"
+          rowClassName={(record: SequenceResponse) =>
+          `sequence-table-row seq-${record.status.toLowerCase()}`
+        }
           pagination={{
             ...pagination,
             showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
