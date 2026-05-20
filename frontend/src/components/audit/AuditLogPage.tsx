@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Tag, Select, Space, Button, notification, Tooltip } from 'antd';
-import { ReloadOutlined, SafetyCertificateOutlined, DownloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SafetyCertificateOutlined, DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { auditApi, AuditLogEntry } from '../../api/auditApi';
 
 const ENTITY_TYPE_COLORS: Record<string, string> = {
@@ -80,9 +80,9 @@ export const AuditLogPage: React.FC = () => {
     loadLogs(0, pagination.pageSize, entityTypeFilter, actionFilter);
   }, [entityTypeFilter, actionFilter, loadLogs]);
 
-  const handleTableChange = (pg: any) => {
-    loadLogs(pg.current - 1, pg.pageSize, entityTypeFilter, actionFilter);
-  };
+  const handleTableChange = useCallback((pg: { current?: number; pageSize?: number }) => {
+    loadLogs((pg.current ?? 1) - 1, pg.pageSize ?? 20, entityTypeFilter, actionFilter);
+  }, [entityTypeFilter, actionFilter, loadLogs]);
 
   const exportCSV = useCallback(() => {
     const BOM = '﻿';
@@ -257,6 +257,17 @@ export const AuditLogPage: React.FC = () => {
         }}
         onChange={handleTableChange}
         size="small"
+        locale={{
+          emptyText: (
+            <div style={{ padding: '40px 0', textAlign: 'center' }}>
+              <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
+              <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Записей аудита нет</div>
+              <div style={{ color: 'var(--text-4)', fontSize: 12, marginTop: 4 }}>
+                Действия в системе будут отражены здесь
+              </div>
+            </div>
+          ),
+        }}
       />
     </div>
   );

@@ -128,8 +128,8 @@ export const Dashboard: React.FC = () => {
         totalMessages: messages.totalElements,
       });
       setRecentExecutions(recent.content);
-    } catch (error) {
-      console.error('Ошибка загрузки статистики:', error);
+    } catch {
+      // silently ignore — stats are non-critical, next auto-refresh will retry
     } finally {
       setLoading(false);
     }

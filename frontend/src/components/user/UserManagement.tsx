@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Form, Input, Select, Modal, notification, Space, Tag, Switch } from 'antd';
-import { UserAddOutlined } from '@ant-design/icons';
+import { UserAddOutlined, InboxOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/authApi';
 import { UserResponse, RegisterRequest } from '../../types/auth';
 
@@ -15,7 +15,7 @@ export const UserManagement: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const data = await authApi.getUsers();
@@ -28,9 +28,9 @@ export const UserManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { loadUsers(); }, [loadUsers]);
 
   const handleToggleUser = async (userId: number) => {
     try {
@@ -118,6 +118,15 @@ export const UserManagement: React.FC = () => {
         dataSource={users}
         loading={loading}
         rowKey="id"
+        scroll={{ x: 'max-content' }}
+        locale={{
+          emptyText: (
+            <div style={{ padding: '40px 0', textAlign: 'center' }}>
+              <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
+              <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Пользователей нет</div>
+            </div>
+          ),
+        }}
         pagination={{
           pageSize: 10,
           showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,

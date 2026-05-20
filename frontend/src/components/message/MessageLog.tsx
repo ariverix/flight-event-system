@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, notification, Select, Input, Space, Button, DatePicker, Tooltip } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { Table, Tag, notification, Select, Input, Space, Button, DatePicker, Tooltip, Skeleton } from 'antd';
+import { ReloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { messageApi } from '../../api/messageApi';
 import { MessageResponse } from '../../types/message';
 import { MessageType } from '../../types/sequence';
@@ -15,9 +15,9 @@ const MSG_TYPE_LABEL: Record<string, string> = {
 };
 
 const MSG_TYPE_COLOR: Record<string, string> = {
-  DOWNLINK: 'blue',
-  UPLINK:   'green',
-  GROUND:   'orange',
+  DOWNLINK: 'processing',
+  UPLINK:   'success',
+  GROUND:   'warning',
 };
 
 export const MessageLog: React.FC = () => {
@@ -29,18 +29,15 @@ export const MessageLog: React.FC = () => {
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
 
   const loadMessages = useCallback(async (
-    page = 0,
-    size = 20,
-    aircraftId?: string,
-    messageType?: string,
-    startDate?: string,
-    endDate?: string,
+    page = 0, size = 20,
+    aircraftId?: string, messageType?: string,
+    startDate?: string, endDate?: string,
   ) => {
     setLoading(true);
     try {
       const data = await messageApi.getMessages(page, size, aircraftId, messageType, startDate, endDate);
       setMessages(data.content);
-      setPagination({ current: page + 1, pageSize: size, total: data.totalElements });
+      setPagination(prev => ({ ...prev, current: page + 1, pageSize: size, total: data.totalElements }));
     } catch (error: any) {
       notification.error({
         message: 'Ошибка загрузки журнала',
@@ -53,15 +50,18 @@ export const MessageLog: React.FC = () => {
 
   useEffect(() => {
     const startDate = dateRange?.[0]?.format('YYYY-MM-DD');
-    const endDate = dateRange?.[1]?.format('YYYY-MM-DD');
+    const endDate   = dateRange?.[1]?.format('YYYY-MM-DD');
     loadMessages(0, pagination.pageSize, aircraftIdFilter, messageTypeFilter, startDate, endDate);
   }, [messageTypeFilter, aircraftIdFilter, dateRange, loadMessages]);
 
-  const handleTableChange = (pg: any) => {
+  const handleTableChange = useCallback((pg: { current?: number; pageSize?: number }) => {
     const startDate = dateRange?.[0]?.format('YYYY-MM-DD');
-    const endDate = dateRange?.[1]?.format('YYYY-MM-DD');
-    loadMessages(pg.current - 1, pg.pageSize, aircraftIdFilter, messageTypeFilter, startDate, endDate);
-  };
+    const endDate   = dateRange?.[1]?.format('YYYY-MM-DD');
+    loadMessages(
+      (pg.current ?? 1) - 1, pg.pageSize ?? 20,
+      aircraftIdFilter, messageTypeFilter, startDate, endDate,
+    );
+  }, [dateRange, aircraftIdFilter, messageTypeFilter, loadMessages]);
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
@@ -69,23 +69,42 @@ export const MessageLog: React.FC = () => {
       title: 'Тип',
       dataIndex: 'messageType',
       key: 'messageType',
+      width: 130,
       render: (type: MessageType) => (
-        <Tag color={MSG_TYPE_COLOR[type]}>{MSG_TYPE_LABEL[type] ?? type}</Tag>
+        <Tag color={MSG_TYPE_COLOR[type] ?? 'default'}>{MSG_TYPE_LABEL[type] ?? type}</Tag>
       ),
     },
-    { title: 'Шаблон', dataIndex: 'templateName', key: 'templateName' },
-    { title: 'Идент. ВС', dataIndex: 'aircraftId', key: 'aircraftId' },
     {
-      title: 'Номер рейса',
+      title: 'Шаблон',
+      dataIndex: 'templateName',
+      key: 'templateName',
+      ellipsis: { showTitle: false },
+      render: (v: string) => <span title={v} style={{ fontWeight: 500 }}>{v}</span>,
+    },
+    {
+      title: 'Идент. ВС',
+      dataIndex: 'aircraftId',
+      key: 'aircraftId',
+      width: 120,
+      render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>✈ {v}</span>,
+    },
+    {
+      title: 'Рейс',
       dataIndex: 'flightNumber',
       key: 'flightNumber',
-      render: (v: string | null) => v || '—',
+      width: 100,
+      render: (v: string | null) => v || <span style={{ color: 'var(--text-3)' }}>—</span>,
     },
     {
       title: 'Получено',
       dataIndex: 'receivedAt',
       key: 'receivedAt',
-      render: (date: string) => new Date(date).toLocaleString('ru-RU'),
+      width: 155,
+      render: (date: string) => (
+        <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+          {new Date(date).toLocaleString('ru-RU')}
+        </span>
+      ),
     },
     {
       title: 'Метаданные',
@@ -93,21 +112,25 @@ export const MessageLog: React.FC = () => {
       key: 'metadataJson',
       ellipsis: true,
       render: (metadata: string | null) => {
-        if (!metadata) return '—';
+        if (!metadata) return <span style={{ color: 'var(--text-3)' }}>—</span>;
         try {
           const parsed = JSON.parse(metadata);
-          const keys = Object.keys(parsed).slice(0, 2).join(', ');
-          const summary = keys ? `{${keys}…}` : '{}';
+          const preview = Object.keys(parsed).slice(0, 2).join(', ');
+          const summary = preview ? `{${preview}…}` : '{}';
           return (
             <Tooltip
-              title={<pre style={{ fontSize: 11, margin: 0 }}>{JSON.stringify(parsed, null, 2)}</pre>}
+              title={<pre style={{ fontSize: 11, margin: 0, maxWidth: 300 }}>{JSON.stringify(parsed, null, 2)}</pre>}
               placement="topLeft"
             >
-              <span style={{ cursor: 'help', fontSize: 12 }}>{summary}</span>
+              <code style={{
+                cursor: 'help', fontSize: 11, color: 'var(--text-2)',
+                background: 'rgba(255,255,255,0.05)', borderRadius: 5,
+                padding: '2px 6px', border: '1px solid rgba(255,255,255,0.07)',
+              }}>{summary}</code>
             </Tooltip>
           );
         } catch {
-          return metadata;
+          return <span style={{ fontSize: 12 }}>{metadata}</span>;
         }
       },
     },
@@ -126,7 +149,7 @@ export const MessageLog: React.FC = () => {
           />
           <Select
             placeholder="Тип сообщения"
-            style={{ width: 170 }}
+            style={{ width: 165 }}
             allowClear
             onChange={setMessageTypeFilter}
             value={messageTypeFilter}
@@ -140,37 +163,43 @@ export const MessageLog: React.FC = () => {
             format="DD.MM.YYYY"
             placeholder={['Дата от', 'Дата до']}
           />
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => {
-              const startDate = dateRange?.[0]?.format('YYYY-MM-DD');
-              const endDate = dateRange?.[1]?.format('YYYY-MM-DD');
-              loadMessages(
-                pagination.current - 1,
-                pagination.pageSize,
-                aircraftIdFilter,
-                messageTypeFilter,
-                startDate,
-                endDate,
-              );
-            }}
-          >
+          <Button icon={<ReloadOutlined />} onClick={() => {
+            const s = dateRange?.[0]?.format('YYYY-MM-DD');
+            const e = dateRange?.[1]?.format('YYYY-MM-DD');
+            loadMessages(pagination.current - 1, pagination.pageSize, aircraftIdFilter, messageTypeFilter, s, e);
+          }}>
             Обновить
           </Button>
         </Space>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={messages}
-        loading={loading}
-        rowKey="id"
-        pagination={{
-          ...pagination,
-          showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
-        }}
-        onChange={handleTableChange}
-      />
+      {loading && messages.length === 0 ? (
+        <Skeleton active paragraph={{ rows: 8 }} />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={messages}
+          loading={loading}
+          rowKey="id"
+          scroll={{ x: 'max-content' }}
+          locale={{
+            emptyText: (
+              <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
+                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Сообщений нет</div>
+                <div style={{ color: 'var(--text-4)', fontSize: 12, marginTop: 4 }}>
+                  Отправьте событие через Симулятор чтобы увидеть сообщения
+                </div>
+              </div>
+            ),
+          }}
+          pagination={{
+            ...pagination,
+            showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+          }}
+          onChange={handleTableChange}
+        />
+      )}
     </div>
   );
 };

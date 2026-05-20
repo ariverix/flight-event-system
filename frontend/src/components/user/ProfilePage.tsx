@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Descriptions, Tag, Spin, notification, Avatar, Typography } from 'antd';
+import { Card, Descriptions, Tag, Skeleton, notification, Avatar, Typography } from 'antd';
 import { UserOutlined, SafetyOutlined, CalendarOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/authApi';
 import { UserResponse } from '../../types/auth';
-import { useTheme } from '../../context/ThemeContext';
 
 const { Title, Text } = Typography;
 
@@ -13,18 +12,13 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 const ROLE_COLOR: Record<string, string> = {
-  ADMIN:    'red',
-  OPERATOR: 'blue',
+  ADMIN:    'error',
+  OPERATOR: 'processing',
 };
 
 export const ProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const { isDark } = useTheme();
-
-  const c = isDark
-    ? { borderSecondary: '#21262d', text: '#e6edf3', textMuted: '#848d97' }
-    : { borderSecondary: '#d8dee4', text: '#1f2328', textMuted: '#636c76' };
 
   useEffect(() => {
     authApi.me()
@@ -40,8 +34,8 @@ export const ProfilePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
-        <Spin size="large" />
+      <div style={{ maxWidth: 640 }}>
+        <Skeleton active avatar paragraph={{ rows: 4 }} />
       </div>
     );
   }
@@ -52,23 +46,23 @@ export const ProfilePage: React.FC = () => {
     <div className="fade-in-up" style={{ maxWidth: 640 }}>
       <h2 className="page-title" style={{ marginBottom: 24 }}>Профиль пользователя</h2>
 
-      {/* Avatar card */}
-      <Card style={{ marginBottom: 16, borderColor: c.borderSecondary }}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <Avatar
             size={72}
             icon={<UserOutlined />}
             style={{
-              background: 'linear-gradient(135deg, #1677ff 0%, #0950b3 100%)',
+              background: 'linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-indigo) 100%)',
               flexShrink: 0,
+              boxShadow: 'var(--glow-blue)',
             }}
           />
           <div>
-            <Title level={4} style={{ margin: 0, color: c.text }}>{profile.fullName}</Title>
-            <Text style={{ color: c.textMuted }}>@{profile.username}</Text>
-            <div style={{ marginTop: 6 }}>
+            <Title level={4} style={{ margin: 0, color: 'var(--text-1)' }}>{profile.fullName}</Title>
+            <Text style={{ color: 'var(--text-3)' }}>@{profile.username}</Text>
+            <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
               <Tag color={ROLE_COLOR[profile.role]}>{ROLE_LABEL[profile.role] ?? profile.role}</Tag>
-              <Tag color={profile.enabled ? 'green' : 'default'}>
+              <Tag color={profile.enabled ? 'success' : 'default'}>
                 {profile.enabled ? 'Активен' : 'Отключён'}
               </Tag>
             </div>
@@ -76,16 +70,12 @@ export const ProfilePage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Details */}
-      <Card
-        title={<span style={{ color: c.text }}>Учётные данные</span>}
-        style={{ borderColor: c.borderSecondary }}
-      >
+      <Card title={<span style={{ color: 'var(--text-1)' }}>Учётные данные</span>}>
         <Descriptions column={1} bordered size="small">
           <Descriptions.Item
             label={<span><UserOutlined style={{ marginRight: 6 }} />Имя пользователя</span>}
           >
-            {profile.username}
+            <Text style={{ fontFamily: 'monospace' }}>{profile.username}</Text>
           </Descriptions.Item>
           <Descriptions.Item
             label={<span><UserOutlined style={{ marginRight: 6 }} />Полное имя</span>}
@@ -100,7 +90,9 @@ export const ProfilePage: React.FC = () => {
           <Descriptions.Item
             label={<span><CalendarOutlined style={{ marginRight: 6 }} />Зарегистрирован</span>}
           >
-            {new Date(profile.createdAt).toLocaleString('ru-RU')}
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {new Date(profile.createdAt).toLocaleString('ru-RU')}
+            </span>
           </Descriptions.Item>
         </Descriptions>
       </Card>

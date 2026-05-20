@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Skeleton } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   PlayCircleOutlined, PauseCircleOutlined, EyeOutlined,
@@ -84,10 +85,13 @@ export const SequenceList: React.FC = () => {
     }
   };
 
-  // Live search filter
-  const filtered = searchText
-    ? sequences.filter(s => s.name.toLowerCase().includes(searchText.toLowerCase()))
-    : sequences;
+  // Live search filter — memoised to avoid re-computing on every render
+  const filtered = useMemo(
+    () => searchText
+      ? sequences.filter(s => s.name.toLowerCase().includes(searchText.toLowerCase()))
+      : sequences,
+    [sequences, searchText],
+  );
 
   const columns = [
     {
@@ -232,6 +236,17 @@ export const SequenceList: React.FC = () => {
           rowClassName={(record: SequenceResponse) =>
             `sequence-table-row seq-${record.status.toLowerCase()}`
           }
+          locale={{
+            emptyText: (
+              <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
+                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Последовательностей нет</div>
+                <div style={{ color: 'var(--text-4)', fontSize: 12, marginTop: 4 }}>
+                  {searchText ? 'Ничего не найдено по запросу' : 'Создайте первую последовательность событий'}
+                </div>
+              </div>
+            ),
+          }}
           pagination={{
             ...pagination,
             total: filtered.length < sequences.length ? filtered.length : pagination.total,

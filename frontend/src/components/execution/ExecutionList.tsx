@@ -3,6 +3,7 @@ import { Table, Tag, notification, Select, Input, Space, Button, Skeleton } from
 import {
   EyeOutlined, ReloadOutlined,
   CheckCircleFilled, CloseCircleFilled, SyncOutlined, ClockCircleOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import { usePolling } from '../../hooks/usePolling';
 import { useNavigate } from 'react-router-dom';
@@ -204,6 +205,17 @@ export const ExecutionList: React.FC = () => {
           loading={loading}
           rowKey="id"
           scroll={{ x: 'max-content' }}
+          locale={{
+            emptyText: (
+              <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
+                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Выполнений нет</div>
+                <div style={{ color: 'var(--text-4)', fontSize: 12, marginTop: 4 }}>
+                  Запустите сценарий через Симулятор или Демонстрацию
+                </div>
+              </div>
+            ),
+          }}
           rowClassName={(record) =>
             record.status === 'RUNNING' ? 'execution-row-running'
             : record.status === 'WAITING' ? 'execution-row-waiting'
