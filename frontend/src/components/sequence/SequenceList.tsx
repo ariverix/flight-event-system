@@ -94,7 +94,7 @@ export const SequenceList: React.FC = () => {
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
-      width: 55,
+      width: 60,
     },
     {
       title: 'Название',
@@ -118,7 +118,7 @@ export const SequenceList: React.FC = () => {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
-      width: 110,
+      width: 112,
       render: (status: SequenceStatus) => (
         <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
       ),
@@ -126,22 +126,27 @@ export const SequenceList: React.FC = () => {
     {
       title: 'Шаги',
       key: 'steps',
-      width: 55,
+      width: 80,
       render: (_: any, record: SequenceResponse) => (
-        <Tag style={{ minWidth: 28, textAlign: 'center' }}>{record.steps.length}</Tag>
+        <Tag style={{ minWidth: 32, textAlign: 'center' }}>{record.steps.length}</Tag>
       ),
     },
     {
       title: 'Создан',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 100,
-      render: (date: string) => new Date(date).toLocaleDateString('ru-RU'),
+      width: 130,
+      render: (date: string) => (
+        <span style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+          {new Date(date).toLocaleDateString('ru-RU')}
+        </span>
+      ),
     },
     {
       title: 'Действия',
       key: 'actions',
-      width: isAdmin ? 260 : 90,
+      width: isAdmin ? 310 : 100,
+      fixed: 'right' as const,
       render: (_: any, record: SequenceResponse) => (
         <Space size={2} className="row-actions" wrap={false}>
           <Button type="text" size="small" icon={<EyeOutlined />}
@@ -223,7 +228,7 @@ export const SequenceList: React.FC = () => {
           dataSource={filtered}
           loading={loading}
           rowKey="id"
-          tableLayout="fixed"
+          scroll={{ x: 'max-content' }}
           rowClassName={(record: SequenceResponse) =>
             `sequence-table-row seq-${record.status.toLowerCase()}`
           }

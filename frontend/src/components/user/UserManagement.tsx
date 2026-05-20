@@ -124,6 +124,33 @@ export const UserManagement: React.FC = () => {
         }}
       />
 
+      {!loading && users.length > 0 && (
+        <div className="users-stats-row">
+          <div className="users-stat-item">
+            <span className="users-stat-num">{users.length}</span>
+            <span className="users-stat-label">Всего пользователей</span>
+          </div>
+          <div className="users-stat-item">
+            <span className="users-stat-num green">
+              {users.filter((u: UserResponse) => u.enabled).length}
+            </span>
+            <span className="users-stat-label">Активных</span>
+          </div>
+          <div className="users-stat-item">
+            <span className="users-stat-num red">
+              {users.filter((u: UserResponse) => !u.enabled).length}
+            </span>
+            <span className="users-stat-label">Отключённых</span>
+          </div>
+          <div className="users-stat-item">
+            <span className="users-stat-num blue">
+              {users.filter((u: UserResponse) => u.role === 'ADMIN').length}
+            </span>
+            <span className="users-stat-label">Администраторов</span>
+          </div>
+        </div>
+      )}
+
       <Modal
         title="Регистрация нового пользователя"
         open={isModalOpen}

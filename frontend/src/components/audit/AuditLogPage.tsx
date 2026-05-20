@@ -10,21 +10,23 @@ const ENTITY_TYPE_COLORS: Record<string, string> = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  CREATE_SEQUENCE:     'blue',
+  CREATE_SEQUENCE:     'processing',
   UPDATE_SEQUENCE:     'geekblue',
   DELETE_SEQUENCE:     'error',
   ACTIVATE_SEQUENCE:   'success',
   DEACTIVATE_SEQUENCE: 'warning',
-  ADD_STEP:            'blue',
+  ADD_STEP:            'processing',
   UPDATE_STEP:         'geekblue',
   DELETE_STEP:         'error',
-  REORDER_STEPS:       'processing',
+  REORDER_STEPS:       'blue',
   EXECUTION_STARTED:   'processing',
   EXECUTION_COMPLETED: 'success',
   EXECUTION_ABORTED:   'error',
   USER_LOGIN:          'purple',
-  CREATE_USER:         'blue',
+  USER_REGISTERED:     'purple',
+  CREATE_USER:         'purple',
   TOGGLE_USER:         'warning',
+  USER_TOGGLED:        'warning',
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -162,10 +164,10 @@ export const AuditLogPage: React.FC = () => {
         if (!details) return '—';
         try {
           const parsed = JSON.parse(details);
-          const preview = Object.entries(parsed).slice(0, 2).map(([k, v]) => `${k}: ${String(v).slice(0, 20)}`).join(', ');
+          const preview = Object.entries(parsed).slice(0, 2).map(([k, v]) => `${k}: ${String(v).slice(0, 24)}`).join(' · ');
           return (
             <Tooltip title={<pre style={{ fontSize: 11, margin: 0, maxWidth: 340 }}>{JSON.stringify(parsed, null, 2)}</pre>}>
-              <span style={{ cursor: 'help', color: 'var(--text-2)', fontSize: 12 }}>{preview}</span>
+              <code className="audit-detail-code">{preview}</code>
             </Tooltip>
           );
         } catch {

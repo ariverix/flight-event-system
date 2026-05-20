@@ -119,11 +119,24 @@ export const ExecutionList: React.FC = () => {
       title: 'Начало',
       dataIndex: 'startedAt',
       key: 'startedAt',
-      width: 145,
+      width: 135,
       render: (date: string) => (
-        <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
           {new Date(date).toLocaleString('ru-RU')}
         </span>
+      ),
+    },
+    {
+      title: 'Завершение',
+      dataIndex: 'completedAt',
+      key: 'completedAt',
+      width: 135,
+      render: (date: string | null) => date ? (
+        <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+          {new Date(date).toLocaleString('ru-RU')}
+        </span>
+      ) : (
+        <span style={{ color: 'var(--text-3)', fontSize: 12 }}>В процессе</span>
       ),
     },
     {
@@ -190,7 +203,7 @@ export const ExecutionList: React.FC = () => {
           dataSource={executions}
           loading={loading}
           rowKey="id"
-          tableLayout="fixed"
+          scroll={{ x: 'max-content' }}
           rowClassName={(record) =>
             record.status === 'RUNNING' ? 'execution-row-running'
             : record.status === 'WAITING' ? 'execution-row-waiting'
