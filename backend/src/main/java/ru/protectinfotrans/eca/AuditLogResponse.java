@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca;
+package ru.protectinfotrans.eca;
 
 import lombok.Builder;
 import lombok.Value;

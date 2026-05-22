@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.integration.adapter.out;
+package ru.protectinfotrans.eca.integration.adapter.out;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

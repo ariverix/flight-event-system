@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.eventprocessor.port.in;
+package ru.protectinfotrans.eca.eventprocessor.port.in;
 
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;

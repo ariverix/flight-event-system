@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.execution.application;
+package ru.protectinfotrans.eca.execution.application;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

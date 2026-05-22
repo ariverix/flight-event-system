@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Модуль User Management — управление пользователями, аутентификация, авторизация.
  */
 @org.springframework.modulith.ApplicationModule(

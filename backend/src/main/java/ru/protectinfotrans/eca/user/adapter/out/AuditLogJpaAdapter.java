@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.user.adapter.out;
+package ru.protectinfotrans.eca.user.adapter.out;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

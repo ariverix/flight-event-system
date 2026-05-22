@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.execution.event;
+package ru.protectinfotrans.eca.execution.event;
 
 import org.springframework.modulith.events.Externalized;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;

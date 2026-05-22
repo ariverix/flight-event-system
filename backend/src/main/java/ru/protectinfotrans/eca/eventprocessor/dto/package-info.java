@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DTO (Data Transfer Objects) для модуля Event Processor.
  * Используются для обмена данными с REST API.
  *

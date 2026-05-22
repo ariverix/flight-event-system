@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.eventprocessor.dto;
+package ru.protectinfotrans.eca.eventprocessor.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;

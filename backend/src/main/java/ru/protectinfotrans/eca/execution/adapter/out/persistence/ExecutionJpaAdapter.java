@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.execution.adapter.out.persistence;
+package ru.protectinfotrans.eca.execution.adapter.out.persistence;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

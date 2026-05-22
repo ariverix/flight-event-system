@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.sequence.domain;
+package ru.protectinfotrans.eca.sequence.domain;
 
 /**
  * Операторы сравнения для критериев FLIGHT_STAGE и TIME_COMPARISON.

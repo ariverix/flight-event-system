@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.eventprocessor.adapter.out;
+package ru.protectinfotrans.eca.eventprocessor.adapter.out;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

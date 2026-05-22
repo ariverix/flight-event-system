@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.eventprocessor.domain;
+package ru.protectinfotrans.eca.eventprocessor.domain;
 
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.execution.port.in;
+package ru.protectinfotrans.eca.execution.port.in;
 
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.dto.ExecutionInstanceResponse;

@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.eventprocessor.adapter.out;
+package ru.protectinfotrans.eca.eventprocessor.adapter.out;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

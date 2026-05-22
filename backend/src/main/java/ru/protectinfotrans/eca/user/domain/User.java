@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.user.domain;
+package ru.protectinfotrans.eca.user.domain;
 
 import jakarta.persistence.*;
 import lombok.*;

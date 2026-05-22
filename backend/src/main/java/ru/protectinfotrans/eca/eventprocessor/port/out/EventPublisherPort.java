@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.eventprocessor.port.out;
+package ru.protectinfotrans.eca.eventprocessor.port.out;
 
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 

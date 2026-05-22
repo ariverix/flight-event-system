@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.user.adapter.in;
+package ru.protectinfotrans.eca.user.adapter.in;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

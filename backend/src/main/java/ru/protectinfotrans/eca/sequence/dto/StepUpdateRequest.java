@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.sequence.dto;
+package ru.protectinfotrans.eca.sequence.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;

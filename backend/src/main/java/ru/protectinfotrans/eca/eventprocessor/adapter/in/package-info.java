@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Входные адаптеры модуля Event Processor.
  * Реализуют Driving Adapters (REST контроллеры).
  *

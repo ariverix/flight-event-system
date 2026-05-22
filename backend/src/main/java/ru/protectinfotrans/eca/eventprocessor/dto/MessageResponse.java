@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.eventprocessor.dto;
+package ru.protectinfotrans.eca.eventprocessor.dto;
 
 import ru.protectinfotrans.eca.MessageType;
 

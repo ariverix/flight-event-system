@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.eventprocessor.event;
+package ru.protectinfotrans.eca.eventprocessor.event;
 
 import org.springframework.modulith.events.Externalized;
 import ru.protectinfotrans.eca.FlightStage;

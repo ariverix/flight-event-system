@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.execution.port.out;
+package ru.protectinfotrans.eca.execution.port.out;
 
 /**
  * Выходной порт для отправки уведомлений операторам.

@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.sequence.event;
+package ru.protectinfotrans.eca.sequence.event;
 
 /**
  * Доменное событие — последовательность активирована.

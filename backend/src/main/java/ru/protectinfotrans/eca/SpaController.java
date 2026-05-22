@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca;
+package ru.protectinfotrans.eca;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;

@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.user.port.out;
+package ru.protectinfotrans.eca.user.port.out;
 
 import ru.protectinfotrans.eca.AuditLog;
 

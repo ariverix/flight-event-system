@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.execution.dto;
+package ru.protectinfotrans.eca.execution.dto;
 
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 

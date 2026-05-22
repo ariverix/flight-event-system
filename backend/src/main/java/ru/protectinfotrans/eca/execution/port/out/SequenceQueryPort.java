@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.execution.port.out;
+package ru.protectinfotrans.eca.execution.port.out;
 
 import ru.protectinfotrans.eca.sequence.domain.Sequence;
 import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;

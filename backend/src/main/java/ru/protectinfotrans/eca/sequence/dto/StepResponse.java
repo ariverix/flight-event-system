@@ -1,4 +1,4 @@
-﻿package ru.protectinfotrans.eca.sequence.dto;
+package ru.protectinfotrans.eca.sequence.dto;
 
 import ru.protectinfotrans.eca.sequence.domain.StepType;
 import ru.protectinfotrans.eca.sequence.domain.TransitionAction;
