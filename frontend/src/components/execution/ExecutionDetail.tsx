@@ -273,10 +273,12 @@ export const ExecutionDetail: React.FC = () => {
               <span style={{ fontSize: 12, color: c.muted, flexShrink: 0 }}>
                 {doneSteps}/{totalSteps} шагов
               </span>
-              <span className="elapsed-badge">
-                <FieldTimeOutlined />
-                {fmtElapsed(elapsed)}
-              </span>
+              {elapsed > 0 && (
+                <span className="elapsed-badge">
+                  <FieldTimeOutlined />
+                  {fmtElapsed(elapsed)}
+                </span>
+              )}
             </div>
           </Descriptions.Item>
           <Descriptions.Item label="Начало">

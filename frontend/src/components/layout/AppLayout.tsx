@@ -15,6 +15,7 @@ import {
   PlaySquareOutlined,
   SunOutlined,
   MoonOutlined,
+  RadarChartOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -55,13 +56,13 @@ export const AppLayout: React.FC = () => {
 
   const c = isDark
     ? {
-        bgElevated: '#1c2128',
-        border: '#30363d',
-        borderSecondary: '#21262d',
+        bgElevated: 'rgba(8,10,22,0.97)',
+        border: 'rgba(255,255,255,0.09)',
+        borderSecondary: 'rgba(255,255,255,0.055)',
         text: '#e6edf3',
         textMuted: '#848d97',
         textDimmer: '#484f58',
-        bgContainer: '#161b22',
+        bgContainer: 'rgba(255,255,255,0.022)',
       }
     : {
         bgElevated: '#f6f8fa',
@@ -70,7 +71,7 @@ export const AppLayout: React.FC = () => {
         text: '#1f2328',
         textMuted: '#636c76',
         textDimmer: '#9da3ab',
-        bgContainer: '#ffffff',
+        bgContainer: 'rgba(255,255,255,0.82)',
       };
 
   // опрашиваем активные выполнения каждые 10 сек для счётчика в сайдбаре
@@ -94,8 +95,9 @@ export const AppLayout: React.FC = () => {
     { key: '/', icon: <DashboardOutlined />, label: 'Панель управления' },
     { key: '/sequences', icon: <OrderedListOutlined />, label: 'Последовательности' },
     { key: '/executions', icon: <PlayCircleOutlined />, label: 'Выполнения' },
-    { key: '/messages', icon: <MessageOutlined />, label: 'Журнал сообщений' },
-    { key: '/simulator', icon: <ExperimentOutlined />, label: 'Симулятор' },
+    { key: '/messages',  icon: <MessageOutlined />,     label: 'Журнал сообщений' },
+    { key: '/timeline',  icon: <RadarChartOutlined />,  label: 'Хронология' },
+    { key: '/simulator', icon: <ExperimentOutlined />,  label: 'Симулятор' },
     { key: '/demo', icon: <PlaySquareOutlined />, label: 'Демонстрация' },
     ...(isAdmin
       ? [

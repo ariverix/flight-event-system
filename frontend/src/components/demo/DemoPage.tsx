@@ -359,25 +359,54 @@ export const DemoPage: React.FC = () => {
 
       {/* Scenario selector row */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {SCENARIOS.map(s => (
-          <div
-            key={s.key}
-            onClick={() => { if (!isRunning) { reset(); setScenarioKey(s.key); } }}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 8,
-              border: `1.5px solid ${s.key === scenarioKey ? '#1677ff' : c.borderSec}`,
-              background: s.key === scenarioKey ? 'rgba(22,119,255,0.1)' : c.bgLow,
-              cursor: isRunning ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
-              opacity: isRunning && s.key !== scenarioKey ? 0.5 : 1,
-            }}
-          >
-            <Text style={{ fontSize: 13, color: s.key === scenarioKey ? '#1677ff' : c.text, fontWeight: s.key === scenarioKey ? 600 : 400 }}>
-              {s.emoji} {s.title}
-            </Text>
-          </div>
-        ))}
+        {SCENARIOS.map(s => {
+          const active = s.key === scenarioKey;
+          return (
+            <div
+              key={s.key}
+              onClick={() => { if (!isRunning) { reset(); setScenarioKey(s.key); } }}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 12,
+                border: `1.5px solid ${active ? 'rgba(59,130,246,0.50)' : c.borderSec}`,
+                background: active ? 'rgba(59,130,246,0.10)' : c.bgLow,
+                cursor: isRunning ? 'not-allowed' : 'pointer',
+                transition: 'all 0.22s ease',
+                opacity: isRunning && !active ? 0.5 : 1,
+                minWidth: 130,
+                maxWidth: 200,
+                boxShadow: active ? '0 0 16px rgba(59,130,246,0.18)' : 'none',
+              }}
+              onMouseEnter={e => {
+                if (!isRunning && !active)
+                  (e.currentTarget as HTMLDivElement).style.borderColor = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)';
+              }}
+              onMouseLeave={e => {
+                if (!active)
+                  (e.currentTarget as HTMLDivElement).style.borderColor = c.borderSec;
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                <span style={{ fontSize: 15, lineHeight: 1 }}>{s.emoji}</span>
+                <Text style={{
+                  fontSize: 13,
+                  color: active ? '#3b82f6' : c.text,
+                  fontWeight: active ? 600 : 500,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {s.title}
+                </Text>
+              </div>
+              <Text style={{
+                fontSize: 11,
+                color: active ? 'rgba(59,130,246,0.70)' : c.dim,
+                display: 'block', lineHeight: 1.3,
+              }}>
+                {s.ucRefs.join(' · ')} · ✈ {s.aircraft}
+              </Text>
+            </div>
+          );
+        })}
       </div>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -431,7 +460,16 @@ export const DemoPage: React.FC = () => {
                 loading={isRunning}
                 disabled={isRunning}
                 onClick={runDemo}
-                style={{ flex: 1 }}
+                style={{
+                  flex: 1,
+                  height: 42,
+                  background: isRunning ? undefined : 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                  border: 'none',
+                  borderRadius: 11,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  boxShadow: isRunning ? 'none' : '0 4px 16px rgba(59,130,246,0.42)',
+                }}
               >
                 {isRunning ? phaseLabel[phase] : 'Запустить'}
               </Button>
@@ -584,7 +622,11 @@ export const DemoPage: React.FC = () => {
               }}
             >
               {log.length === 0 ? (
-                <Text style={{ color: c.dim }}>Нажмите «Запустить» чтобы начать…</Text>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180, gap: 10 }}>
+                  <span style={{ fontSize: 36, opacity: 0.25 }}>📋</span>
+                  <Text style={{ color: c.dim, fontSize: 13 }}>Нажмите «Запустить» чтобы начать…</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.18)', fontSize: 11 }}>Журнал событий будет обновляться в реальном времени</Text>
+                </div>
               ) : (
                 log.map((entry, i) => (
                   <div key={i} className="demo-log-line" style={{ marginBottom: 3, display: 'flex', gap: 10 }}>

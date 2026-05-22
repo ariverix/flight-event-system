@@ -73,7 +73,13 @@ const AnimatedStat: React.FC<{ value: number; valueStyle?: React.CSSProperties; 
   value, valueStyle, title,
 }) => {
   const displayed = useCountUp(value);
-  return <Statistic title={title} value={displayed} valueStyle={valueStyle} />;
+  return (
+    <Statistic
+      title={title}
+      value={displayed}
+      valueStyle={{ fontSize: 38, letterSpacing: '-0.03em', lineHeight: 1, ...valueStyle }}
+    />
+  );
 };
 
 export const Dashboard: React.FC = () => {
@@ -205,7 +211,11 @@ export const Dashboard: React.FC = () => {
               <Card className="stat-card" style={{ borderColor: c.borderSecondary, flex: 1 }}>
                 <div
                   className="stat-card-icon"
-                  style={{ background: `${card.color}1e`, color: card.color }}
+                  style={{
+                    background: `${card.color}1e`,
+                    color: card.color,
+                    boxShadow: `0 0 22px ${card.color}3a`,
+                  }}
                 >
                   {card.icon}
                 </div>

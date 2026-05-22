@@ -64,9 +64,13 @@ function makeEdge(
   const successColor = isDark ? '#3fb950' : '#16a34a';
   const failColor    = isDark ? '#f85149' : '#dc2626';
   const defaultColor = isDark ? '#30363d' : '#d0d7de';
-  const labelMuted   = isDark ? '#484f58' : '#9da3ab';
 
-  const strokeColor = traversed ? (isSuccess ? successColor : failColor) : defaultColor;
+  const fullColor = isSuccess ? successColor : failColor;
+  const dimColor  = isSuccess
+    ? (isDark ? 'rgba(63,185,80,0.60)'  : 'rgba(22,163,74,0.60)')
+    : (isDark ? 'rgba(248,81,73,0.60)'  : 'rgba(220,38,38,0.60)');
+
+  const strokeColor = traversed ? fullColor : defaultColor;
 
   return {
     id: `${src}-${isSuccess ? 's' : 'f'}-${tgt}`,
@@ -76,11 +80,15 @@ function makeEdge(
     animated: traversed,
     label,
     labelStyle: {
-      fill: traversed ? strokeColor : labelMuted,
-      fontSize: 10,
-      fontWeight: 600,
+      fill: traversed ? fullColor : dimColor,
+      fontSize: 11,
+      fontWeight: 700,
     },
-    labelBgStyle: { fill: 'transparent' },
+    labelBgStyle: {
+      fill: isSuccess ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+      rx: 5, ry: 5,
+    },
+    labelBgPadding: [6, 4] as [number, number],
     style: {
       stroke: strokeColor,
       strokeWidth: traversed ? 2.5 : 1.5,

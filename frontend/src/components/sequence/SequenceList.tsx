@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Skeleton } from 'antd';
+import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Skeleton, Tooltip } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -104,9 +104,12 @@ export const SequenceList: React.FC = () => {
       title: 'Название',
       dataIndex: 'name',
       key: 'name',
+      width: 200,
       ellipsis: { showTitle: false },
       render: (text: string) => (
-        <span title={text} style={{ fontWeight: 500 }}>{text}</span>
+        <Tooltip placement="topLeft" title={text}>
+          <strong>{text}</strong>
+        </Tooltip>
       ),
     },
     {
@@ -115,7 +118,9 @@ export const SequenceList: React.FC = () => {
       key: 'description',
       ellipsis: { showTitle: false },
       render: (text: string) => (
-        <span title={text} style={{ color: 'var(--text-2)', fontSize: 13 }}>{text || '—'}</span>
+        <Tooltip placement="topLeft" title={text}>
+          <span style={{ color: 'var(--text-2)', fontSize: 13 }}>{text || '—'}</span>
+        </Tooltip>
       ),
     },
     {

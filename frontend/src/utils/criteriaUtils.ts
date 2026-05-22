@@ -2,8 +2,7 @@ export const parseCriteria = (json: string | null): any => {
   if (!json) return null;
   try {
     return JSON.parse(json);
-  } catch (e) {
-    console.error('Failed to parse criteria JSON:', e);
+  } catch {
     return null;
   }
 };
@@ -11,8 +10,7 @@ export const parseCriteria = (json: string | null): any => {
 export const stringifyCriteria = (criteria: any): string => {
   try {
     return JSON.stringify(criteria, null, 2);
-  } catch (e) {
-    console.error('Failed to stringify criteria:', e);
+  } catch {
     return '';
   }
 };

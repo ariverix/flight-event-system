@@ -230,8 +230,27 @@ export const MessageSimulator: React.FC = () => {
               </Col>
             </Row>
 
-            <Form.Item name="metadataJson" label="Метаданные (JSON, необязательно)">
-              <Input.TextArea rows={3} placeholder='{"latitude": 55.7558, "longitude": 37.6173}' />
+            <Form.Item
+              name="metadataJson"
+              label="Метаданные (JSON, необязательно)"
+              rules={[
+                {
+                  validator: async (_, value) => {
+                    if (!value?.trim()) return;
+                    try {
+                      JSON.parse(value);
+                    } catch {
+                      throw new Error('Введите валидный JSON. Пример: {"key": "value"}');
+                    }
+                  },
+                },
+              ]}
+            >
+              <Input.TextArea
+                rows={3}
+                placeholder='{"latitude": 55.7558, "longitude": 37.6173}'
+                style={{ fontFamily: 'monospace', fontSize: 13 }}
+              />
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 0 }}>
