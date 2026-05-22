@@ -1,186 +1,240 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { Tag } from 'antd';
 import {
   MessageOutlined, PlayCircleOutlined,
   CheckCircleOutlined, CloseCircleOutlined,
-  ThunderboltOutlined, ClockCircleOutlined,
-  QuestionCircleOutlined,
+  ThunderboltOutlined, RightOutlined,
 } from '@ant-design/icons';
-import type { TLEvent, TLEventType } from '../../hooks/useTimeline';
+import { useTheme } from '../../context/ThemeContext';
+import type { TLEventType } from '../../hooks/useTimeline';
 
-interface CfgEntry {
-  icon: React.ReactNode;
-  color: string;
-  bg: string;
-  bd: string;
-  label: string;
-  glow: string;
-}
-
-const CONFIG: Record<TLEventType, CfgEntry> = {
-  MESSAGE_RECEIVED:    { icon:<MessageOutlined />,      color:'#3b82f6', bg:'rgba(59,130,246,0.10)',  bd:'rgba(59,130,246,0.22)',  label:'Сообщение',  glow:'0 0 16px rgba(59,130,246,0.40)'  },
-  EXECUTION_STARTED:   { icon:<PlayCircleOutlined />,   color:'#10b981', bg:'rgba(16,185,129,0.10)',  bd:'rgba(16,185,129,0.22)',  label:'Запуск',     glow:'0 0 16px rgba(16,185,129,0.40)'  },
-  STEP_COMPLETED:      { icon:<ThunderboltOutlined />,  color:'#8b5cf6', bg:'rgba(139,92,246,0.10)',  bd:'rgba(139,92,246,0.22)',  label:'Шаг',        glow:'0 0 16px rgba(139,92,246,0.40)'  },
-  EXECUTION_COMPLETED: { icon:<CheckCircleOutlined />,  color:'#10b981', bg:'rgba(16,185,129,0.12)',  bd:'rgba(16,185,129,0.28)',  label:'Завершено',  glow:'0 0 16px rgba(16,185,129,0.42)'  },
-  EXECUTION_FAILED:    { icon:<CloseCircleOutlined />,  color:'#ef4444', bg:'rgba(239,68,68,0.12)',   bd:'rgba(239,68,68,0.28)',   label:'Ошибка',     glow:'0 0 16px rgba(239,68,68,0.40)'   },
+// Цветовая конфигурация по типу события (не зависит от темы)
+const EVENT_CFG: Record<TLEventType, { icon: React.ReactNode; color: string; bg: string; bd: string; label: string }> = {
+  MESSAGE_RECEIVED:    { icon:<MessageOutlined />,     color:'#3b82f6', bg:'rgba(59,130,246,0.10)',  bd:'rgba(59,130,246,0.28)',  label:'Сообщение'  },
+  EXECUTION_STARTED:   { icon:<PlayCircleOutlined />,  color:'#10b981', bg:'rgba(16,185,129,0.10)',  bd:'rgba(16,185,129,0.28)',  label:'Запуск'     },
+  STEP_COMPLETED:      { icon:<ThunderboltOutlined />, color:'#8b5cf6', bg:'rgba(139,92,246,0.10)',  bd:'rgba(139,92,246,0.28)',  label:'Шаг'        },
+  EXECUTION_COMPLETED: { icon:<CheckCircleOutlined />, color:'#10b981', bg:'rgba(16,185,129,0.12)',  bd:'rgba(16,185,129,0.32)',  label:'Завершено'  },
+  EXECUTION_FAILED:    { icon:<CloseCircleOutlined />, color:'#ef4444', bg:'rgba(239,68,68,0.12)',   bd:'rgba(239,68,68,0.32)',   label:'Ошибка'     },
 };
 
-const fmt = (iso: string) =>
-  new Date(iso).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-
-const MSG_DIR_LABEL: Record<string, string> = {
-  GROUND: 'Наземная', DOWNLINK: 'Нисходящая', UPLINK: 'Восходящая',
+const fmtTime = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  } catch { return '??:??'; }
 };
 
-const StepIcon: React.FC<{ t?: string }> = ({ t }) => {
-  const s: React.CSSProperties = { fontSize: 10 };
-  if (t === 'WAIT')     return <ClockCircleOutlined style={s} />;
-  if (t === 'EVALUATE') return <QuestionCircleOutlined style={s} />;
-  return <ThunderboltOutlined style={s} />;
+const DIR_LABEL: Record<string, { text: string; color: string }> = {
+  GROUND:   { text: 'Наземная',   color: '#f59e0b' },
+  DOWNLINK: { text: 'Нисходящая', color: '#3b82f6' },
+  UPLINK:   { text: 'Восходящая', color: '#8b5cf6' },
 };
 
-interface Props { event: TLEvent; isNew?: boolean; }
+const STEP_TYPE_CFG: Record<string, { label: string; color: string; bg: string; bd: string }> = {
+  ACTION:   { label: '⚡ ACTION',  color: '#3b82f6', bg: 'rgba(59,130,246,0.10)',  bd: 'rgba(59,130,246,0.28)' },
+  WAIT:     { label: '⏳ WAIT',    color: '#f59e0b', bg: 'rgba(245,158,11,0.10)',  bd: 'rgba(245,158,11,0.28)' },
+  EVALUATE: { label: '🔍 EVAL',   color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)',  bd: 'rgba(139,92,246,0.28)' },
+};
 
-const tagStyle = (bg: string, bd: string, color: string): React.CSSProperties => ({
-  marginLeft: 8, fontSize: 10, fontWeight: 600, borderRadius: 6,
-  background: bg, border: `1px solid ${bd}`, color,
-});
+interface EventBodyProps { event: any; textMain: string; textMuted: string }
 
-export const TLEventCard = memo(({ event, isNew = false }: Props) => {
-  const cfg = CONFIG[event.type];
-
-  const renderBody = () => {
-    switch (event.type) {
-      case 'MESSAGE_RECEIVED':
-        return (
-          <span>
-            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'rgba(255,255,255,0.88)' }}>
-              {event.msgTemplate ?? '—'}
-            </span>
-            {event.msgDirection && (
-              <Tag style={tagStyle('rgba(59,130,246,0.12)', 'rgba(59,130,246,0.25)', '#60a5fa')}>
-                {MSG_DIR_LABEL[event.msgDirection] ?? event.msgDirection}
-              </Tag>
-            )}
-          </span>
-        );
-
-      case 'EXECUTION_STARTED':
-        return (
-          <span style={{ color: 'rgba(255,255,255,0.82)' }}>
-            Запущена: <strong>{event.seqName}</strong>
-            <Tag style={tagStyle('rgba(16,185,129,0.10)', 'rgba(16,185,129,0.25)', '#6ee7b7')}>
-              #{event.execId}
-            </Tag>
-          </span>
-        );
-
-      case 'STEP_COMPLETED':
-        return (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-              Шаг {event.stepNum}
-            </span>
-            {event.stepLabel && (
-              <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(255,255,255,0.72)' }}>
-                {event.stepLabel}
+const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted }) => {
+  switch (event.type as TLEventType) {
+    case 'MESSAGE_RECEIVED':
+      return (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: textMain, fontFamily: 'monospace', marginBottom: 5 }}>
+            {event.msgTemplate || 'Неизвестный шаблон'}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {event.msgDirection && (() => {
+              const d = DIR_LABEL[event.msgDirection.toUpperCase()] ?? { text: event.msgDirection, color: '#6b7280' };
+              return (
+                <Tag style={{ background: `${d.color}20`, border: `1px solid ${d.color}40`, color: d.color, borderRadius: 6, fontSize: 11, fontWeight: 600, padding: '1px 8px' }}>
+                  {d.text}
+                </Tag>
+              );
+            })()}
+            {event.aircraftId && (
+              <span style={{ fontSize: 12, color: textMuted, fontFamily: 'monospace' }}>
+                ✈ {event.aircraftId}{event.flightNumber ? ` · ${event.flightNumber}` : ''}
               </span>
             )}
-            <Tag style={tagStyle(
-              event.stepResult === 'SUCCESS' ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
-              event.stepResult === 'SUCCESS' ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)',
-              event.stepResult === 'SUCCESS' ? '#6ee7b7' : '#fca5a5',
-            )}>
-              <StepIcon t={event.stepType} />
-              {' '}{event.stepResult === 'SUCCESS' ? 'Успех' : 'Ошибка'}
+          </div>
+        </div>
+      );
+
+    case 'EXECUTION_STARTED':
+      return (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 5 }}>
+            {event.seqName || `Выполнение #${event.execId}`}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Tag style={{ background:'rgba(16,185,129,0.10)', border:'1px solid rgba(16,185,129,0.28)', color:'#10b981', borderRadius:6, fontSize:11, fontWeight:600 }}>
+              Запуск последовательности
             </Tag>
-          </span>
-        );
+            <span style={{ fontSize: 11, color: textMuted, fontFamily: 'monospace' }}>#{event.execId}</span>
+          </div>
+        </div>
+      );
 
-      case 'EXECUTION_COMPLETED':
-        return (
-          <span style={{ color: 'rgba(255,255,255,0.82)' }}>
-            <CheckCircleOutlined style={{ color: '#10b981', marginRight: 6 }} />
-            Завершена: <strong>{event.seqName}</strong>
-          </span>
-        );
-
-      case 'EXECUTION_FAILED':
-        return (
-          <span style={{ color: 'rgba(255,255,255,0.82)' }}>
-            <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
-            Ошибка: <strong>{event.seqName}</strong>
-          </span>
-        );
-
-      default:
-        return null;
+    case 'STEP_COMPLETED': {
+      const stCfg = STEP_TYPE_CFG[event.stepType] ?? STEP_TYPE_CFG.ACTION;
+      return (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 5 }}>
+            {event.stepLabel || `Шаг ${event.stepNum}`}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <Tag style={{ background:'rgba(0,0,0,0.05)', border:'1px solid rgba(0,0,0,0.12)', color: textMuted, borderRadius:6, fontSize:11 }}>
+              Шаг {event.stepNum}
+            </Tag>
+            {event.stepType && (
+              <Tag style={{ background: stCfg.bg, border:`1px solid ${stCfg.bd}`, color: stCfg.color, borderRadius:6, fontSize:11, fontWeight:600 }}>
+                {stCfg.label}
+              </Tag>
+            )}
+            <Tag style={{
+              background: event.stepResult === 'SUCCESS' ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
+              border: event.stepResult === 'SUCCESS' ? '1px solid rgba(16,185,129,0.28)' : '1px solid rgba(239,68,68,0.28)',
+              color: event.stepResult === 'SUCCESS' ? '#10b981' : '#ef4444',
+              borderRadius: 6, fontSize: 11, fontWeight: 600,
+            }}>
+              {event.stepResult === 'SUCCESS' ? '✓ Успех' : '✗ Ошибка'}
+            </Tag>
+            {event.seqName && <span style={{ fontSize: 11, color: textMuted }}>{event.seqName}</span>}
+          </div>
+        </div>
+      );
     }
-  };
+
+    case 'EXECUTION_COMPLETED':
+      return (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 4 }}>
+            ✓ {event.seqName || `Выполнение #${event.execId}`}
+          </div>
+          <span style={{ fontSize: 12, color: '#10b981', fontWeight: 500 }}>Последовательность успешно завершена</span>
+        </div>
+      );
+
+    case 'EXECUTION_FAILED':
+      return (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 4 }}>
+            ✗ {event.seqName || `Выполнение #${event.execId}`}
+          </div>
+          <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>Выполнение завершено с ошибкой</span>
+        </div>
+      );
+
+    default:
+      return <div style={{ fontSize: 13, color: textMuted }}>Событие: {(event as any).type}</div>;
+  }
+};
+
+interface TLEventCardProps {
+  event: any;
+  isNew?: boolean;
+  showConnector?: boolean;
+}
+
+export const TLEventCard = memo(({ event, isNew = false, showConnector = true }: TLEventCardProps) => {
+  const { isDark } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+
+  const textMain   = isDark ? 'rgba(255,255,255,0.88)' : '#1f2328';
+  const textMuted  = isDark ? 'rgba(255,255,255,0.48)' : '#636c76';
+  const textDim    = isDark ? 'rgba(255,255,255,0.30)' : '#9da3ab';
+  const cardBg     = isDark ? 'rgba(255,255,255,0.028)' : 'rgba(0,0,0,0.022)';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.065)' : 'rgba(0,0,0,0.08)';
+  const connLine   = isDark ? 'rgba(255,255,255,0.06)'  : 'rgba(0,0,0,0.06)';
+  const detailsBg  = isDark ? 'rgba(255,255,255,0.04)'  : 'rgba(0,0,0,0.04)';
+
+  const cfg = EVENT_CFG[event.type as TLEventType]
+    ?? { icon:<ThunderboltOutlined />, color:'#6b7280', bg:'rgba(107,114,128,0.10)', bd:'rgba(107,114,128,0.28)', label: event.type };
 
   return (
     <div style={{
-      display: 'flex', gap: 14, paddingBottom: 16,
-      animation: isNew ? 'fadeInUp 0.32s ease both' : 'none',
+      display: 'flex', gap: 12, paddingBottom: 16,
+      animation: isNew ? 'fadeInUp 0.35s ease both' : 'none',
       position: 'relative',
     }}>
-      {/* Вертикальная линия */}
-      <div style={{
-        position: 'absolute', left: 16, top: 34, bottom: 0,
-        width: 2,
-        background: isNew ? cfg.bd : 'rgba(255,255,255,0.06)',
-        borderRadius: 1,
-        transition: 'background 0.3s ease',
-        pointerEvents: 'none',
-      }} />
+      {showConnector && (
+        <div style={{
+          position: 'absolute', left: 17, top: 38, bottom: 0, width: 2,
+          background: `linear-gradient(to bottom, ${cfg.bd}, ${connLine})`,
+          borderRadius: 1, pointerEvents: 'none',
+        }} />
+      )}
 
-      {/* Иконка */}
+      {/* Иконка-маркер */}
       <div style={{
-        width: 34, height: 34, borderRadius: '50%',
-        background: cfg.bg,
-        border: `1.5px solid ${cfg.bd}`,
+        width: 36, height: 36, borderRadius: '50%',
+        background: cfg.bg, border: `2px solid ${cfg.bd}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: cfg.color, fontSize: 14, flexShrink: 0, zIndex: 1,
-        boxShadow: isNew ? cfg.glow : 'none',
+        color: cfg.color, fontSize: 16, flexShrink: 0, zIndex: 1,
+        boxShadow: isNew ? `0 0 14px ${cfg.bg}` : 'none',
         transition: 'box-shadow 0.3s ease',
       }}>
         {cfg.icon}
       </div>
 
       {/* Карточка */}
-      <div style={{
-        flex: 1,
-        background: 'rgba(255,255,255,0.030)',
-        border: `1px solid ${isNew ? cfg.bd : 'rgba(255,255,255,0.065)'}`,
-        borderRadius: 12,
-        padding: '10px 14px',
-        backdropFilter: 'blur(8px)',
-        transition: 'border-color 0.4s ease',
-        minWidth: 0,
-      }}>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between',
-          alignItems: 'center', marginBottom: 6,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              fontSize: 10, fontWeight: 700, color: cfg.color,
-              letterSpacing: '0.06em', textTransform: 'uppercase',
-            }}>
-              {cfg.label}
+      <div
+        style={{
+          flex: 1, minWidth: 0,
+          background: isNew ? cfg.bg : cardBg,
+          border: `1px solid ${isNew ? cfg.bd : cardBorder}`,
+          borderRadius: 12, padding: '12px 16px',
+          cursor: 'pointer',
+          transition: 'all 0.25s ease',
+        }}
+        onClick={() => setExpanded(e => !e)}
+      >
+        {/* Шапка */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <Tag style={{
+            background: cfg.bg, border: `1px solid ${cfg.bd}`, color: cfg.color,
+            borderRadius: 6, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.06em', textTransform: 'uppercase', padding: '1px 8px',
+          }}>
+            {cfg.label}
+          </Tag>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: textDim, fontFamily: 'monospace' }}>
+              {fmtTime(event.timestamp)}
             </span>
-            {event.flightNumber && (
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)', fontFamily: 'monospace' }}>
-                {event.flightNumber}
-              </span>
-            )}
+            <RightOutlined style={{
+              fontSize: 10, color: textDim,
+              transform: expanded ? 'rotate(90deg)' : 'none',
+              transition: 'transform 0.2s ease',
+            }} />
           </div>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)', fontFamily: 'monospace', flexShrink: 0 }}>
-            {fmt(event.timestamp)}
-          </span>
         </div>
 
-        <div style={{ fontSize: 13, lineHeight: 1.5 }}>{renderBody()}</div>
+        {/* Основной контент — всегда видим */}
+        <EventBody event={event} textMain={textMain} textMuted={textMuted} />
+
+        {/* Детали при раскрытии */}
+        {expanded && (
+          <div style={{
+            marginTop: 12, padding: '10px 12px',
+            background: detailsBg, borderRadius: 8,
+            animation: 'fadeIn 0.2s ease',
+          }}>
+            <div style={{ fontSize: 11, fontFamily: 'monospace', color: textMuted, lineHeight: 1.7 }}>
+              <div><strong>ID:</strong> {event.id}</div>
+              <div><strong>Тип:</strong> {event.type}</div>
+              <div><strong>Борт:</strong> {event.aircraftId}</div>
+              {event.flightNumber && <div><strong>Рейс:</strong> {event.flightNumber}</div>}
+              {event.execId      && <div><strong>Выполнение:</strong> #{event.execId}</div>}
+              <div><strong>Время:</strong> {event.timestamp}</div>
+              {event.msgTemplate && <div><strong>Шаблон:</strong> {event.msgTemplate}</div>}
+              {event.stepLabel   && <div><strong>Шаг:</strong> {event.stepLabel}</div>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

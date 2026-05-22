@@ -183,8 +183,13 @@ export const AuditLogPage: React.FC = () => {
       key: 'createdAt',
       width: 160,
       render: (date: string) => (
-        <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-          {new Date(date).toLocaleString('ru-RU')}
+        <span style={{
+          fontSize: 12,
+          fontFamily: 'monospace',
+          fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
+        }}>
+          {date ? new Date(date).toLocaleString('ru-RU') : '—'}
         </span>
       ),
     },

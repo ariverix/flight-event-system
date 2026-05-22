@@ -85,10 +85,13 @@ function makeEdge(
       fontWeight: 700,
     },
     labelBgStyle: {
-      fill: isSuccess ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+      fill: isDark ? 'rgba(6,7,18,0.92)' : 'rgba(255,255,255,0.96)',
+      stroke: isSuccess ? 'rgba(16,185,129,0.30)' : 'rgba(239,68,68,0.30)',
+      strokeWidth: 0.8,
       rx: 5, ry: 5,
     },
     labelBgPadding: [6, 4] as [number, number],
+    zIndex: 10,
     style: {
       stroke: strokeColor,
       strokeWidth: traversed ? 2.5 : 1.5,

@@ -5,8 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:monitor": "bash scripts/dev-monitor.sh",
     "build": "tsc -b && vite build",
+    "check": "tsc --noEmit",
+    "check:watch": "tsc --noEmit --watch",
     "lint": "eslint .",
+    "lint:fix": "eslint src/ --ext .ts,.tsx --fix",
     "preview": "vite preview"
   },
   "dependencies": {

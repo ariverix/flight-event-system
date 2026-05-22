@@ -120,6 +120,10 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
   0%,100% { box-shadow: 0 0 12px rgba(245,158,11,0.30); }
   50%      { box-shadow: 0 0 28px rgba(245,158,11,0.70); }
 }
+@keyframes pulseWait {
+  0%,100% { box-shadow: 0 0 14px rgba(245,158,11,0.28), inset 0 1px 0 rgba(255,255,255,0.08); }
+  50%     { box-shadow: 0 0 30px rgba(245,158,11,0.65), inset 0 1px 0 rgba(255,255,255,0.08); }
+}
 @keyframes flowDash {
   to { stroke-dashoffset: -20; }
 }
@@ -217,7 +221,7 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
   transition: box-shadow 0.32s ease, transform 0.28s ease, border-color 0.28s ease !important;
   border-radius: 16px !important;
   position: relative !important;
-  overflow: hidden !important;
+  overflow: clip !important;
 }
 
 /* Top-edge gradient shine */
@@ -270,7 +274,7 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
 /* ── Tables ──────────────────────────────────────── */
 .ant-table-wrapper {
   border-radius: 16px;
-  overflow: hidden;
+  overflow: clip;  /* clip = border-radius без ломания sticky/fixed колонок */
   border: 1px solid rgba(255,255,255,0.07);
 }
 .ant-table-wrapper .ant-table { background: transparent !important; }
@@ -467,14 +471,30 @@ body[data-theme='light'] .ant-tag-processing { color: #2563eb !important; }
   background: #0d1530 !important;
 }
 .react-flow__minimap-svg { background: #0d1530 !important; }
-body[data-theme='light'] .react-flow__minimap     { background: #f0f4ff !important; }
-body[data-theme='light'] .react-flow__minimap-svg { background: #f0f4ff !important; }
+/* Убить внутренний белый rect SVG минимапа */
+.react-flow__minimap-svg > rect:first-child { fill: transparent !important; }
+body[data-theme='light'] .react-flow__minimap     { background: #e8edf8 !important; }
+body[data-theme='light'] .react-flow__minimap-svg { background: #e8edf8 !important; }
+body[data-theme='light'] .react-flow__minimap-svg > rect:first-child { fill: transparent !important; }
 
 /* Empty panel guard — prevents phantom white block */
 .react-flow__panel:empty { display: none !important; }
 /* Kill any residual white panel backgrounds */
 .react-flow__panel { background: transparent !important; }
 .react-flow__renderer { overflow: hidden !important; }
+
+/* Edge labels — непрозрачный фон, всегда читаемы */
+.react-flow__edge-textbg {
+  fill: rgba(6,7,18,0.92) !important;
+  stroke: rgba(255,255,255,0.08) !important;
+  stroke-width: 0.5 !important;
+}
+body[data-theme='light'] .react-flow__edge-textbg {
+  fill: rgba(255,255,255,0.95) !important;
+  stroke: rgba(0,0,0,0.08) !important;
+}
+/* Edge label renderer (HTML custom labels) over nodes */
+.react-flow__edge-label-renderer { z-index: 100 !important; }
 
 /* Animated edge flowing dash */
 .react-flow__edge.animated .react-flow__edge-path {
@@ -505,7 +525,14 @@ body[data-theme='light'] .react-flow__controls {
   background: rgba(255,255,255,0.92) !important;
   border-color: rgba(0,0,0,0.10) !important;
 }
-body[data-theme='light'] .react-flow__controls-button { color: #636c76 !important; }
+body[data-theme='light'] .react-flow__controls-button {
+  color: rgba(0,0,0,0.50) !important;
+  border-bottom-color: rgba(0,0,0,0.07) !important;
+}
+body[data-theme='light'] .react-flow__controls-button:hover {
+  background: rgba(0,0,0,0.05) !important;
+  color: rgba(0,0,0,0.85) !important;
+}
 body[data-theme='light'] .react-flow__attribution {
   background: rgba(255,255,255,0.7) !important; color: #636c76 !important;
 }
@@ -839,3 +866,50 @@ body[data-theme='light'] .ant-table-cell-fix-right { background: #ffffff !import
 body[data-theme='light'] .ant-table-tbody > tr:hover .ant-table-cell-fix-right {
   background: rgba(240,244,255,0.98) !important;
 }
+
+/* ── ФИНАЛЬНЫЕ ПРАВКИ (Файл Е) ───────────────────── */
+
+/* Убрать outline на кнопках при клике (кроме клавиатурной навигации) */
+button:focus:not(:focus-visible) { outline: none !important; }
+.ant-btn:focus:not(:focus-visible) { outline: none !important; }
+
+/* Технические идентификаторы — моноширинный */
+[data-mono], .aircraft-id, .flight-id, .template-name {
+  font-family: 'SF Mono','Fira Code','Consolas',monospace !important;
+  font-size: 13px !important;
+  letter-spacing: 0.02em;
+}
+
+/* Дата в одну строку */
+.date-nowrap {
+  white-space: nowrap !important;
+  font-family: 'SF Mono','Fira Code','Consolas',monospace !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Плавный вход страниц */
+.ant-layout-content > * { animation: fadeIn 0.28s ease; }
+
+/* Плавный hover на строках таблиц */
+.ant-table-tbody > tr { transition: background 0.15s ease !important; }
+
+/* Пагинация — светлая тема */
+body[data-theme='light'] .ant-pagination-item {
+  background: rgba(0,0,0,0.03) !important;
+  border-color: rgba(0,0,0,0.10) !important;
+}
+body[data-theme='light'] .ant-pagination-item a { color: rgba(0,0,0,0.65) !important; }
+body[data-theme='light'] .ant-pagination-item-active {
+  background: rgba(59,130,246,0.10) !important;
+  border-color: rgba(59,130,246,0.35) !important;
+}
+body[data-theme='light'] .ant-pagination-item-active a { color: #2563eb !important; }
+
+/* Tag — светлая тема корректные цвета */
+body[data-theme='light'] .ant-tag { color: rgba(0,0,0,0.72) !important; }
+body[data-theme='light'] .ant-tag-green   { color: #15803d !important; }
+body[data-theme='light'] .ant-tag-red     { color: #b91c1c !important; }
+body[data-theme='light'] .ant-tag-blue    { color: #1d4ed8 !important; }
+body[data-theme='light'] .ant-tag-purple  { color: #7e22ce !important; }
+body[data-theme='light'] .ant-tag-orange  { color: #b45309 !important; }
+body[data-theme='light'] .ant-tag-gold    { color: #92400e !important; }

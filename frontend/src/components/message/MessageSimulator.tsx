@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
-  Card, Form, Input, Select, Button, Space, notification, Divider, Radio, Tag,
+  Card, Form, Input, Select, Button, Space, notification, Radio, Tag,
   Typography, Row, Col, AutoComplete, Alert, Spin,
 } from 'antd';
 import {
   SendOutlined, ThunderboltOutlined, CheckCircleOutlined,
 } from '@ant-design/icons';
+import { SimulatorGuide } from './SimulatorGuide';
 import { useNavigate } from 'react-router-dom';
 import { messageApi } from '../../api/messageApi';
 import { executionApi } from '../../api/executionApi';
@@ -139,6 +140,23 @@ export const MessageSimulator: React.FC = () => {
 
   const aircraftOptions = recentAircraft.map(id => ({ value: id, label: id }));
 
+  // Быстрые пресеты для заполнения формы
+  const QUICK_PRESETS = [
+    { label: '📡 Позиция',   type: 'DOWNLINK', tmpl: 'POSITION_REPORT',   ac: 'VP-BQR',   fl: 'SU1234', meta: '{"latitude":55.7558,"longitude":37.6173}' },
+    { label: '🌤 Метео',     type: 'GROUND',   tmpl: 'WEATHER_UPDATE',     ac: 'SU9876',   fl: 'AFL123', meta: '{"temperature":-5,"wind":"270/10kt"}' },
+    { label: '⏰ Задержка',  type: 'GROUND',   tmpl: 'DELAY_NOTICE',       ac: 'SU9876',   fl: 'AFL123', meta: '{"reason":"weather","delayMinutes":30}' },
+    { label: '✈ Предполёт', type: 'DOWNLINK', tmpl: 'PREFLIGHT_COMPLETE', ac: 'SU1234',   fl: 'AFL456', meta: '{"pilot":"Ivanov","copilot":"Petrov"}' },
+    { label: '🛬 Посадка',  type: 'DOWNLINK', tmpl: 'LANDING_REPORT',     ac: 'RA-89050', fl: 'SU777',  meta: '{"runway":"25L"}' },
+  ];
+
+  const applyPreset = (p: typeof QUICK_PRESETS[0]) => {
+    setSimulationType('message');
+    setTimeout(() => form.setFieldsValue({
+      messageType: p.type, templateName: p.tmpl,
+      aircraftId: p.ac, flightNumber: p.fl, metadataJson: p.meta,
+    }), 0);
+  };
+
   return (
     <div className="fade-in-up">
       <div className="page-header">
@@ -146,6 +164,41 @@ export const MessageSimulator: React.FC = () => {
       </div>
 
       <Card style={{ borderColor: c.borderSecondary }}>
+        {/* Быстрые пресеты */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: c.textMuted, marginBottom: 8 }}>
+            Быстрые сценарии (клик заполняет форму):
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            {QUICK_PRESETS.map(p => (
+              <button
+                key={p.label}
+                onClick={() => applyPreset(p)}
+                style={{
+                  padding: '5px 14px', borderRadius: 20,
+                  border: `1px solid ${c.borderSecondary}`,
+                  background: 'transparent', color: c.text,
+                  fontSize: 13, cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(59,130,246,0.08)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(59,130,246,0.35)';
+                  (e.currentTarget as HTMLElement).style.color = '#3b82f6';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLElement).style.borderColor = c.borderSecondary;
+                  (e.currentTarget as HTMLElement).style.color = c.text;
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+            <SimulatorGuide />
+          </div>
+        </div>
+
         <Radio.Group
           value={simulationType}
           onChange={(e) => {
@@ -395,80 +448,89 @@ export const MessageSimulator: React.FC = () => {
         </Card>
       )}
 
-      {/* Test scenarios */}
+      {/* Ready scenarios */}
       <Card
-        title={<span style={{ color: c.text }}>Тестовые сценарии</span>}
+        title={<span style={{ color: c.text }}>Готовые сценарии</span>}
         style={{ marginTop: 16, borderColor: c.borderSecondary }}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size={4}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
             {
-              color: '#1677ff',
-              title: 'Сценарий 1: Доклад о местоположении',
-              desc: 'Тип: DOWNLINK · Шаблон: POSITION_REPORT · ВС: VP-BQR · Рейс: SU1234',
-              sub: '{"latitude": 55.7558, "longitude": 37.6173}',
-              fill: () => {
-                setSimulationType('message');
-                setTimeout(() => form.setFieldsValue({
-                  messageType: 'DOWNLINK', templateName: 'POSITION_REPORT',
-                  aircraftId: 'VP-BQR', flightNumber: 'SU1234',
-                  metadataJson: '{"latitude": 55.7558, "longitude": 37.6173}',
-                }), 0);
-              },
+              icon: '📡', color: '#3b82f6',
+              title: 'Позиционный отчёт от борта',
+              badge: 'DOWNLINK · POSITION_REPORT',
+              ac: 'VP-BQR', fl: 'SU1234',
+              note: 'Запустит "Запрос позиционного отчёта после взлёта"',
+              fill: () => { setSimulationType('message'); setTimeout(() => form.setFieldsValue({ messageType: 'DOWNLINK', templateName: 'POSITION_REPORT', aircraftId: 'VP-BQR', flightNumber: 'SU1234', metadataJson: '{"latitude":55.7558,"longitude":37.6173}' }), 0); },
             },
             {
-              color: '#00c853',
-              title: 'Сценарий 2: Прогрессия фаз полёта',
-              desc: 'Смена фазы: OFF → запуск последовательности · ВС: VP-BQR · Рейс: SU1234',
-              sub: 'При фазе OFF запускается «Запрос позиционного отчёта после взлёта»',
-              fill: () => {
-                setSimulationType('stage');
-                setTimeout(() => form.setFieldsValue({
-                  aircraftId: 'VP-BQR', flightNumber: 'SU1234', newStage: 'OFF',
-                }), 0);
-              },
+              icon: '⚡', color: '#10b981',
+              title: 'Смена фазы: взлёт (FlightStage = OFF)',
+              badge: 'FlightStage · OFF',
+              ac: 'VP-BQR', fl: 'SU1234',
+              note: 'Запустит "Запрос позиционного отчёта после взлёта"',
+              fill: () => { setSimulationType('stage'); setTimeout(() => form.setFieldsValue({ aircraftId: 'VP-BQR', flightNumber: 'SU1234', newStage: 'OFF' }), 0); },
             },
             {
-              color: '#faad14',
-              title: 'Сценарий 3: Метеосводка',
-              desc: 'Тип: GROUND · Шаблон: WEATHER_UPDATE · ВС: VP-BQR · Рейс: SU1234',
-              sub: '{"temperature": -5, "wind": "10kt"}',
-              fill: () => {
-                setSimulationType('message');
-                setTimeout(() => form.setFieldsValue({
-                  messageType: 'GROUND', templateName: 'WEATHER_UPDATE',
-                  aircraftId: 'VP-BQR', flightNumber: 'SU1234',
-                  metadataJson: '{"temperature": -5, "wind": "10kt"}',
-                }), 0);
-              },
+              icon: '🌤', color: '#f59e0b',
+              title: 'Метеосводка для рейса',
+              badge: 'GROUND · WEATHER_UPDATE',
+              ac: 'SU9876', fl: 'AFL123',
+              note: 'Запустит "Распределение метеоинформации"',
+              fill: () => { setSimulationType('message'); setTimeout(() => form.setFieldsValue({ messageType: 'GROUND', templateName: 'WEATHER_UPDATE', aircraftId: 'SU9876', flightNumber: 'AFL123', metadataJson: '{"temperature":-5,"wind":"10kt"}' }), 0); },
+            },
+            {
+              icon: '⏰', color: '#ef4444',
+              title: 'Уведомление о задержке рейса',
+              badge: 'GROUND · DELAY_NOTICE',
+              ac: 'SU9876', fl: 'AFL123',
+              note: 'Запустит "Уведомление о задержке рейса"',
+              fill: () => { setSimulationType('message'); setTimeout(() => form.setFieldsValue({ messageType: 'GROUND', templateName: 'DELAY_NOTICE', aircraftId: 'SU9876', flightNumber: 'AFL123', metadataJson: '{"reason":"weather","delayMinutes":30}' }), 0); },
+            },
+            {
+              icon: '🛫', color: '#8b5cf6',
+              title: 'Начало предполётной подготовки (FlightStage = INIT)',
+              badge: 'FlightStage · INIT',
+              ac: 'SU1234', fl: 'AFL456',
+              note: 'Запустит "Предполётная подготовка"',
+              fill: () => { setSimulationType('stage'); setTimeout(() => form.setFieldsValue({ aircraftId: 'SU1234', flightNumber: 'AFL456', newStage: 'INIT' }), 0); },
             },
           ].map((s, i) => (
-            <div key={i}>
-              <div
-                onClick={s.fill}
-                style={{
-                  padding: '12px 16px', borderRadius: 8, background: c.bgElevated,
-                  border: `1px solid ${c.borderSecondary}`, cursor: 'pointer',
-                  transition: 'border-color 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = s.color)}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = c.borderSecondary)}
-              >
-                <Text strong style={{ color: s.color }}>
-                  {s.title}
-                  <Text style={{ color: c.textDimmer, fontSize: 11, fontWeight: 400, marginLeft: 8 }}>
-                    (нажмите для заполнения формы)
-                  </Text>
-                </Text>
-                <br />
-                <Text style={{ color: c.textMuted, fontSize: 13 }}>{s.desc}</Text>
-                <br />
-                <Text style={{ color: c.textDimmer, fontSize: 12 }}>{s.sub}</Text>
+            <div
+              key={i}
+              onClick={s.fill}
+              style={{
+                padding: '12px 16px', borderRadius: 10,
+                background: c.bgElevated,
+                border: `1px solid ${c.borderSecondary}`,
+                borderLeft: `4px solid ${s.color}`,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.borderColor = s.color;
+                (e.currentTarget as HTMLElement).style.background = `${s.color}12`;
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.borderColor = c.borderSecondary;
+                (e.currentTarget as HTMLElement).style.background = c.bgElevated;
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: s.color }}>
+                  {s.icon} {s.title}
+                </div>
+                <Tag style={{ fontSize: 10, flexShrink: 0, marginLeft: 8 }}>нажмите для заполнения</Tag>
               </div>
-              {i < 2 && <Divider style={{ margin: '8px 0', borderColor: c.borderSecondary }} />}
+              <div style={{ fontSize: 12, color: c.textMuted, marginTop: 3 }}>
+                <code style={{ background: 'transparent' }}>{s.badge}</code>
+                {' '}· ВС: <code style={{ background: 'transparent' }}>{s.ac}</code>
+                {' '}· Рейс: <code style={{ background: 'transparent' }}>{s.fl}</code>
+              </div>
+              <div style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>💡 {s.note}</div>
             </div>
           ))}
-        </Space>
+        </div>
       </Card>
     </div>
   );

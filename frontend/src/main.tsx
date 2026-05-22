@@ -5,7 +5,12 @@ import ruRU from 'antd/locale/ru_RU';
 import App from './App.tsx';
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx';
 import { DARK_THEME, LIGHT_THEME } from './theme/darkTheme.ts';
+import { setupHMRLogging } from './hooks/useHMRStatus.ts';
 import './index.css';
+
+if (import.meta.env.DEV) {
+  setupHMRLogging();
+}
 
 function ThemedApp() {
   const { isDark } = useTheme();

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, Tag, Typography, Button, Divider, Space } from 'antd';
+import { Card, Tag, Typography, Button, Divider, Space, Select } from 'antd';
 import {
   PlayCircleOutlined,
   LoadingOutlined,
@@ -357,56 +357,33 @@ export const DemoPage: React.FC = () => {
         )}
       </div>
 
-      {/* Scenario selector row */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {SCENARIOS.map(s => {
-          const active = s.key === scenarioKey;
-          return (
-            <div
-              key={s.key}
-              onClick={() => { if (!isRunning) { reset(); setScenarioKey(s.key); } }}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 12,
-                border: `1.5px solid ${active ? 'rgba(59,130,246,0.50)' : c.borderSec}`,
-                background: active ? 'rgba(59,130,246,0.10)' : c.bgLow,
-                cursor: isRunning ? 'not-allowed' : 'pointer',
-                transition: 'all 0.22s ease',
-                opacity: isRunning && !active ? 0.5 : 1,
-                minWidth: 130,
-                maxWidth: 200,
-                boxShadow: active ? '0 0 16px rgba(59,130,246,0.18)' : 'none',
-              }}
-              onMouseEnter={e => {
-                if (!isRunning && !active)
-                  (e.currentTarget as HTMLDivElement).style.borderColor = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)';
-              }}
-              onMouseLeave={e => {
-                if (!active)
-                  (e.currentTarget as HTMLDivElement).style.borderColor = c.borderSec;
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                <span style={{ fontSize: 15, lineHeight: 1 }}>{s.emoji}</span>
-                <Text style={{
-                  fontSize: 13,
-                  color: active ? '#3b82f6' : c.text,
-                  fontWeight: active ? 600 : 500,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {s.title}
-                </Text>
+      {/* Scenario selector — dropdown with full names */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 13, color: c.muted, marginBottom: 8 }}>
+          Выберите сценарий для демонстрации:
+        </div>
+        <Select
+          value={scenarioKey}
+          onChange={(val) => { if (!isRunning) { reset(); setScenarioKey(val); } }}
+          disabled={isRunning}
+          style={{ width: '100%' }}
+          size="large"
+          options={SCENARIOS.map(s => ({
+            value: s.key,
+            label: (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '3px 0' }}>
+                <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{s.emoji}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.3 }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>
+                    {s.ucRefs.join(' · ')} · ✈ {s.aircraft} · #{s.flight}
+                  </div>
+                </div>
               </div>
-              <Text style={{
-                fontSize: 11,
-                color: active ? 'rgba(59,130,246,0.70)' : c.dim,
-                display: 'block', lineHeight: 1.3,
-              }}>
-                {s.ucRefs.join(' · ')} · ✈ {s.aircraft}
-              </Text>
-            </div>
-          );
-        })}
+            ),
+          }))}
+          optionLabelProp="label"
+        />
       </div>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -430,17 +407,25 @@ export const DemoPage: React.FC = () => {
               Шаги последовательности
             </Text>
             {scenario.steps.map((step, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
                 <div style={{
-                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                  width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                   background: STEP_COLOR[step.type],
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, fontWeight: 700, color: '#fff',
+                  fontSize: 10, fontWeight: 700, color: '#fff', marginTop: 1,
                 }}>{i + 1}</div>
-                <Tag color={step.type === 'ACTION' ? 'blue' : step.type === 'EVALUATE' ? 'gold' : 'purple'} style={{ margin: 0, fontSize: 10 }}>
+                <Tag
+                  color={step.type === 'ACTION' ? 'blue' : step.type === 'EVALUATE' ? 'gold' : 'purple'}
+                  style={{ margin: 0, fontSize: 10, flexShrink: 0, marginTop: 1 }}
+                >
                   {step.type}
                 </Tag>
-                <Text style={{ color: c.logText, fontSize: 11 }}>{step.label}</Text>
+                <Text style={{
+                  color: c.logText, fontSize: 12, lineHeight: 1.4,
+                  whiteSpace: 'normal', wordBreak: 'break-word', flex: 1,
+                }}>
+                  {step.label}
+                </Text>
               </div>
             ))}
 
