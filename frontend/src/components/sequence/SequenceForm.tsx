@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Form, Input, Button, Space, notification, Card, Modal, Table, Tag, Tooltip } from 'antd';
+import { Form, Input, Button, Space, Card, Modal, Table, Tag, Tooltip } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PlusOutlined, DeleteOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { sequenceApi } from '../../api/sequenceApi';
@@ -23,6 +24,7 @@ const STEP_TYPE_LABEL: Record<string, string> = {
 };
 
 export const SequenceForm: React.FC = () => {
+  const notification = useNotification();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [sequence, setSequence] = useState<SequenceResponse | null>(null);

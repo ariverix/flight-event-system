@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Form, Input, Select, Modal, notification, Space, Tag, Switch } from 'antd';
+import { Table, Button, Form, Input, Select, Modal, Space, Tag, Switch } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import { UserAddOutlined, InboxOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/authApi';
 import { UserResponse, RegisterRequest } from '../../types/auth';
@@ -10,6 +11,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export const UserManagement: React.FC = () => {
+  const notification = useNotification();
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);

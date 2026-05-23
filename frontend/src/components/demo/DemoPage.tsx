@@ -610,7 +610,7 @@ export const DemoPage: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180, gap: 10 }}>
                   <span style={{ fontSize: 36, opacity: 0.25 }}>📋</span>
                   <Text style={{ color: c.dim, fontSize: 13 }}>Нажмите «Запустить» чтобы начать…</Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.18)', fontSize: 11 }}>Журнал событий будет обновляться в реальном времени</Text>
+                  <Text style={{ color: c.dim, fontSize: 11 }}>Журнал событий будет обновляться в реальном времени</Text>
                 </div>
               ) : (
                 log.map((entry, i) => (

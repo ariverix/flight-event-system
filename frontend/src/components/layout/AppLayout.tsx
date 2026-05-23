@@ -53,6 +53,7 @@ export const AppLayout: React.FC = () => {
 
   const [activeExecutions, setActiveExecutions] = useState<ExecutionInstanceResponse[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [siderCollapsed, setSiderCollapsed] = useState(false);
 
   const c = isDark
     ? {
@@ -194,6 +195,7 @@ export const AppLayout: React.FC = () => {
       <Sider
         breakpoint="lg"
         collapsedWidth="0"
+        onCollapse={(collapsed) => setSiderCollapsed(collapsed)}
         width={240}
         style={{
           overflow: 'auto',
@@ -238,7 +240,7 @@ export const AppLayout: React.FC = () => {
         </div>
       </Sider>
 
-      <Layout style={{ marginLeft: 240 }}>
+      <Layout style={{ marginLeft: siderCollapsed ? 0 : 240, transition: 'margin-left 0.2s ease' }}>
         <Header
           style={{
             padding: '0 24px',
@@ -281,7 +283,7 @@ export const AppLayout: React.FC = () => {
             <Dropdown
               open={notifOpen}
               onOpenChange={setNotifOpen}
-              dropdownRender={() => notifDropdown}
+              popupRender={() => notifDropdown}
               trigger={['click']}
               placement="bottomRight"
             >

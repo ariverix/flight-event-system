@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, notification } from 'antd';
+import { Form, Input, Button } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import { UserOutlined, LockOutlined, RocketOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 
 export const LoginPage: React.FC = () => {
+  const notification = useNotification();
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();

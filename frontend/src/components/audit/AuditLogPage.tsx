@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, Select, Space, Button, notification, Tooltip } from 'antd';
+import { Table, Tag, Select, Space, Button, Tooltip } from 'antd';
 import { ReloadOutlined, SafetyCertificateOutlined, DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { auditApi, AuditLogEntry } from '../../api/auditApi';
+import { useNotification } from '../../hooks/useNotification';
 
 const ENTITY_TYPE_COLORS: Record<string, string> = {
   SEQUENCE:  'blue',
@@ -56,6 +57,7 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
 };
 
 export const AuditLogPage: React.FC = () => {
+  const notification = useNotification();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });

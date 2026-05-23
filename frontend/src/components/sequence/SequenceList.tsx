@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Table, Button, Space, Tag, notification, Select, Popconfirm, Input, Skeleton, Tooltip } from 'antd';
+import { Table, Button, Space, Tag, Select, Popconfirm, Input, Skeleton, Tooltip } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import { InboxOutlined } from '@ant-design/icons';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -23,6 +24,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export const SequenceList: React.FC = () => {
+  const notification = useNotification();
   const [sequences, setSequences] = useState<SequenceResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Descriptions, Tag, notification, Button, Spin, Timeline, Collapse, Typography, Progress,
+  Card, Descriptions, Tag, Button, Spin, Timeline, Collapse, Typography, Progress,
 } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import {
   ArrowLeftOutlined, ReloadOutlined,
   CheckCircleFilled, CloseCircleFilled, LoadingOutlined,
@@ -141,6 +142,7 @@ const getTimelineDot = (se: StepExecutionResponse): React.ReactNode => {
 };
 
 export const ExecutionDetail: React.FC = () => {
+  const notification = useNotification();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [execution, setExecution] = useState<ExecutionInstanceResponse | null>(null);

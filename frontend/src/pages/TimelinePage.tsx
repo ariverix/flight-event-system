@@ -36,6 +36,13 @@ export const TimelinePage: React.FC = () => {
   const prevShown  = useRef(0);
 
   const tl = useTimeline(aircraft);
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 900);
+
+  useEffect(() => {
+    const handle = () => setIsNarrow(window.innerWidth < 900);
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
 
   // Тема-адаптивные цвета
   const c = isDark
@@ -243,7 +250,7 @@ export const TimelinePage: React.FC = () => {
       {/* ОСНОВНОЙ КОНТЕНТ */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 300px',
+        gridTemplateColumns: isNarrow ? '1fr' : '1fr 300px',
         gap: 20,
         alignItems: 'start',
       }}>
@@ -298,7 +305,7 @@ export const TimelinePage: React.FC = () => {
 
         {/* Статистика (sticky) */}
         <div style={{
-          position: 'sticky', top: 24,
+          position: isNarrow ? 'relative' : 'sticky', top: 24,
           background: c.statBg,
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',

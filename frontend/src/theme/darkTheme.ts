@@ -206,8 +206,8 @@ export const DARK_THEME = {
     },
 
     Skeleton: {
-      color:            'rgba(255,255,255,0.065)',
-      colorGradientEnd: 'rgba(255,255,255,0.11)',
+      gradientFromColor: 'rgba(255,255,255,0.065)',
+      gradientToColor:   'rgba(255,255,255,0.11)',
     },
 
     Empty: {

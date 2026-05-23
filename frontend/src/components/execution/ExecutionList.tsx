@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, notification, Select, Input, Space, Button, Skeleton } from 'antd';
+import { Table, Tag, Select, Input, Space, Button, Skeleton } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import {
   EyeOutlined, ReloadOutlined,
   CheckCircleFilled, CloseCircleFilled, SyncOutlined, ClockCircleOutlined,
@@ -33,6 +34,7 @@ const StatusIcon: React.FC<{ status: ExecutionStatus }> = ({ status }) => {
 };
 
 export const ExecutionList: React.FC = () => {
+  const notification = useNotification();
   const [executions, setExecutions] = useState<ExecutionInstanceResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });

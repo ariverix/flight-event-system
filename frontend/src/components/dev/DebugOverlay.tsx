@@ -35,13 +35,22 @@ export const DebugOverlay: React.FC = () => {
     const origError = console.error.bind(console);
     const origWarn  = console.warn.bind(console);
 
+    const formatArgs = (args: unknown[]): string => {
+      if (typeof args[0] === 'string' && args[0].includes('%c')) {
+        // Strip %c format specifiers — remaining args are CSS strings, not useful
+        return args[0].replace(/%c/g, '').trim();
+      }
+      return args.map(String).join(' ');
+    };
+
     console.error = (...args: unknown[]) => {
       origError(...args);
-      addLog('error', args.map(String).join(' '));
+      // Defer to avoid setState-during-render when AntD warns inside a render cycle
+      setTimeout(() => addLog('error', formatArgs(args)), 0);
     };
     console.warn = (...args: unknown[]) => {
       origWarn(...args);
-      addLog('warn', args.map(String).join(' '));
+      setTimeout(() => addLog('warn', formatArgs(args)), 0);
     };
 
     const onError   = (e: ErrorEvent)           => addLog('error', e.message, `${e.filename}:${e.lineno}`);

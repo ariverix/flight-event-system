@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Card, Form, Input, Select, Button, Space, notification, Radio, Tag,
+  Card, Form, Input, Select, Button, Space, Radio, Tag,
   Typography, Row, Col, AutoComplete, Alert, Spin,
 } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import {
   SendOutlined, ThunderboltOutlined, CheckCircleOutlined,
 } from '@ant-design/icons';
@@ -56,6 +57,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export const MessageSimulator: React.FC = () => {
+  const notification = useNotification();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [simulationType, setSimulationType] = useState<'message' | 'stage'>('message');

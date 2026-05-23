@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, notification, Select, Input, Space, Button, DatePicker, Tooltip, Skeleton } from 'antd';
+import { Table, Tag, Select, Input, Space, Button, DatePicker, Tooltip, Skeleton } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import { ReloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { messageApi } from '../../api/messageApi';
 import { MessageResponse } from '../../types/message';
@@ -21,6 +22,7 @@ const MSG_TYPE_COLOR: Record<string, string> = {
 };
 
 export const MessageLog: React.FC = () => {
+  const notification = useNotification();
   const [messages, setMessages] = useState<MessageResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });

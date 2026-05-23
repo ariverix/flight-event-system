@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Descriptions, Tag, Skeleton, notification, Avatar, Typography } from 'antd';
+import { Card, Descriptions, Tag, Skeleton, Avatar, Typography } from 'antd';
+import { useNotification } from '../../hooks/useNotification';
 import { UserOutlined, SafetyOutlined, CalendarOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/authApi';
 import { UserResponse } from '../../types/auth';
@@ -17,6 +18,7 @@ const ROLE_COLOR: Record<string, string> = {
 };
 
 export const ProfilePage: React.FC = () => {
+  const notification = useNotification();
   const [profile, setProfile] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
