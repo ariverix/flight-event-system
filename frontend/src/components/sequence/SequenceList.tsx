@@ -138,8 +138,11 @@ export const SequenceList: React.FC = () => {
       title: 'Шаги',
       key: 'steps',
       width: 80,
+      align: 'center' as const,
       render: (_: any, record: SequenceResponse) => (
-        <Tag style={{ minWidth: 32, textAlign: 'center' }}>{record.steps.length}</Tag>
+        <Tag style={{ minWidth: 32, textAlign: 'center' }}>
+          {record.steps?.length ?? 0}
+        </Tag>
       ),
     },
     {
@@ -147,11 +150,11 @@ export const SequenceList: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 130,
-      render: (date: string) => (
+      render: (date: string | null) => date ? (
         <span style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
           {new Date(date).toLocaleDateString('ru-RU')}
         </span>
-      ),
+      ) : <span style={{ color: 'var(--text-3)' }}>—</span>,
     },
     {
       title: 'Действия',
@@ -161,24 +164,24 @@ export const SequenceList: React.FC = () => {
       render: (_: any, record: SequenceResponse) => (
         <Space size={2} className="row-actions" wrap={false}>
           <Button type="text" size="small" icon={<EyeOutlined />}
-            onClick={() => navigate(`/sequences/${record.id}`)}>
+            onClick={e => { e.stopPropagation(); navigate(`/sequences/${record.id}`); }}>
             Просмотр
           </Button>
           {isAdmin && (
             <Button type="text" size="small" icon={<EditOutlined />}
-              onClick={() => navigate(`/sequences/${record.id}/edit`)}>
+              onClick={e => { e.stopPropagation(); navigate(`/sequences/${record.id}/edit`); }}>
               Изменить
             </Button>
           )}
           {isAdmin && (record.status === 'ACTIVE' ? (
             <Button type="text" size="small" icon={<PauseCircleOutlined />}
-              onClick={() => handleDeactivate(record.id)}>
+              onClick={e => { e.stopPropagation(); handleDeactivate(record.id); }}>
               Деактив.
             </Button>
           ) : (
             <Button type="text" size="small" icon={<PlayCircleOutlined />}
-              onClick={() => handleActivate(record.id)}
-              disabled={record.steps.length === 0}>
+              onClick={e => { e.stopPropagation(); handleActivate(record.id); }}
+              disabled={(record.steps?.length ?? 0) === 0}>
               Активировать
             </Button>
           ))}
@@ -189,7 +192,8 @@ export const SequenceList: React.FC = () => {
               onConfirm={() => handleDelete(record.id)}
               okText="Удалить" cancelText="Отмена"
               okButtonProps={{ danger: true }}>
-              <Button type="text" size="small" danger icon={<DeleteOutlined />}>
+              <Button type="text" size="small" danger icon={<DeleteOutlined />}
+                onClick={e => e.stopPropagation()}>
                 Удалить
               </Button>
             </Popconfirm>

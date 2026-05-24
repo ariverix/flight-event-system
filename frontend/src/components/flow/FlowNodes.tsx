@@ -87,18 +87,18 @@ const BaseFlowNode: React.FC<{ data: FlowNodeData; nodeType: FlowNodeType }> = (
             {TYPE_LABEL[nodeType]}
           </div>
           {data.stepNumber != null && (
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)', fontWeight: 600 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600 }}>
               #{data.stepNumber}
             </span>
           )}
         </div>
         <div style={{
           fontSize: 12, fontWeight: 500,
-          color: 'rgba(255,255,255,0.88)',
+          color: 'var(--text-1)',
           lineHeight: 1.4,
           wordBreak: 'break-word',
           display: '-webkit-box',
-          WebkitLineClamp: 2,
+          WebkitLineClamp: 3,
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
         }}>

@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import {
   ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel,
   useReactFlow, ReactFlowProvider,
@@ -9,6 +9,7 @@ import { AimOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/ico
 import { useTheme } from '../../context/ThemeContext';
 import { flowNodeTypes } from './FlowNodes';
 import { getAutoLayout } from '../../utils/graphLayout';
+import { NodeDetailPanel } from './NodeDetailPanel';
 
 export interface FlowWrapperProps {
   nodes: Node[];
@@ -23,6 +24,7 @@ export interface FlowWrapperProps {
   onNodeClick?: (node: Node) => void;
 }
 
+/* ── Toolbar button ───────────────────────────────── */
 const PanelBtn: React.FC<{
   icon: React.ReactNode;
   title: string;
@@ -49,22 +51,24 @@ const PanelBtn: React.FC<{
     onMouseEnter={e => {
       const el = e.currentTarget as HTMLButtonElement;
       el.style.background = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)';
-      el.style.color = isDark ? 'rgba(255,255,255,0.90)' : 'rgba(0,0,0,0.80)';
+      el.style.color      = isDark ? 'rgba(255,255,255,0.90)' : 'rgba(0,0,0,0.80)';
     }}
     onMouseLeave={e => {
       const el = e.currentTarget as HTMLButtonElement;
       el.style.background = 'transparent';
-      el.style.color = isDark ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.45)';
+      el.style.color      = isDark ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.45)';
     }}
   >
     {icon}
   </button>
 );
 
+/* ── Inner graph (inside ReactFlowProvider) ───────── */
 interface FlowInnerProps extends FlowWrapperProps {
   containerRef: React.RefObject<HTMLDivElement>;
   isDark: boolean;
   mergedNodeTypes: NodeTypes;
+  onNodeSelect: (node: Node) => void;
 }
 
 const FlowInner: React.FC<FlowInnerProps> = ({
@@ -74,6 +78,7 @@ const FlowInner: React.FC<FlowInnerProps> = ({
   showAutoLayout = true,
   readonly = false,
   onNodeClick,
+  onNodeSelect,
   containerRef,
   isDark,
   mergedNodeTypes,
@@ -84,7 +89,7 @@ const FlowInner: React.FC<FlowInnerProps> = ({
     const { nodes: ln, edges: le } = getAutoLayout(nodes, edges);
     setNodes(ln);
     setEdges(le);
-    setTimeout(() => fitView({ padding: 0.20, duration: 380 }), 80);
+    setTimeout(() => fitView({ padding: 0.22, duration: 380 }), 80);
   }, [nodes, edges, setNodes, setEdges, fitView]);
 
   const handleFullscreen = useCallback(() => {
@@ -95,19 +100,11 @@ const FlowInner: React.FC<FlowInnerProps> = ({
     }
   }, [containerRef]);
 
-  const bgColor = isDark ? '#060910' : '#f0f4ff';
-  const dotColor = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)';
-  const panelBg = isDark ? 'rgba(6,7,16,0.92)' : 'rgba(255,255,255,0.94)';
-  const panelBd = isDark ? 'rgba(255,255,255,0.11)' : 'rgba(0,0,0,0.09)';
-  const ctrlStyle: React.CSSProperties = {
-    background: panelBg,
-    backdropFilter: 'blur(18px)',
-    border: `1px solid ${panelBd}`,
-    borderRadius: 12,
-    boxShadow: '0 4px 18px rgba(0,0,0,0.30)',
-    overflow: 'hidden',
-  };
-  const miniMask = isDark ? 'rgba(4,5,8,0.65)' : 'rgba(240,244,255,0.72)';
+  const bgColor  = isDark ? '#060910' : '#eef2ff';
+  const dotColor = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)';
+  const panelBg  = isDark ? 'rgba(6,7,16,0.92)'      : 'rgba(255,255,255,0.96)';
+  const panelBd  = isDark ? 'rgba(255,255,255,0.11)'  : 'rgba(0,0,0,0.10)';
+  const miniMask = isDark ? 'rgba(4,5,8,0.65)'        : 'rgba(238,242,255,0.72)';
   const miniStyle: React.CSSProperties = isDark
     ? { background: 'rgba(4,5,8,0.90)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 12 }
     : { background: '#fff', border: '1px solid rgba(0,0,0,0.09)', borderRadius: 12 };
@@ -119,23 +116,28 @@ const FlowInner: React.FC<FlowInnerProps> = ({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       nodeTypes={mergedNodeTypes}
-      onNodeClick={onNodeClick ? (_, n) => onNodeClick(n) : undefined}
+      onNodeClick={(_, n) => {
+        onNodeSelect(n);
+        onNodeClick?.(n);
+      }}
       nodesDraggable={!readonly}
       nodesConnectable={!readonly}
-      elementsSelectable={!readonly}
+      elementsSelectable
       panOnDrag
       zoomOnScroll
       fitView
-      fitViewOptions={{ padding: 0.20 }}
+      fitViewOptions={{ padding: 0.22 }}
       proOptions={{ hideAttribution: true }}
-      minZoom={0.15}
+      minZoom={0.10}
       maxZoom={3}
       style={{ background: bgColor }}
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={dotColor} />
-      <Controls style={ctrlStyle} />
 
-      {/* Glass panel: centre · auto-layout · fullscreen */}
+      {/* Built-in zoom/pan controls */}
+      <Controls showInteractive={false} />
+
+      {/* Custom toolbar: centre · auto-layout · fullscreen */}
       <Panel position="top-right">
         <div style={{
           display: 'flex', gap: 4, padding: '5px 6px',
@@ -144,12 +146,12 @@ const FlowInner: React.FC<FlowInnerProps> = ({
           WebkitBackdropFilter: 'blur(18px)',
           border: `1px solid ${panelBd}`,
           borderRadius: 12,
-          boxShadow: '0 4px 18px rgba(0,0,0,0.30)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
         }}>
           <PanelBtn
             icon={<AimOutlined />}
             title="Центрировать граф"
-            onClick={() => fitView({ padding: 0.20, duration: 350 })}
+            onClick={() => fitView({ padding: 0.22, duration: 350 })}
             isDark={isDark}
           />
           {showAutoLayout && (
@@ -197,34 +199,67 @@ const FlowInner: React.FC<FlowInnerProps> = ({
   );
 };
 
+/* ── Public wrapper: graph + detail panel ─────────── */
 export const FlowWrapper: React.FC<FlowWrapperProps> = props => {
   const { isDark } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const { height = 520, nodeTypes: customNodeTypes } = props;
 
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+
   const mergedNodeTypes: NodeTypes = { ...flowNodeTypes, ...(customNodeTypes ?? {}) };
+
+  const panelBorderColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+  const panelBgColor     = isDark ? 'rgba(6,7,16,0.62)'      : 'rgba(255,255,255,0.75)';
 
   return (
     <div
       ref={containerRef}
       className="flow-container"
       style={{
+        display: 'flex',
         width: '100%',
         height,
         borderRadius: 12,
         overflow: 'hidden',
-        background: isDark ? 'rgba(4,5,8,0.55)' : '#f0f4ff',
         position: 'relative',
       }}
     >
-      <ReactFlowProvider>
-        <FlowInner
-          {...props}
-          containerRef={containerRef}
+      {/* ── Graph (left, fills remaining space) ── */}
+      <div style={{
+        flex: selectedNode ? '0 0 66%' : '1',
+        minWidth: 0,
+        position: 'relative',
+        transition: 'flex 0.22s ease',
+      }}>
+        <ReactFlowProvider>
+          <FlowInner
+            {...props}
+            containerRef={containerRef}
+            isDark={isDark}
+            mergedNodeTypes={mergedNodeTypes}
+            onNodeSelect={setSelectedNode}
+          />
+        </ReactFlowProvider>
+      </div>
+
+      {/* ── Node detail panel (right, always visible) ── */}
+      <div style={{
+        width: selectedNode ? '34%' : '24%',
+        flexShrink: 0,
+        borderLeft: `1px solid ${panelBorderColor}`,
+        background: panelBgColor,
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        overflow: 'hidden',
+        transition: 'width 0.22s ease',
+      }}>
+        <NodeDetailPanel
+          selectedNode={selectedNode}
+          onClose={() => setSelectedNode(null)}
           isDark={isDark}
-          mergedNodeTypes={mergedNodeTypes}
         />
-      </ReactFlowProvider>
+      </div>
     </div>
   );
 };

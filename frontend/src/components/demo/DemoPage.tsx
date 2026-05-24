@@ -407,7 +407,7 @@ export const DemoPage: React.FC = () => {
               Шаги последовательности
             </Text>
             {scenario.steps.map((step, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 0', borderBottom: `1px solid ${c.borderSec}` }}>
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                   background: STEP_COLOR[step.type],
@@ -421,7 +421,7 @@ export const DemoPage: React.FC = () => {
                   {step.type}
                 </Tag>
                 <Text style={{
-                  color: c.logText, fontSize: 12, lineHeight: 1.4,
+                  color: c.logText, fontSize: 12, lineHeight: 1.5,
                   whiteSpace: 'normal', wordBreak: 'break-word', flex: 1,
                 }}>
                   {step.label}
@@ -517,9 +517,9 @@ export const DemoPage: React.FC = () => {
               { icon: <CheckCircleOutlined style={{ color: '#3fb950' }} />, text: 'SUCCESS — зелёный, FAILURE — красный' },
               { icon: <ThunderboltOutlined style={{ color: '#faad14' }} />, text: 'Пройденные рёбра подсвечиваются' },
             ].map((item, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+              <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', alignItems: 'flex-start' }}>
                 <span style={{ marginTop: 1, fontSize: 13, flexShrink: 0 }}>{item.icon}</span>
-                <Text style={{ color: c.logText, fontSize: 12 }}>{item.text}</Text>
+                <Text style={{ color: c.logText, fontSize: 12, lineHeight: 1.5 }}>{item.text}</Text>
               </div>
             ))}
             <Divider style={{ borderColor: c.borderSec, margin: '10px 0' }} />

@@ -102,7 +102,7 @@ export const LoginPage: React.FC = () => {
             paddingTop: 16,
           }}
         >
-          © 2026 Система ЕСА · Дипломная работа
+          © 2026 Система ЕСА · Event Control Automation
         </div>
       </div>
     </div>

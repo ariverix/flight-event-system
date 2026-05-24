@@ -347,7 +347,7 @@ export const TimelinePage: React.FC = () => {
               <div key={h.text} style={{
                 display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 7,
               }}>
-                <span style={{ fontSize: 13, flexShrink: 0, width: 22, textAlign: 'center' }}>{h.icon}</span>
+                <span style={{ fontSize: 13, flexShrink: 0, width: 22, textAlign: 'center', color: c.hintTitle }}>{h.icon}</span>
                 <span style={{ fontSize: 12, color: c.hintText, lineHeight: 1.5 }}>{h.text}</span>
               </div>
             ))}

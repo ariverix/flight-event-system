@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card, Row, Col, Statistic, Typography, Space, Button, Divider, Tag, Skeleton, List,
 } from 'antd';
@@ -159,6 +159,7 @@ export const Dashboard: React.FC = () => {
       sub: `из ${stats.totalSequences} всего`,
       color: '#1677ff',
       icon: <OrderedListOutlined />,
+      href: '/sequences',
     },
     {
       title: 'Активные выполнения',
@@ -167,6 +168,7 @@ export const Dashboard: React.FC = () => {
       color: '#00c853',
       icon: <PlayCircleOutlined />,
       pulse: stats.runningExecutions > 0,
+      href: '/executions',
     },
     {
       title: 'Всего сообщений',
@@ -174,6 +176,7 @@ export const Dashboard: React.FC = () => {
       sub: ' ',
       color: '#faad14',
       icon: <MessageOutlined />,
+      href: '/messages',
     },
     {
       title: 'Завершено выполнений',
@@ -181,6 +184,7 @@ export const Dashboard: React.FC = () => {
       sub: ' ',
       color: '#52c41a',
       icon: <CheckCircleOutlined />,
+      href: '/executions',
     },
   ];
 
@@ -208,7 +212,7 @@ export const Dashboard: React.FC = () => {
                 <Skeleton active paragraph={{ rows: 2 }} />
               </Card>
             ) : (
-              <Card className="stat-card" style={{ borderColor: c.borderSecondary, flex: 1 }}>
+              <Card className="stat-card" style={{ borderColor: c.borderSecondary, flex: 1 }} onClick={() => card.href && navigate(card.href)}>
                 <div
                   className="stat-card-icon"
                   style={{
@@ -243,7 +247,7 @@ export const Dashboard: React.FC = () => {
           >
             <Row gutter={[12, 10]}>
               {[
-                { label: 'Создать последовательность', desc: 'Новая ECA-последовательность шагов', path: '/sequences/new', color: '#1677ff', icon: <OrderedListOutlined /> },
+                { label: 'Создать последовательность', desc: 'Новая ECA-последовательность', path: '/sequences/new', color: '#1677ff', icon: <OrderedListOutlined /> },
                 { label: 'Монитор выполнений',         desc: 'Просмотр активных экземпляров',       path: '/executions',      color: '#00c853', icon: <PlayCircleOutlined /> },
                 { label: 'Журнал сообщений',           desc: 'История входящих сообщений',          path: '/messages',        color: '#faad14', icon: <MessageOutlined /> },
                 { label: 'Симулятор',                  desc: 'Отправить тестовое событие',          path: '/simulator',       color: '#722ed1', icon: <RocketOutlined /> },
@@ -364,9 +368,10 @@ export const Dashboard: React.FC = () => {
                     </div>
                   ))}
                   <Divider style={{ margin: '4px 0', borderColor: c.borderSecondary }} />
-                  <Text style={{ color: c.textDimmer, fontSize: 11 }}>
-                    Spring Boot 3 · Spring Modulith · PostgreSQL 16
-                  </Text>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: c.textDimmer, fontSize: 11 }}>ECA v1.0.0</Text>
+                    <Text style={{ color: c.textDimmer, fontSize: 11 }}>Все системы работают нормально</Text>
+                  </div>
                 </Space>
               </Card>
             </Col>

@@ -33,6 +33,43 @@ const StatusIcon: React.FC<{ status: ExecutionStatus }> = ({ status }) => {
   return null;
 };
 
+const ExecutionHeader: React.FC<{ executions: ExecutionInstanceResponse[]; total: number }> = ({ executions, total }) => {
+  const running   = executions.filter(e => e.status === 'RUNNING').length;
+  const completed = executions.filter(e => e.status === 'COMPLETED').length;
+  const aborted   = executions.filter(e => e.status === 'ABORTED').length;
+
+  const chips = [
+    { label: 'Всего',       value: total,     color: '#6366f1' },
+    { label: 'Выполняется', value: running,   color: '#3b82f6' },
+    { label: 'Завершено',   value: completed, color: '#10b981' },
+    { label: 'Прервано',    value: aborted,   color: '#ef4444' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+      {chips.map(s => (
+        <div
+          key={s.label}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 10,
+            background: `${s.color}12`,
+            border: `1px solid ${s.color}28`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 22, fontWeight: 700, color: s.color, lineHeight: 1 }}>
+            {s.value}
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{s.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const ExecutionList: React.FC = () => {
   const notification = useNotification();
   const [executions, setExecutions] = useState<ExecutionInstanceResponse[]>([]);
@@ -197,6 +234,8 @@ export const ExecutionList: React.FC = () => {
           Автообновление — есть активные выполнения
         </div>
       )}
+
+      <ExecutionHeader executions={executions} total={pagination.total} />
 
       {loading && executions.length === 0 ? (
         <Skeleton active paragraph={{ rows: 8 }} />
