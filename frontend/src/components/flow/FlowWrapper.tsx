@@ -243,11 +243,11 @@ export const FlowWrapper: React.FC<FlowWrapperProps> = props => {
         </ReactFlowProvider>
       </div>
 
-      {/* ── Node detail panel (right, always visible) ── */}
+      {/* ── Node detail panel (right, shown only when a node is selected) ── */}
       <div style={{
-        width: selectedNode ? '34%' : '24%',
+        width: selectedNode ? '34%' : 0,
         flexShrink: 0,
-        borderLeft: `1px solid ${panelBorderColor}`,
+        borderLeft: selectedNode ? `1px solid ${panelBorderColor}` : 'none',
         background: panelBgColor,
         backdropFilter: 'blur(14px)',
         WebkitBackdropFilter: 'blur(14px)',

@@ -8,6 +8,7 @@ import org.jeasy.rules.annotation.Fact;
 import org.jeasy.rules.annotation.Rule;
 import org.springframework.stereotype.Component;
 import ru.protectinfotrans.eca.execution.application.CriterionEvaluator;
+import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
 import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
 import ru.protectinfotrans.eca.sequence.domain.Step;
@@ -33,10 +34,13 @@ public class EvaluateStepRule {
     @Action
     public void execute(
             @Fact("step") Step step,
+            @Fact("instance") ExecutionInstance instance,
             @Fact("context") ExecutionContext context
     ) {
         try {
-            boolean evaluationResult = criterionEvaluator.evaluate(step.getConfigJson(), context, null);
+            // waitStartedAt предыдущего WAIT-шага — для fromThisPointOnly в EVALUATE,
+            // иначе MESSAGE_RECEIVED находит сообщения из прошлых выполнений
+            boolean evaluationResult = criterionEvaluator.evaluate(step.getConfigJson(), context, instance.getWaitStartedAt());
 
             result = evaluationResult ? StepResult.SUCCESS : StepResult.FAILURE;
             log.debug("EvaluateStepRule: criteria evaluated to {}", result);

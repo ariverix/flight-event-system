@@ -128,13 +128,13 @@ const SCENARIOS: Scenario[] = [
   },
   {
     key: 'full',
-    title: 'Полная демонстрация возможностей',
-    seqName: 'Полная демонстрация возможностей ECA',
+    title: 'Презентационный сценарий ECA',
+    seqName: 'Презентационный сценарий ECA',
     aircraft: 'CHECK-001',
     flight: 'DEMO100',
     ucRefs: ['UC-06', 'UC-07', 'UC-08'],
     emoji: '🎬',
-    description: '7 шагов подряд: SEND_UPLINK, SEND_GROUND, RAISE_CONDITION, реальный WAIT (до 6 сек — видно автообновление статуса), EVALUATE по стадии полёта, CLOSE_CONDITION и финальный RAISE_CONDITION — для презентационного видео.',
+    description: '7 шагов подряд: SEND_UPLINK, SEND_GROUND, RAISE_CONDITION, реальный WAIT (до 10 сек — видно автообновление статуса), EVALUATE подтверждения DEMO_ACK, CLOSE_CONDITION и финальный RAISE_CONDITION — для презентационного видео.',
     trigger: {
       type: 'stage',
       payload: { aircraftId: 'CHECK-001', flightNumber: 'DEMO100', newStage: 'OFF' },
@@ -148,7 +148,7 @@ const SCENARIOS: Scenario[] = [
       { label: 'Приветствие экипажу (SEND_UPLINK)', type: 'ACTION' },
       { label: 'Уведомить диспетчерскую (SEND_GROUND)', type: 'ACTION' },
       { label: 'Поднять алерт DEMO_MODE', type: 'ACTION' },
-      { label: 'WAIT до 6 сек: ожидание DEMO_ACK', type: 'WAIT' },
+      { label: 'WAIT до 10 сек: ожидание DEMO_ACK', type: 'WAIT' },
       { label: 'EVALUATE: подтверждение DEMO_ACK получено?', type: 'EVALUATE' },
       { label: 'Снять алерт DEMO_MODE (CLOSE_CONDITION)', type: 'ACTION' },
       { label: 'Зафиксировать завершение демо (DEMO_COMPLETE)', type: 'ACTION' },
@@ -319,13 +319,20 @@ export const DemoPage: React.FC = () => {
 
     const execId = (foundExec as ExecutionInstanceResponse).id;
     let prevStepCount = 0;
+    let busy = false;
     setPhase('polling');
+
+    // Шаги, выполненные сервером "пачкой" (без видимой задержки между ними),
+    // показываем в журнале и на графе по одному с искусственной паузой —
+    // иначе вся демонстрация мелькает за доли секунды.
+    const STEP_REVEAL_DELAY_MS = 800;
 
     await new Promise<void>(resolve => {
       pollRef.current = setInterval(async () => {
+        if (busy) return;
+        busy = true;
         try {
           const updated = await executionApi.getExecutionById(execId);
-          setExecution(updated);
 
           for (let i = prevStepCount; i < updated.stepExecutions.length; i++) {
             const s = updated.stepExecutions[i];
@@ -334,13 +341,26 @@ export const DemoPage: React.FC = () => {
               `${icon} Шаг ${s.stepIndex} [${s.stepType}] → ${s.result ?? 'выполняется'}`,
               s.result === 'SUCCESS' ? 'success' : s.result === 'FAILURE' ? 'warn' : 'info',
             );
+            const isLast = i === updated.stepExecutions.length - 1;
+            setExecution({
+              ...updated,
+              stepExecutions: updated.stepExecutions.slice(0, i + 1),
+              currentStepIndex: isLast ? updated.currentStepIndex : s.stepIndex + 1,
+            });
+
+            if (!isLast) {
+              await new Promise(r => setTimeout(r, STEP_REVEAL_DELAY_MS));
+            }
           }
           prevStepCount = updated.stepExecutions.length;
+          setExecution(updated);
 
           if (updated.status === 'COMPLETED' || updated.status === 'ABORTED') {
             stopPoll(); resolve();
           }
-        } catch { /* ignore */ }
+        } catch { /* ignore */ } finally {
+          busy = false;
+        }
       }, 1000);
     });
 
