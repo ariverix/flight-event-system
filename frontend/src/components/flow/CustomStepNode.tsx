@@ -81,6 +81,20 @@ export const CustomStepNode: React.FC<NodeProps> = ({ data }) => {
     <>
       <Handle type="target" position={Position.Top}
         style={{ background: handleColor, border: `1px solid ${handleBorder}`, width: 8, height: 8 }} />
+      {/* Правый «обходной» хэндл — для рёбер, пропускающих несколько рангов
+          (например, fail-переходы в END из ранних шагов), чтобы они шли
+          вертикальным коридором справа, а не уходили влево за пределы fitView. */}
+      <Handle type="target" id="right" position={Position.Right}
+        style={{ background: handleColor, border: `1px solid ${handleBorder}`, width: 8, height: 8 }} />
+      <Handle type="source" id="right" position={Position.Right}
+        style={{ background: handleColor, border: `1px solid ${handleBorder}`, width: 8, height: 8 }} />
+      {/* Левый хэндл — для второго ребра пары ok/fail, ведущих в один и тот
+          же следующий узел (типично для WAIT/EVALUATE), чтобы их подписи
+          не накладывались друг на друга на одной вертикальной линии. */}
+      <Handle type="target" id="left" position={Position.Left}
+        style={{ background: handleColor, border: `1px solid ${handleBorder}`, width: 8, height: 8 }} />
+      <Handle type="source" id="left" position={Position.Left}
+        style={{ background: handleColor, border: `1px solid ${handleBorder}`, width: 8, height: 8 }} />
 
       <div style={{
         background: tok.bg,
@@ -172,6 +186,8 @@ export const CustomEndNode: React.FC<NodeProps> = ({ data }) => {
   return (
     <>
       <Handle type="target" position={Position.Top}
+        style={{ background: isDark ? '#30363d' : '#d0d7de', border: `1px solid ${isDark ? '#484f58' : '#9da3ab'}`, width: 8, height: 8 }} />
+      <Handle type="target" id="right" position={Position.Right}
         style={{ background: isDark ? '#30363d' : '#d0d7de', border: `1px solid ${isDark ? '#484f58' : '#9da3ab'}`, width: 8, height: 8 }} />
       <div style={{
         background: bg,

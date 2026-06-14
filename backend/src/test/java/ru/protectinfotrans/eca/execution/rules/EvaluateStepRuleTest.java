@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.execution.application.CriterionEvaluator;
+import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
 import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
 import ru.protectinfotrans.eca.sequence.domain.Step;
@@ -39,6 +40,7 @@ class EvaluateStepRuleTest {
 
     private Step step;
     private ExecutionContext context;
+    private ExecutionInstance instance;
 
     @BeforeEach
     void setUp() {
@@ -55,6 +57,8 @@ class EvaluateStepRuleTest {
                 LocalDateTime.now(),
                 new HashMap<>()
         );
+
+        instance = ExecutionInstance.builder().build();
 
         rule.reset();
     }
@@ -77,7 +81,7 @@ class EvaluateStepRuleTest {
         when(criterionEvaluator.evaluate(anyString(), any(ExecutionContext.class), isNull()))
                 .thenReturn(true);
 
-        rule.execute(step, context);
+        rule.execute(step, instance, context);
 
         verify(criterionEvaluator).evaluate(step.getConfigJson(), context, null);
         assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
@@ -89,7 +93,7 @@ class EvaluateStepRuleTest {
         when(criterionEvaluator.evaluate(anyString(), any(ExecutionContext.class), isNull()))
                 .thenReturn(false);
 
-        rule.execute(step, context);
+        rule.execute(step, instance, context);
 
         assertThat(rule.getResult()).isEqualTo(StepResult.FAILURE);
     }

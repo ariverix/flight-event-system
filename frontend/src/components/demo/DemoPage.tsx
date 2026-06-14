@@ -303,7 +303,9 @@ export const DemoPage: React.FC = () => {
       setPhase('error'); return;
     }
 
-    setExecution(foundExec);
+    // Показываем выполнение как «только начатое» — без шагов, чтобы дальнейший
+    // поэтапный реплей (ниже) не выглядел перемоткой назад к началу.
+    setExecution({ ...(foundExec as ExecutionInstanceResponse), stepExecutions: [], currentStepIndex: 1 });
     addLog(`🚀 Выполнение запущено! ID=${(foundExec as ExecutionInstanceResponse).id}`, 'success');
 
     if (sc.followUp && !followUpSent) {

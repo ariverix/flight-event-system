@@ -3,13 +3,16 @@ import {
   ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel,
   useReactFlow, ReactFlowProvider,
 } from '@xyflow/react';
-import type { Node, Edge, NodeTypes, OnNodesChange, OnEdgesChange } from '@xyflow/react';
+import type { Node, Edge, NodeTypes, EdgeTypes, OnNodesChange, OnEdgesChange } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { AimOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 import { flowNodeTypes } from './FlowNodes';
 import { getAutoLayout } from '../../utils/graphLayout';
 import { NodeDetailPanel } from './NodeDetailPanel';
+import { LabeledEdge } from './LabeledEdge';
+
+const edgeTypes: EdgeTypes = { labeled: LabeledEdge };
 
 export interface FlowWrapperProps {
   nodes: Node[];
@@ -89,7 +92,7 @@ const FlowInner: React.FC<FlowInnerProps> = ({
     const { nodes: ln, edges: le } = getAutoLayout(nodes, edges);
     setNodes(ln);
     setEdges(le);
-    setTimeout(() => fitView({ padding: 0.22, duration: 380 }), 80);
+    setTimeout(() => fitView({ padding: 0.3, duration: 380 }), 80);
   }, [nodes, edges, setNodes, setEdges, fitView]);
 
   const handleFullscreen = useCallback(() => {
@@ -106,8 +109,8 @@ const FlowInner: React.FC<FlowInnerProps> = ({
   const panelBd  = isDark ? 'rgba(255,255,255,0.11)'  : 'rgba(0,0,0,0.10)';
   const miniMask = isDark ? 'rgba(4,5,8,0.65)'        : 'rgba(238,242,255,0.72)';
   const miniStyle: React.CSSProperties = isDark
-    ? { background: 'rgba(4,5,8,0.90)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 12 }
-    : { background: '#fff', border: '1px solid rgba(0,0,0,0.09)', borderRadius: 12 };
+    ? { background: 'rgba(4,5,8,0.90)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 12, width: 110, height: 80 }
+    : { background: '#fff', border: '1px solid rgba(0,0,0,0.09)', borderRadius: 12, width: 110, height: 80 };
 
   return (
     <ReactFlow
@@ -116,6 +119,7 @@ const FlowInner: React.FC<FlowInnerProps> = ({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       nodeTypes={mergedNodeTypes}
+      edgeTypes={edgeTypes}
       onNodeClick={(_, n) => {
         onNodeSelect(n);
         onNodeClick?.(n);
@@ -126,11 +130,11 @@ const FlowInner: React.FC<FlowInnerProps> = ({
       panOnDrag
       zoomOnScroll
       fitView
-      fitViewOptions={{ padding: 0.22 }}
+      fitViewOptions={{ padding: 0.3 }}
       proOptions={{ hideAttribution: true }}
       minZoom={0.10}
       maxZoom={3}
-      style={{ background: bgColor }}
+      style={{ background: bgColor, overflow: 'visible' }}
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={dotColor} />
 
@@ -151,7 +155,7 @@ const FlowInner: React.FC<FlowInnerProps> = ({
           <PanelBtn
             icon={<AimOutlined />}
             title="Центрировать граф"
-            onClick={() => fitView({ padding: 0.22, duration: 350 })}
+            onClick={() => fitView({ padding: 0.3, duration: 350 })}
             isDark={isDark}
           />
           {showAutoLayout && (
@@ -191,8 +195,8 @@ const FlowInner: React.FC<FlowInnerProps> = ({
             if (fs === 'WAITING') return '#f59e0b';
             return isDark ? '#1e2a3a' : '#d0d7de';
           }}
-          zoomable
-          pannable
+          zoomable={false}
+          pannable={false}
         />
       )}
     </ReactFlow>
@@ -230,6 +234,7 @@ export const FlowWrapper: React.FC<FlowWrapperProps> = props => {
         flex: selectedNode ? '0 0 66%' : '1',
         minWidth: 0,
         position: 'relative',
+        overflow: 'visible',
         transition: 'flex 0.22s ease',
       }}>
         <ReactFlowProvider>
