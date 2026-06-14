@@ -84,54 +84,71 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
     }
   }
 
+  const badgeStyle: React.CSSProperties = {
+    margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4,
+    height: 24, lineHeight: '22px', boxSizing: 'border-box',
+  };
+
   const header = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-      <Tag color={STEP_TYPE_COLOR[se.stepType] ?? 'blue'} style={{ margin: 0 }}>
-        {STEP_ICON[se.stepType] ?? null} {STEP_TYPE_LABEL[se.stepType] ?? se.stepType}
-      </Tag>
-      <Text style={{ color: c.text, fontWeight: 600 }}>Шаг {se.stepIndex}</Text>
-      {se.result && (
-        <Tag color={se.result === 'SUCCESS' ? 'success' : 'error'} style={{ margin: 0 }}>
-          {se.result === 'SUCCESS' ? 'Успех' : 'Ошибка'}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Tag color={STEP_TYPE_COLOR[se.stepType] ?? 'blue'} style={badgeStyle}>
+          {STEP_ICON[se.stepType] ?? null} {STEP_TYPE_LABEL[se.stepType] ?? se.stepType}
         </Tag>
-      )}
-      {se.transitionAction && (
-        <Tag color={TRANSITION_COLOR[se.transitionAction] ?? 'default'} style={{ margin: 0 }}>
-          {TRANSITION_LABEL[se.transitionAction] ?? se.transitionAction}
-          {se.transitionTarget !== null ? ` → ${se.transitionTarget}` : ''}
-        </Tag>
-      )}
-      <Text style={{ color: c.muted, fontSize: 12, marginLeft: 'auto' }}>
-        {new Date(se.executedAt).toLocaleString('ru-RU')}
-      </Text>
-      {prevSe && (() => {
-        const dur = Math.round((new Date(se.executedAt).getTime() - new Date(prevSe.executedAt).getTime()) / 1000);
-        if (dur > 0) return (
-          <span style={{ fontSize: 11, color: c.muted, background: 'rgba(255,255,255,0.06)',
-            borderRadius: 10, padding: '1px 7px', marginLeft: 4 }}>
-            {dur >= 60 ? `${Math.floor(dur/60)}м ${dur%60}с` : `${dur}с`}
-          </span>
-        );
-      })()}
+        <Text style={{ color: c.text, fontWeight: 600 }}>Шаг {se.stepIndex}</Text>
+        {se.result && (
+          <Tag color={se.result === 'SUCCESS' ? 'success' : 'error'} style={badgeStyle}>
+            {se.result === 'SUCCESS' ? 'Успех' : 'Ошибка'}
+          </Tag>
+        )}
+        {se.transitionAction && (
+          <Tag color={TRANSITION_COLOR[se.transitionAction] ?? 'default'} style={badgeStyle}>
+            {TRANSITION_LABEL[se.transitionAction] ?? se.transitionAction}
+            {se.transitionTarget !== null ? ` → ${se.transitionTarget}` : ''}
+          </Tag>
+        )}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        {prevSe && (() => {
+          const dur = Math.round((new Date(se.executedAt).getTime() - new Date(prevSe.executedAt).getTime()) / 1000);
+          if (dur > 0) return (
+            <span style={{ fontSize: 11, color: c.muted, background: 'rgba(255,255,255,0.06)',
+              borderRadius: 10, padding: '1px 7px', display: 'inline-flex', alignItems: 'center', height: 20, boxSizing: 'border-box' }}>
+              {dur >= 60 ? `${Math.floor(dur/60)}м ${dur%60}с` : `${dur}с`}
+            </span>
+          );
+        })()}
+        <Text style={{ color: c.muted, fontSize: 12, whiteSpace: 'nowrap' }}>
+          {new Date(se.executedAt).toLocaleString('ru-RU')}
+        </Text>
+      </div>
     </div>
   );
 
+  const rowStyle: React.CSSProperties = {
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottom: `1px solid ${c.border}`,
+  };
+
   if (!details) {
-    return <div style={{ paddingBottom: 4 }}>{header}</div>;
+    return <div style={rowStyle}>{header}</div>;
   }
 
   return (
-    <Collapse
-      ghost
-      size="small"
-      style={{ padding: 0 }}
-      items={[{
-        key: '1',
-        label: header,
-        children: details,
-        style: { padding: 0 },
-      }]}
-    />
+    <div style={rowStyle}>
+      <Collapse
+        ghost
+        size="small"
+        style={{ padding: 0 }}
+        items={[{
+          key: '1',
+          label: header,
+          children: details,
+          style: { padding: 0 },
+        }]}
+      />
+    </div>
   );
 };
 

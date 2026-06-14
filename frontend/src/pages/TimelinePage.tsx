@@ -12,14 +12,6 @@ import { useTheme } from '../context/ThemeContext';
 const AIRCRAFT = ['SU9876', 'RA-89050', 'SU1234', 'VP-BQR', 'CHECK-001'];
 const SPEEDS   = [0.5, 1, 2, 4];
 
-const HINTS = [
-  { icon: '▶', text: 'Нажми "Воспроизвести" чтобы смотреть историю событий' },
-  { icon: '⏸', text: '"Пауза" останавливает воспроизведение' },
-  { icon: '4×', text: 'Выбери скорость 4× для быстрого просмотра' },
-  { icon: '⏮', text: '"В начало" сбрасывает к первому событию' },
-  { icon: '⏭', text: '"Показать все" переходит к текущему моменту' },
-  { icon: '👆', text: 'Кликни на карточку события чтобы увидеть детали' },
-];
 
 const STAT_CONFIG = [
   { key: 'MESSAGE_RECEIVED',    label: 'Сообщений',  color: '#3b82f6' },
@@ -56,10 +48,6 @@ export const TimelinePage: React.FC = () => {
         statBorder:    'rgba(255,255,255,0.075)',
         statLabel:     'rgba(255,255,255,0.50)',
         statDivider:   'rgba(255,255,255,0.055)',
-        hintBg:        'rgba(59,130,246,0.055)',
-        hintBorder:    'rgba(59,130,246,0.15)',
-        hintTitle:     'rgba(59,130,246,0.65)',
-        hintText:      'rgba(255,255,255,0.38)',
         headingColor:  'rgba(255,255,255,0.65)',
         progressTrack: 'rgba(255,255,255,0.08)',
         progressCount: 'rgba(255,255,255,0.35)',
@@ -77,10 +65,6 @@ export const TimelinePage: React.FC = () => {
         statBorder:    'rgba(0,0,0,0.09)',
         statLabel:     '#636c76',
         statDivider:   'rgba(0,0,0,0.06)',
-        hintBg:        'rgba(59,130,246,0.05)',
-        hintBorder:    'rgba(59,130,246,0.15)',
-        hintTitle:     'rgba(59,130,246,0.80)',
-        hintText:      '#636c76',
         headingColor:  '#1f2328',
         progressTrack: 'rgba(0,0,0,0.08)',
         progressCount: 'rgba(0,0,0,0.40)',
@@ -329,29 +313,6 @@ export const TimelinePage: React.FC = () => {
               </span>
             </div>
           ))}
-
-          {/* КАК ИСПОЛЬЗОВАТЬ */}
-          <div style={{
-            marginTop: 18, padding: '14px 16px',
-            background: c.hintBg,
-            border: `1px solid ${c.hintBorder}`,
-            borderRadius: 12,
-          }}>
-            <div style={{
-              fontSize: 10, fontWeight: 700, color: c.hintTitle,
-              letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 12,
-            }}>
-              Как использовать
-            </div>
-            {HINTS.map(h => (
-              <div key={h.text} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 7,
-              }}>
-                <span style={{ fontSize: 13, flexShrink: 0, width: 22, textAlign: 'center', color: c.hintTitle }}>{h.icon}</span>
-                <span style={{ fontSize: 12, color: c.hintText, lineHeight: 1.5 }}>{h.text}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>

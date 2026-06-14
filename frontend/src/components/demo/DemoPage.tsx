@@ -127,6 +127,34 @@ const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    key: 'full',
+    title: 'Полная демонстрация возможностей',
+    seqName: 'Полная демонстрация возможностей ECA',
+    aircraft: 'CHECK-001',
+    flight: 'DEMO100',
+    ucRefs: ['UC-06', 'UC-07', 'UC-08'],
+    emoji: '🎬',
+    description: '7 шагов подряд: SEND_UPLINK, SEND_GROUND, RAISE_CONDITION, реальный WAIT (до 6 сек — видно автообновление статуса), EVALUATE по стадии полёта, CLOSE_CONDITION и финальный RAISE_CONDITION — для презентационного видео.',
+    trigger: {
+      type: 'stage',
+      payload: { aircraftId: 'CHECK-001', flightNumber: 'DEMO100', newStage: 'OFF' },
+    },
+    followUp: {
+      delayMs: 4000,
+      label: 'Экипаж: DEMO_ACK',
+      payload: { messageType: 'DOWNLINK', templateName: 'DEMO_ACK', aircraftId: 'CHECK-001', flightNumber: 'DEMO100', metadataJson: '{"confirmed":true}' },
+    },
+    steps: [
+      { label: 'Приветствие экипажу (SEND_UPLINK)', type: 'ACTION' },
+      { label: 'Уведомить диспетчерскую (SEND_GROUND)', type: 'ACTION' },
+      { label: 'Поднять алерт DEMO_MODE', type: 'ACTION' },
+      { label: 'WAIT до 6 сек: ожидание DEMO_ACK', type: 'WAIT' },
+      { label: 'EVALUATE: подтверждение DEMO_ACK получено?', type: 'EVALUATE' },
+      { label: 'Снять алерт DEMO_MODE (CLOSE_CONDITION)', type: 'ACTION' },
+      { label: 'Зафиксировать завершение демо (DEMO_COMPLETE)', type: 'ACTION' },
+    ],
+  },
+  {
     key: 'position',
     title: 'Запрос позиционного отчёта',
     seqName: 'Запрос позиционного отчёта после взлёта',
@@ -158,7 +186,7 @@ function ts() { return new Date().toLocaleTimeString('ru-RU'); }
 export const DemoPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
-  const [scenarioKey, setScenarioKey] = useState('weather');
+  const [scenarioKey, setScenarioKey] = useState('full');
   const [phase, setPhase] = useState<DemoPhase>('idle');
   const [log, setLog] = useState<LogEntry[]>([]);
   const [execution, setExecution] = useState<ExecutionInstanceResponse | null>(null);
@@ -370,7 +398,11 @@ export const DemoPage: React.FC = () => {
           size="large"
           options={SCENARIOS.map(s => ({
             value: s.key,
-            label: (
+            label: `${s.emoji} ${s.title}`,
+          }))}
+          optionRender={(option) => {
+            const s = SCENARIOS.find(sc => sc.key === option.value)!;
+            return (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '3px 0' }}>
                 <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{s.emoji}</span>
                 <div style={{ minWidth: 0 }}>
@@ -380,9 +412,8 @@ export const DemoPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ),
-          }))}
-          optionLabelProp="label"
+            );
+          }}
         />
       </div>
 
@@ -393,6 +424,10 @@ export const DemoPage: React.FC = () => {
           {/* Scenario card */}
           <Card style={{ border: `1px solid ${c.border}`, background: c.bg, marginBottom: 16 }}>
             <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 18, lineHeight: 1 }}>{scenario.emoji}</span>
+                <Text strong style={{ color: c.text, fontSize: 15 }}>{scenario.title}</Text>
+              </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                 {scenario.ucRefs.map(uc => <Tag key={uc} color="geekblue" style={{ fontSize: 10 }}>{uc}</Tag>)}
                 <Tag style={{ fontSize: 10 }}>✈ {scenario.aircraft}</Tag>

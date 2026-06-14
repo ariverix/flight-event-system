@@ -97,12 +97,6 @@ export const SequenceList: React.FC = () => {
 
   const columns = [
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 60,
-    },
-    {
       title: 'Название',
       dataIndex: 'name',
       key: 'name',
@@ -118,6 +112,7 @@ export const SequenceList: React.FC = () => {
       title: 'Описание',
       dataIndex: 'description',
       key: 'description',
+      width: '40%',
       ellipsis: { showTitle: false },
       render: (text: string) => (
         <Tooltip placement="topLeft" title={text}>
@@ -159,10 +154,12 @@ export const SequenceList: React.FC = () => {
     {
       title: 'Действия',
       key: 'actions',
-      width: isAdmin ? 310 : 100,
+      width: isAdmin ? 280 : 100,
       fixed: 'right' as const,
+      onCell: () => ({ style: { background: '#fff' } }),
+      onHeaderCell: () => ({ style: { background: '#fff' } }),
       render: (_: any, record: SequenceResponse) => (
-        <Space size={2} className="row-actions" wrap={false}>
+        <Space size={2} wrap={false}>
           <Button type="text" size="small" icon={<EyeOutlined />}
             onClick={e => { e.stopPropagation(); navigate(`/sequences/${record.id}`); }}>
             Просмотр
@@ -243,7 +240,7 @@ export const SequenceList: React.FC = () => {
           dataSource={filtered}
           loading={loading}
           rowKey="id"
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 1200 }}
           rowClassName={(record: SequenceResponse) =>
             `sequence-table-row seq-${record.status.toLowerCase()}`
           }

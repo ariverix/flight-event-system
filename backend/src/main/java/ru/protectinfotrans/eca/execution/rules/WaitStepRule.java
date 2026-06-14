@@ -54,10 +54,16 @@ public class WaitStepRule {
                 return;
             }
 
+            // на первом входе waitStartedAt ещё не выставлен — используем now(),
+            // иначе fromThisPointOnly игнорируется и WAIT закрывается старым сообщением
+            LocalDateTime effectiveWaitStart = instance.getWaitStartedAt() != null
+                    ? instance.getWaitStartedAt()
+                    : now;
+
             boolean criterionMet = criterionEvaluator.evaluate(
                     step.getConfigJson(),
                     context,
-                    instance.getWaitStartedAt()
+                    effectiveWaitStart
             );
 
             if (criterionMet) {

@@ -19,7 +19,7 @@ const EVENT_CFG: Record<TLEventType, { icon: React.ReactNode; color: string; bg:
 
 const fmtTime = (iso: string) => {
   try {
-    return new Date(iso).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    return new Date(iso).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone: 'Europe/Moscow' });
   } catch { return '??:??'; }
 };
 

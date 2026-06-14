@@ -654,9 +654,6 @@ body[data-theme='light'] .page-title { color: #1f2328; }
    SEQUENCE TABLE
    ═══════════════════════════════════════════════════ */
 .sequence-table-row { transition: background 0.15s ease; }
-.sequence-table-row .row-actions { opacity: 0; transition: opacity 0.15s ease; }
-.sequence-table-row:hover .row-actions,
-.sequence-table-row .row-actions:focus-within { opacity: 1; }
 
 /* Status left-border */
 .seq-active  .ant-table-cell:first-child { border-left: 3px solid var(--accent-green) !important; }

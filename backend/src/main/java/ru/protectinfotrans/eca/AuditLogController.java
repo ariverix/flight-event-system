@@ -31,13 +31,13 @@ public class AuditLogController {
         Page<AuditLog> result;
 
         if (entityType != null && action != null) {
-            result = repository.findByEntityTypeAndActionOrderByIdAsc(entityType, action, pageable);
+            result = repository.findByEntityTypeAndActionOrderByIdDesc(entityType, action, pageable);
         } else if (entityType != null) {
-            result = repository.findByEntityTypeOrderByIdAsc(entityType, pageable);
+            result = repository.findByEntityTypeOrderByIdDesc(entityType, pageable);
         } else if (action != null) {
-            result = repository.findByActionOrderByIdAsc(action, pageable);
+            result = repository.findByActionOrderByIdDesc(action, pageable);
         } else {
-            result = repository.findAllByOrderByIdAsc(pageable);
+            result = repository.findAllByOrderByIdDesc(pageable);
         }
 
         return new PageResponse<>(
