@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Descriptions, Tag, Button, Spin, Timeline, Collapse, Typography, Progress,
+  Card, Descriptions, Tag, Button, Spin, Timeline, Typography, Progress,
 } from 'antd';
 import { useNotification } from '../../hooks/useNotification';
 import {
   ArrowLeftOutlined, ReloadOutlined,
   CheckCircleFilled, CloseCircleFilled, LoadingOutlined,
   ThunderboltOutlined, EyeOutlined, ClockCircleOutlined, FieldTimeOutlined,
+  DownOutlined, UpOutlined,
 } from '@ant-design/icons';
 import { executionApi } from '../../api/executionApi';
 import { sequenceApi } from '../../api/sequenceApi';
@@ -66,6 +67,7 @@ const STEP_ICON: Record<string, React.ReactNode> = {
 };
 
 const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecutionResponse; isDark: boolean }> = ({ se, prevSe, isDark }) => {
+  const [open, setOpen] = useState(false);
   const c = isDark
     ? { bg: '#1c2128', border: '#21262d', text: '#e6edf3', muted: '#848d97' }
     : { bg: '#f6f8fa', border: '#d8dee4', text: '#1f2328', muted: '#636c76' };
@@ -107,6 +109,15 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
             {se.transitionTarget !== null ? ` → ${se.transitionTarget}` : ''}
           </Tag>
         )}
+        {details && (
+          <Button
+            type="text"
+            size="small"
+            icon={open ? <UpOutlined /> : <DownOutlined />}
+            onClick={() => setOpen(o => !o)}
+            style={{ height: 24, padding: '0 6px' }}
+          />
+        )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         {prevSe && (() => {
@@ -131,23 +142,10 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
     borderBottom: `1px solid ${c.border}`,
   };
 
-  if (!details) {
-    return <div style={rowStyle}>{header}</div>;
-  }
-
   return (
     <div style={rowStyle}>
-      <Collapse
-        ghost
-        size="small"
-        style={{ padding: 0 }}
-        items={[{
-          key: '1',
-          label: header,
-          children: details,
-          style: { padding: 0 },
-        }]}
-      />
+      {header}
+      {details && open && <div style={{ marginTop: 8 }}>{details}</div>}
     </div>
   );
 };

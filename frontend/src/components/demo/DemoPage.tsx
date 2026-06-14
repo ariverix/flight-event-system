@@ -162,13 +162,13 @@ const SCENARIOS: Scenario[] = [
     flight: 'SU777',
     ucRefs: ['UC-06', 'UC-08'],
     emoji: '📡',
-    description: 'Взлёт (OFF) → ждём 30 сек → EVALUATE позиции → SEND_UPLINK → WAIT POSITION_REPORT.',
+    description: 'Взлёт (OFF) → ждём 10 сек → EVALUATE позиции → SEND_UPLINK → WAIT POSITION_REPORT.',
     trigger: {
       type: 'stage',
       payload: { aircraftId: 'RA-89050', flightNumber: 'SU777', newStage: 'OFF' },
     },
     steps: [
-      { label: 'WAIT_TIME: 30 сек', type: 'ACTION' },
+      { label: 'WAIT_TIME: 10 сек', type: 'ACTION' },
       { label: 'EVALUATE: позиция получена?', type: 'EVALUATE' },
       { label: 'REQUEST_POSITION uplink', type: 'ACTION' },
       { label: 'WAIT: POSITION_REPORT', type: 'WAIT' },
@@ -368,7 +368,7 @@ export const DemoPage: React.FC = () => {
   };
 
   return (
-    <div className="fade-in-up" style={{ maxWidth: 1200 }}>
+    <div className="fade-in-up" style={{ maxWidth: '100%' }}>
       {/* Header */}
       <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
