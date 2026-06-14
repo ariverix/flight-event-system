@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Form, Input, Select, Modal, Space, Tag, Switch } from 'antd';
+import { Table, Button, Form, Input, Select, Modal, Space, Tag, Switch, Tooltip } from 'antd';
 import { useNotification } from '../../hooks/useNotification';
+import { useAuth } from '../../hooks/useAuth';
 import { UserAddOutlined, InboxOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/authApi';
 import { UserResponse, RegisterRequest } from '../../types/auth';
@@ -12,6 +13,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 export const UserManagement: React.FC = () => {
   const notification = useNotification();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,14 +93,21 @@ export const UserManagement: React.FC = () => {
     {
       title: 'Активность',
       key: 'actions',
-      render: (_: any, record: UserResponse) => (
-        <Switch
-          checked={record.enabled}
-          onChange={() => handleToggleUser(record.id)}
-          checkedChildren="Вкл"
-          unCheckedChildren="Выкл"
-        />
-      ),
+      render: (_: any, record: UserResponse) => {
+        const isSelf = record.username === currentUser?.username;
+        const switchEl = (
+          <Switch
+            checked={record.enabled}
+            onChange={() => handleToggleUser(record.id)}
+            checkedChildren="Вкл"
+            unCheckedChildren="Выкл"
+            disabled={isSelf}
+          />
+        );
+        return isSelf
+          ? <Tooltip title="Нельзя отключить собственную учётную запись">{switchEl}</Tooltip>
+          : switchEl;
+      },
     },
   ];
 

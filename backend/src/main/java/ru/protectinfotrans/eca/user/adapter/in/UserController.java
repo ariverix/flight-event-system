@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ru.protectinfotrans.eca.user.application.UserService;
 import ru.protectinfotrans.eca.user.domain.User;
@@ -38,17 +39,22 @@ public class UserController {
 
     @PutMapping("/{id}/toggle")
     @Operation(summary = "Toggle user", description = "Enable or disable user account (ADMIN only)")
-    public ResponseEntity<?> toggleUser(@PathVariable Long id) {
+    public ResponseEntity<?> toggleUser(@PathVariable Long id, Authentication authentication) {
         log.info("Toggling user: id={}", id);
 
         try {
-            User user = userService.toggleUserEnabled(id);
+            User user = userService.toggleUserEnabled(id, authentication.getName());
             UserResponse response = UserResponse.fromEntity(user);
             return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException e) {
             log.warn("Toggle user failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage()));
+
+        } catch (IllegalStateException e) {
+            log.warn("Toggle user rejected: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
     }

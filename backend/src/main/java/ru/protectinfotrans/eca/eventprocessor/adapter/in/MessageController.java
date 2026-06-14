@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.protectinfotrans.eca.MessageType;
@@ -112,7 +114,7 @@ public class MessageController {
     public ResponseEntity<Page<MessageResponse>> getMessages(
             @RequestParam(required = false) String aircraftId,
             @RequestParam(required = false) MessageType messageType,
-            Pageable pageable
+            @PageableDefault(sort = "receivedAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         log.debug("GET /api/v1/messages: aircraftId={}, messageType={}, page={}",
                 aircraftId, messageType, pageable.getPageNumber());

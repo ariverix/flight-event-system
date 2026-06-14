@@ -232,7 +232,7 @@ class UserServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-            User result = userService.toggleUserEnabled(1L);
+            User result = userService.toggleUserEnabled(1L, "admin");
 
             assertThat(result.getEnabled()).isFalse();
             verify(userRepository).save(user);
@@ -251,7 +251,7 @@ class UserServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-            User result = userService.toggleUserEnabled(1L);
+            User result = userService.toggleUserEnabled(1L, "admin");
 
             assertThat(result.getEnabled()).isTrue();
         }
@@ -261,9 +261,28 @@ class UserServiceTest {
         void shouldThrowExceptionWhenUserNotFound() {
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> userService.toggleUserEnabled(999L))
+            assertThatThrownBy(() -> userService.toggleUserEnabled(999L, "admin"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("User not found");
+
+            verify(userRepository, never()).save(any());
+            verify(auditLogPort, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Should throw exception when admin tries to disable own account")
+        void shouldThrowExceptionWhenTogglingOwnAccount() {
+            User user = User.builder()
+                    .id(1L)
+                    .username("testuser")
+                    .enabled(true)
+                    .build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+            assertThatThrownBy(() -> userService.toggleUserEnabled(1L, "testuser"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("cannot disable your own account");
 
             verify(userRepository, never()).save(any());
             verify(auditLogPort, never()).save(any());
@@ -281,7 +300,7 @@ class UserServiceTest {
             when(userRepository.findById(5L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-            userService.toggleUserEnabled(5L);
+            userService.toggleUserEnabled(5L, "admin");
 
             ArgumentCaptor<AuditLog> auditCaptor = ArgumentCaptor.forClass(AuditLog.class);
             verify(auditLogPort).save(auditCaptor.capture());

@@ -85,9 +85,13 @@ public class UserService {
         return userRepository.findAll();
     }
 
-    public User toggleUserEnabled(Long userId) {
+    public User toggleUserEnabled(Long userId, String currentUsername) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: id=" + userId));
+
+        if (user.getUsername().equals(currentUsername)) {
+            throw new IllegalStateException("You cannot disable your own account");
+        }
 
         user.setEnabled(!user.getEnabled());
         User updatedUser = userRepository.save(user);
