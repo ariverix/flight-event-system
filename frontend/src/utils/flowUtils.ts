@@ -58,7 +58,17 @@ const layout = (nodes: Node[], edges: Edge[]) => {
   // до ~1600px и fitView приходилось сжимать до scale≈0.56 (подписи узлов
   // становились нечитаемыми).
   g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 60 });
-  nodes.forEach(n => g.setNode(n.id, { width: nodeWidth, height: nodeHeight }));
+  // Терминальные узлы (END/ABORT) рендерятся в DOM как маленькая «пилюля»
+  // (~90×34), а не как полноразмерная карточка шага. Раньше они заводились в
+  // dagre с размером 180×80, из-за чего их центр (и, значит, верхний target-
+  // хэндл) смещался вниз — рёбра приходили в END с заметным зазором. Заводим
+  // их с реальным размером, чтобы рёбра стыковались точно.
+  nodes.forEach(n => g.setNode(
+    n.id,
+    n.type === 'endNode'
+      ? { width: 90, height: 34 }
+      : { width: nodeWidth, height: nodeHeight },
+  ));
   edges.forEach(e => {
     // Рёбра правого коридора (skip, см. makeEdge) не должны влиять на
     // раскладку — иначе dagre вставляет на каждом промежуточном ранге
@@ -75,7 +85,10 @@ const layout = (nodes: Node[], edges: Edge[]) => {
   return {
     nodes: nodes.map(n => {
       const pos = g.node(n.id);
-      return { ...n, position: { x: 0, y: pos.y - nodeHeight / 2 } };
+      // Смещаем по фактической высоте узла из dagre (терминалы ниже карточек) —
+      // иначе верхний край END уезжал бы относительно его центра.
+      const h = (pos as { height?: number }).height ?? nodeHeight;
+      return { ...n, position: { x: 0, y: pos.y - h / 2 } };
     }),
     edges,
   };
@@ -90,8 +103,6 @@ function makeEdge(
   traversed = false,
   dimmed = false,
   routeHandle?: 'right' | 'left',
-  labelOffsetY = 0,
-  labelOffsetX = 0,
 ): Edge {
   const successColor = isDark ? '#3fb950' : '#16a34a';
   const failColor    = isDark ? '#f85149' : '#dc2626';
@@ -109,14 +120,18 @@ function makeEdge(
     source: src,
     target: tgt,
     ...(routeHandle ? { sourceHandle: routeHandle, targetHandle: routeHandle } : {}),
-    // Увеличенный offset для правого коридора (skip-рёбра) отводит вертикальный
-    // участок пути дальше от узлов — иначе подпись ребра (например,
-    // "ok · условие верно") оказывается прямо над соседним узлом.
-    ...(routeHandle === 'right' ? { pathOptions: { offset: 48, borderRadius: 8 } } : {}),
+    // Узкий правый коридор для skip-рёбер: держит вертикальный участок близко
+    // к узлам, чтобы коридор не «уводил» взгляд вбок (эффект лесенки) и не
+    // вылезал за правый край канваса. Подписи таких рёбер всё равно ставятся
+    // слева от источника (см. attachLabelPositions), коридор влияет только
+    // на саму линию ребра.
+    ...(routeHandle === 'right' ? { pathOptions: { offset: 20, borderRadius: 6 } } : {}),
     type: 'labeled',
     animated: traversed,
     label,
-    data: { labelOffsetY, labelOffsetX },
+    // labelAbsX/labelAbsY проставляются позже, в attachLabelPositions —
+    // после layout(), когда известны финальные координаты узлов.
+    data: {},
     labelStyle: {
       fill: traversed ? fullColor : dimColor,
       fontSize: 10,
@@ -140,38 +155,34 @@ function makeEdge(
   };
 }
 
-// Финальный проход после layout: если подписи двух (и более) рёбер
-// попадают в одну и ту же точку канваса (одна "сторона" узла + близкий Y),
-// принудительно разносим их по вертикали с шагом 36px начиная с -18px —
-// раз и навсегда устраняет наложение меток независимо от их происхождения.
-function resolveLabelCollisions(nodes: Node[], edges: Edge[]) {
-  const centerOf = (id: string) => {
-    const n = nodes.find(n => n.id === id);
-    if (!n) return { x: 0, y: 0 };
-    return { x: n.position.x + nodeWidth / 2, y: n.position.y + nodeHeight / 2 };
-  };
+// Все подписи рёбер ставим слева от узла-источника (x < 0 — там нет ни узлов,
+// ни линий рёбер, т.к. все узлы лежат в x:[0, nodeWidth] и вертикальные рёбра
+// идут через их центр x=nodeWidth/2). У каждого шага свой ранг по Y (шаг
+// между рангами 140px), поэтому подписи разных шагов автоматически попадают
+// в разные строки и никогда не накладываются друг на друга — независимо от
+// того, ведёт ребро к следующему шагу, через GOTO или в правый коридор к END.
+// Если у шага есть и ok-, и fail-переход, их подписи разводим по вертикали
+// (верхняя/нижняя треть высоты узла), иначе подпись ставим по центру.
+function attachLabelPositions(nodes: Node[], edges: Edge[]) {
+  const posOf = (id: string) => nodes.find(n => n.id === id)?.position ?? { x: 0, y: 0 };
 
-  const groups = new Map<string, Edge[]>();
+  const bySource = new Map<string, Edge[]>();
   edges.forEach(edge => {
-    const s = centerOf(edge.source);
-    const t = centerOf(edge.target);
-    const side = edge.sourceHandle as 'right' | 'left' | undefined;
-    const labelX = side === 'right' ? s.x + nodeWidth / 2 + 48
-      : side === 'left' ? s.x - nodeWidth / 2 - 20
-      : s.x;
-    const labelY = (s.y + t.y) / 2;
-    const key = `${Math.round(labelX / 40)}_${Math.round(labelY / 40)}`;
-    const arr = groups.get(key) ?? [];
+    const arr = bySource.get(edge.source) ?? [];
     arr.push(edge);
-    groups.set(key, arr);
+    bySource.set(edge.source, arr);
   });
 
-  groups.forEach(group => {
-    if (group.length < 2) return;
-    group.sort((a, b) => a.id.localeCompare(b.id));
-    group.forEach((edge, i) => {
-      edge.data = { ...(edge.data ?? {}), labelOffsetY: -18 + 36 * i };
-    });
+  edges.forEach(edge => {
+    const pos = posOf(edge.source);
+    const siblings = bySource.get(edge.source) ?? [];
+    const isSuccess = edge.id.includes('-s-');
+    const yFrac = siblings.length > 1 ? (isSuccess ? 0.28 : 0.68) : 0.5;
+    edge.data = {
+      ...(edge.data ?? {}),
+      labelAbsX: pos.x - 64,
+      labelAbsY: pos.y + nodeHeight * yFrac,
+    };
   });
 }
 
@@ -227,34 +238,21 @@ export const convertStepsToFlow = (steps: StepResponse[], isDark = true) => {
     const success = resolveTarget(step.onSuccessAction, step.onSuccessGotoStep);
     const failure = resolveTarget(step.onFailureAction, step.onFailureGotoStep);
 
-    // Если ok- и fail-рёбра ведут в один и тот же узел по соседнему рангу,
-    // линии совпадают — но это нормально (левый хэндл уводил метку далеко
-    // за пределы канваса). Разделение подписей в этом случае берёт на себя
-    // resolveLabelCollisions (через labelOffsetY).
+    // "Прыжковые" рёбра (skip) ведём через правый коридор, чтобы линия не
+    // уходила далеко влево за пределы fitView. Подписи всех рёбер (включая
+    // эти) ставятся отдельно в attachLabelPositions — слева от узла-источника.
     const successHandle = success.skip ? 'right' : undefined;
     const failureHandle = failure.skip ? 'right' : undefined;
-
-    // Когда с одного шага выходят и ok-, и fail-рёбра, их подписи легко
-    // оказываются в одной точке (даже если рёбра идут разными путями) —
-    // разводим их по вертикали: ok чуть выше, fail чуть ниже центра ребра.
-    const bothPresent = success.tgt !== null && failure.tgt !== null;
-    const successOffsetY = bothPresent ? -20 : 0;
-    const failureOffsetY = bothPresent ? 20 : 0;
-
-    // Длинные подписи (например "ok · условие верно") на рёбрах правого
-    // коридора обрезаются у правого края канваса — сдвигаем их левее.
-    const successOffsetX = successHandle === 'right' ? -20 : 0;
-    const failureOffsetX = failureHandle === 'right' ? -20 : 0;
 
     if (success.tgt) {
       const hint = getOutcomeHint(step.stepType, true);
       const label = hint ? `ok · ${hint}` : 'ok';
-      edges.push(makeEdge(src, success.tgt, label, true, isDark, false, false, successHandle, successOffsetY, successOffsetX));
+      edges.push(makeEdge(src, success.tgt, label, true, isDark, false, false, successHandle));
     }
     if (failure.tgt) {
       const hint = getOutcomeHint(step.stepType, false);
       const label = hint ? `fail · ${hint}` : 'fail';
-      edges.push(makeEdge(src, failure.tgt, label, false, isDark, false, false, failureHandle, failureOffsetY, failureOffsetX));
+      edges.push(makeEdge(src, failure.tgt, label, false, isDark, false, false, failureHandle));
     }
   });
 
@@ -275,7 +273,7 @@ export const convertStepsToFlow = (steps: StepResponse[], isDark = true) => {
   });
 
   const laidOut = layout(nodes, edges);
-  resolveLabelCollisions(laidOut.nodes, laidOut.edges);
+  attachLabelPositions(laidOut.nodes, laidOut.edges);
   return laidOut;
 };
 
@@ -348,8 +346,6 @@ export const convertStepsToFlowWithHighlight = (
     const isTraversed = traversedEdges.has(edge.id);
     const isSuccess   = edge.id.includes('-s-');
     const routeHandle = edge.sourceHandle as 'right' | 'left' | undefined;
-    const labelOffsetY = (edge.data?.labelOffsetY as number | undefined) ?? 0;
-    const labelOffsetX = (edge.data?.labelOffsetX as number | undefined) ?? 0;
     return makeEdge(
       edge.source, edge.target,
       (edge.label as string) ?? '',
@@ -357,10 +353,9 @@ export const convertStepsToFlowWithHighlight = (
       isTraversed,
       anyTraversed && !isTraversed,
       routeHandle,
-      labelOffsetY,
-      labelOffsetX,
     );
   });
+  attachLabelPositions(highlightedNodes, highlightedEdges);
 
   return { nodes: highlightedNodes, edges: highlightedEdges };
 };

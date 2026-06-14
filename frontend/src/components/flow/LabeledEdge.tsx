@@ -1,10 +1,12 @@
 import React from 'react';
 import { BaseEdge, EdgeLabelRenderer, EdgeProps, getSmoothStepPath } from '@xyflow/react';
 
-// Кастомное ребро поверх smoothstep: подпись рендерится через
-// EdgeLabelRenderer строго в середине пути (getSmoothStepPath возвращает
-// её координаты), плюс опциональный вертикальный сдвиг (data.labelOffsetY)
-// — чтобы разводить подписи рёбер, которые иначе оказались бы друг на друге.
+// Кастомное ребро поверх smoothstep: линия пути считается как обычно, но
+// подпись не привязана к её середине — она ставится в абсолютных координатах
+// канваса (data.labelAbsX/labelAbsY), вычисленных в flowUtils как точка слева
+// от узла-источника. Благодаря этому подпись никогда не попадает на узел или
+// на линию ребра, а у каждого шага — собственная строка по Y, так что подписи
+// разных шагов не накладываются друг на друга.
 export const LabeledEdge: React.FC<EdgeProps> = (props) => {
   const {
     sourceX, sourceY, targetX, targetY,
@@ -20,8 +22,10 @@ export const LabeledEdge: React.FC<EdgeProps> = (props) => {
     offset: pathOptions?.offset,
   });
 
-  const offsetX = (data?.labelOffsetX as number | undefined) ?? 0;
-  const offsetY = (data?.labelOffsetY as number | undefined) ?? 0;
+  const absX = data?.labelAbsX as number | undefined;
+  const absY = data?.labelAbsY as number | undefined;
+  const posX = absX ?? labelX;
+  const posY = absY ?? labelY;
   const padX = labelBgPadding ? labelBgPadding[0] : 5;
   const padY = labelBgPadding ? labelBgPadding[1] : 3;
 
@@ -33,7 +37,7 @@ export const LabeledEdge: React.FC<EdgeProps> = (props) => {
           <div
             style={{
               position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${labelX + offsetX}px,${labelY + offsetY}px)`,
+              transform: `translate(-50%, -50%) translate(${posX}px,${posY}px)`,
               pointerEvents: 'none',
               whiteSpace: 'nowrap',
               fontSize: labelStyle?.fontSize,
