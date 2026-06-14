@@ -155,33 +155,30 @@ function makeEdge(
   };
 }
 
-// Все подписи рёбер ставим слева от узла-источника (x < 0 — там нет ни узлов,
-// ни линий рёбер, т.к. все узлы лежат в x:[0, nodeWidth] и вертикальные рёбра
-// идут через их центр x=nodeWidth/2). У каждого шага свой ранг по Y (шаг
-// между рангами 140px), поэтому подписи разных шагов автоматически попадают
-// в разные строки и никогда не накладываются друг на друга — независимо от
-// того, ведёт ребро к следующему шагу, через GOTO или в правый коридор к END.
-// Если у шага есть и ok-, и fail-переход, их подписи разводим по вертикали
-// (верхняя/нижняя треть высоты узла), иначе подпись ставим по центру.
+// Подписи рёбер ставим по бокам узла-источника — ok справа, fail слева
+// (x < 0 и x > nodeWidth — там нет ни узлов, ни линий рёбер: все узлы лежат
+// в x:[0, nodeWidth], вертикальные рёбра идут через их центр x=nodeWidth/2,
+// правый коридор для skip-рёбер — ещё дальше справа). У каждого шага свой
+// ранг по Y (шаг между рангами 140px), поэтому подписи разных шагов
+// автоматически попадают в разные строки и никогда не накладываются друг на
+// друга — независимо от того, ведёт ребро к следующему шагу, через GOTO или
+// в правый коридор к END. На каждой стороне у шага не больше одной подписи
+// (один ok и один fail), поэтому по вертикали подпись всегда центрируем.
+const LABEL_GAP_LEFT  = 76;
+// Подписи ok-рёбер (справа) центрируются по своему тексту, и при длинных
+// подписях ("ok · условие верно") левый край фона подходил почти к правому
+// краю узла. Увеличенный отступ отодвигает их дальше на линию ребра.
+const LABEL_GAP_RIGHT = 104;
 function attachLabelPositions(nodes: Node[], edges: Edge[]) {
   const posOf = (id: string) => nodes.find(n => n.id === id)?.position ?? { x: 0, y: 0 };
 
-  const bySource = new Map<string, Edge[]>();
-  edges.forEach(edge => {
-    const arr = bySource.get(edge.source) ?? [];
-    arr.push(edge);
-    bySource.set(edge.source, arr);
-  });
-
   edges.forEach(edge => {
     const pos = posOf(edge.source);
-    const siblings = bySource.get(edge.source) ?? [];
     const isSuccess = edge.id.includes('-s-');
-    const yFrac = siblings.length > 1 ? (isSuccess ? 0.28 : 0.68) : 0.5;
     edge.data = {
       ...(edge.data ?? {}),
-      labelAbsX: pos.x - 64,
-      labelAbsY: pos.y + nodeHeight * yFrac,
+      labelAbsX: isSuccess ? pos.x + nodeWidth + LABEL_GAP_RIGHT : pos.x - LABEL_GAP_LEFT,
+      labelAbsY: pos.y + nodeHeight * 0.5,
     };
   });
 }
