@@ -32,7 +32,10 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -326,6 +329,365 @@ class ExecutionServiceTest {
             service.processEvent(event);
 
             assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+
+        @Test
+        @DisplayName("должен игнорировать пустой stop критерий")
+        void shouldSkipBlankStopCriteria() {
+            sequence.setStopCriteriaJson("");
+
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(1L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.RUNNING)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(instance));
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+
+            service.processEvent(event);
+
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.RUNNING);
+            verify(criterionEvaluator, never()).evaluate(anyString(), any(), any());
+        }
+
+        @Test
+        @DisplayName("должен пропустить инстанс если последовательность не найдена")
+        void shouldSkipWhenSequenceNotFoundForStopCriteria() {
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(1L)
+                    .sequenceId(999L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.RUNNING)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(instance));
+            when(sequenceQuery.findById(999L)).thenReturn(Optional.empty());
+            when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of());
+
+            service.processEvent(event);
+
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.RUNNING);
+        }
+    }
+
+    @Nested
+    @DisplayName("Start критерии - детали")
+    class StartCriteriaDetailTests {
+
+        @Test
+        @DisplayName("MESSAGE_RECEIVED: должен запустить выполнение при совпадении типа и шаблона")
+        void shouldStartOnMessageReceivedMatch() {
+            sequence.setStartCriteriaJson(
+                    "{\"type\":\"MESSAGE_RECEIVED\",\"messageType\":\"DOWNLINK\",\"templateName\":\"STATUS\"}");
+
+            when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of(sequence));
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(1L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(1)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+            when(executionRepository.save(any())).thenReturn(instance);
+            when(ecaRuleEngine.executeStep(any(), any(), any())).thenReturn(null);
+
+            service.processEvent(event);
+
+            verify(executionRepository, atLeastOnce()).save(any(ExecutionInstance.class));
+        }
+
+        @Test
+        @DisplayName("MESSAGE_RECEIVED: не должен запускать при несовпадении шаблона")
+        void shouldNotStartOnMessageReceivedMismatch() {
+            sequence.setStartCriteriaJson(
+                    "{\"type\":\"MESSAGE_RECEIVED\",\"messageType\":\"DOWNLINK\",\"templateName\":\"OTHER\"}");
+
+            when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of(sequence));
+
+            service.processEvent(event);
+
+            verify(executionRepository, never()).save(any(ExecutionInstance.class));
+        }
+
+        @Test
+        @DisplayName("должен запустить выполнение при FlightStage.INIT и отсутствии критерия")
+        void shouldStartOnInitStageWithoutCriteria() {
+            sequence.setStartCriteriaJson(null);
+            NormalizedEvent initEvent = new NormalizedEvent(
+                    1L, ru.protectinfotrans.eca.MessageType.DOWNLINK, "STATUS",
+                    "VP-BAB", "SU1234", FlightStage.INIT, LocalDateTime.now());
+
+            when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of(sequence));
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(1L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(1)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+            when(executionRepository.save(any())).thenReturn(instance);
+            when(ecaRuleEngine.executeStep(any(), any(), any())).thenReturn(null);
+
+            service.processEvent(initEvent);
+
+            verify(executionRepository, atLeastOnce()).save(any(ExecutionInstance.class));
+        }
+
+        @Test
+        @DisplayName("не должен запускать при отсутствии критерия и стадии не INIT")
+        void shouldNotStartWithoutCriteriaWhenNotInit() {
+            sequence.setStartCriteriaJson(null);
+
+            when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of(sequence));
+
+            service.processEvent(event); // event имеет стадию OFF
+
+            verify(executionRepository, never()).save(any(ExecutionInstance.class));
+        }
+
+        @Test
+        @DisplayName("должен вернуть false и не запускать при некорректном JSON критерия")
+        void shouldNotStartOnInvalidCriteriaJson() {
+            sequence.setStartCriteriaJson("{not-valid-json");
+
+            when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of(sequence));
+
+            service.processEvent(event);
+
+            verify(executionRepository, never()).save(any(ExecutionInstance.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("Возобновление WAIT-инстансов")
+    class ProcessWaitingInstancesTests {
+
+        @Test
+        @DisplayName("должен возобновить WAITING инстанс при положительном результате")
+        void shouldResumeWaitingInstanceOnResult() {
+            ExecutionInstance waitingInstance = ExecutionInstance.builder()
+                    .id(2L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.WAITING)
+                    .currentStepIndex(2)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(waitingInstance));
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+            when(ecaRuleEngine.executeStep(any(), any(), any())).thenReturn(StepResult.SUCCESS);
+            when(executionRepository.save(any())).thenReturn(waitingInstance);
+
+            service.processEvent(event);
+
+            verify(ecaRuleEngine, atLeastOnce()).executeStep(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("должен пропустить WAITING инстанс если текущий шаг не найден")
+        void shouldSkipWaitingInstanceWhenStepNotFound() {
+            ExecutionInstance waitingInstance = ExecutionInstance.builder()
+                    .id(2L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.WAITING)
+                    .currentStepIndex(99)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(waitingInstance));
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+
+            service.processEvent(event);
+
+            verify(ecaRuleEngine, never()).executeStep(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("должен пропустить WAITING инстанс если последовательность не найдена")
+        void shouldSkipWaitingInstanceWhenSequenceNotFound() {
+            ExecutionInstance waitingInstance = ExecutionInstance.builder()
+                    .id(2L)
+                    .sequenceId(999L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.WAITING)
+                    .currentStepIndex(1)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(waitingInstance));
+            when(sequenceQuery.findById(999L)).thenReturn(Optional.empty());
+            when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of());
+
+            service.processEvent(event);
+
+            verify(ecaRuleEngine, never()).executeStep(any(), any(), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("Уведомления и невалидный GOTO")
+    class NotifyAndInvalidGotoTests {
+
+        private ExecutionInstance instance;
+
+        @BeforeEach
+        void setUp() {
+            instance = ExecutionInstance.builder()
+                    .id(1L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .flightNumber("SU1234")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(2)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+        }
+
+        @Test
+        @DisplayName("должен отправить уведомление при onSuccessNotify=true")
+        void shouldNotifyOnSuccess() {
+            Step notifyStep = Step.builder()
+                    .id(10L)
+                    .sequence(sequence)
+                    .orderIndex(2)
+                    .name("Notify step")
+                    .stepType(StepType.ACTION)
+                    .configJson("{}")
+                    .onSuccessAction(TransitionAction.END)
+                    .onSuccessNotify(true)
+                    .onFailureAction(TransitionAction.ABORT)
+                    .build();
+
+            when(executionRepository.save(any())).thenReturn(instance);
+
+            service.advanceExecution(instance, notifyStep, StepResult.SUCCESS);
+
+            verify(notificationPort).notifyStepResult(
+                    eq(1L), eq(2), eq("SUCCESS"), eq("VP-BAB"), anyString());
+        }
+
+        @Test
+        @DisplayName("должен прервать выполнение при невалидном GOTO (вне диапазона)")
+        void shouldAbortOnInvalidGotoTarget() {
+            Step gotoStep = Step.builder()
+                    .id(11L)
+                    .sequence(sequence)
+                    .orderIndex(2)
+                    .name("Invalid goto")
+                    .stepType(StepType.ACTION)
+                    .configJson("{}")
+                    .onSuccessAction(TransitionAction.GOTO)
+                    .onSuccessGotoStep(999)
+                    .onFailureAction(TransitionAction.ABORT)
+                    .build();
+
+            when(executionRepository.save(any())).thenReturn(instance);
+
+            service.advanceExecution(instance, gotoStep, StepResult.SUCCESS);
+
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+
+        @Test
+        @DisplayName("должен прервать выполнение при GOTO с null target")
+        void shouldAbortOnNullGotoTarget() {
+            Step gotoStep = Step.builder()
+                    .id(12L)
+                    .sequence(sequence)
+                    .orderIndex(2)
+                    .name("Null goto")
+                    .stepType(StepType.ACTION)
+                    .configJson("{}")
+                    .onSuccessAction(TransitionAction.GOTO)
+                    .onSuccessGotoStep(null)
+                    .onFailureAction(TransitionAction.ABORT)
+                    .build();
+
+            when(executionRepository.save(any())).thenReturn(instance);
+
+            service.advanceExecution(instance, gotoStep, StepResult.SUCCESS);
+
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+    }
+
+    @Nested
+    @DisplayName("startExecution - граничные случаи")
+    class StartExecutionEdgeCases {
+
+        @Test
+        @DisplayName("должен бросить исключение если последовательность не найдена")
+        void shouldThrowWhenSequenceNotFound() {
+            when(sequenceQuery.findById(999L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.startExecution(999L, "VP-BAB", "SU1234"))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("не должен создавать инстанс если у последовательности нет шагов")
+        void shouldNotStartWhenNoSteps() {
+            Sequence emptySequence = Sequence.builder()
+                    .id(200L)
+                    .name("Empty")
+                    .status(SequenceStatus.ACTIVE)
+                    .steps(new ArrayList<>())
+                    .build();
+            when(sequenceQuery.findById(200L)).thenReturn(Optional.of(emptySequence));
+
+            service.startExecution(200L, "VP-BAB", "SU1234");
+
+            verify(executionRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("checkWaitTimeouts - граничные случаи")
+    class CheckWaitTimeoutsEdgeCases {
+
+        @Test
+        @DisplayName("должен пропустить просроченный инстанс если последовательность не найдена")
+        void shouldSkipExpiredInstanceWhenSequenceNotFound() {
+            ExecutionInstance expired = ExecutionInstance.builder()
+                    .id(5L)
+                    .sequenceId(999L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.WAITING)
+                    .currentStepIndex(1)
+                    .waitTimeoutAt(LocalDateTime.now().minusMinutes(1))
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(executionRepository.findWaitingWithExpiredTimeout(any())).thenReturn(List.of(expired));
+            when(sequenceQuery.findById(999L)).thenReturn(Optional.empty());
+
+            service.checkWaitTimeouts();
+
+            verify(executionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("не должен делать ничего если нет просроченных инстансов")
+        void shouldDoNothingWhenNoExpiredInstances() {
+            when(executionRepository.findWaitingWithExpiredTimeout(any())).thenReturn(List.of());
+
+            service.checkWaitTimeouts();
+
+            verify(executionRepository, never()).save(any());
         }
     }
 }

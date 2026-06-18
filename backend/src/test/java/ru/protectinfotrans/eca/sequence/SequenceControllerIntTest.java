@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.*;
 import ru.protectinfotrans.eca.BaseIntegrationTest;
+import ru.protectinfotrans.eca.PageResponse;
 import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;
 import ru.protectinfotrans.eca.sequence.domain.StepType;
 import ru.protectinfotrans.eca.sequence.domain.TransitionAction;

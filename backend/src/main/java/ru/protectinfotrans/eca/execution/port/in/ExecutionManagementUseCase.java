@@ -2,7 +2,7 @@ package ru.protectinfotrans.eca.execution.port.in;
 
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.dto.ExecutionInstanceResponse;
-import ru.protectinfotrans.eca.sequence.dto.PageResponse;
+import ru.protectinfotrans.eca.PageResponse;
 
 /**
  * Входной порт модуля Execution Engine — просмотр статуса выполнения последовательностей.

@@ -136,7 +136,7 @@ class CriterionEvaluatorTest {
             String criteria = """
                 {
                     "type": "FLIGHT_STAGE",
-                    "operator": "GREATER",
+                    "operator": "GREATER_THAN",
                     "targetStage": "OUT"
                 }
                 """;
@@ -152,7 +152,7 @@ class CriterionEvaluatorTest {
             String criteria = """
                 {
                     "type": "FLIGHT_STAGE",
-                    "operator": "NOT_EQUAL",
+                    "operator": "NOT_EQUALS",
                     "targetStage": "INIT"
                 }
                 """;

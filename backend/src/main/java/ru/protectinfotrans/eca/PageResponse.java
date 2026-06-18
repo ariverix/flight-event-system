@@ -1,4 +1,4 @@
-package ru.protectinfotrans.eca.sequence.dto;
+package ru.protectinfotrans.eca;
 
 import java.util.List;
 

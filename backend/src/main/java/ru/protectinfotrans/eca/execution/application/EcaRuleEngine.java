@@ -34,6 +34,11 @@ public class EcaRuleEngine {
         EvaluateStepRule evaluateStepRule = evaluateStepRuleProvider.getObject();
         WaitStepRule waitStepRule = waitStepRuleProvider.getObject();
 
+        // защитный сброс состояния — гарантирует чистый старт независимо от scope бина
+        actionStepRule.reset();
+        evaluateStepRule.reset();
+        waitStepRule.reset();
+
         Facts facts = new Facts();
         facts.put("step", step);
         facts.put("instance", instance);

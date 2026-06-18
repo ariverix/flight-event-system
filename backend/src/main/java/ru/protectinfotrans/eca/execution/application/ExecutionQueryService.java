@@ -14,7 +14,7 @@ import ru.protectinfotrans.eca.execution.dto.StepExecutionResponse;
 import ru.protectinfotrans.eca.execution.port.in.ExecutionManagementUseCase;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
-import ru.protectinfotrans.eca.sequence.dto.PageResponse;
+import ru.protectinfotrans.eca.PageResponse;
 
 import java.util.List;
 import java.util.NoSuchElementException;

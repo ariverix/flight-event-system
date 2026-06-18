@@ -11,6 +11,7 @@ import ru.protectinfotrans.eca.AuditLog;
 import ru.protectinfotrans.eca.user.adapter.out.UserJpaRepository;
 import ru.protectinfotrans.eca.user.domain.Role;
 import ru.protectinfotrans.eca.user.domain.User;
+import ru.protectinfotrans.eca.user.port.out.UserLookupPort;
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
-public class UserService {
+public class UserService implements UserLookupPort {
 
     private final UserJpaRepository userRepository;
     private final ru.protectinfotrans.eca.user.port.out.AuditLogPort auditLogPort;
@@ -111,6 +112,17 @@ public class UserService {
     @Transactional(readOnly = true)
     public boolean existsByUsername(String username) {
         return userRepository.existsByUsername(username);
+    }
+
+    /**
+     * Реализация {@link UserLookupPort} — узкий доступ к id пользователя по username
+     * для других модулей (без раскрытия domain.User/полного UserService API).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Long findUserIdByUsername(String username) {
+        User user = findByUsername(username);
+        return user != null ? user.getId() : null;
     }
 
     private String toJson(Object value) {

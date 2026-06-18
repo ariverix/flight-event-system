@@ -4,10 +4,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
@@ -45,7 +44,15 @@ class EcaRuleEngineTest {
     @Mock
     private WaitStepRule waitStepRule;
 
-    @InjectMocks
+    @Mock
+    private ObjectProvider<ActionStepRule> actionStepRuleProvider;
+
+    @Mock
+    private ObjectProvider<EvaluateStepRule> evaluateStepRuleProvider;
+
+    @Mock
+    private ObjectProvider<WaitStepRule> waitStepRuleProvider;
+
     private EcaRuleEngine engine;
 
     private ExecutionInstance instance;
@@ -53,6 +60,12 @@ class EcaRuleEngineTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(actionStepRuleProvider.getObject()).thenReturn(actionStepRule);
+        lenient().when(evaluateStepRuleProvider.getObject()).thenReturn(evaluateStepRule);
+        lenient().when(waitStepRuleProvider.getObject()).thenReturn(waitStepRule);
+
+        engine = new EcaRuleEngine(actionStepRuleProvider, evaluateStepRuleProvider, waitStepRuleProvider);
+
         instance = ExecutionInstance.builder()
                 .id(1L)
                 .sequenceId(100L)

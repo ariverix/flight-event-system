@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import ru.protectinfotrans.eca.AuditLog;
+import ru.protectinfotrans.eca.PageResponse;
 import ru.protectinfotrans.eca.sequence.domain.*;
 import ru.protectinfotrans.eca.sequence.dto.*;
 import ru.protectinfotrans.eca.sequence.event.SequenceActivatedEvent;
@@ -301,6 +302,200 @@ class SequenceServiceTest {
             assertThatThrownBy(() -> service.addStep(1L, request, 1L))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("GOTO");
+        }
+    }
+
+    @Nested
+    @DisplayName("UC-02: Обновление шага")
+    class UpdateStepTests {
+
+        private Step existingStep;
+
+        @BeforeEach
+        void setUp() {
+            existingStep = Step.builder()
+                    .id(10L)
+                    .sequence(draftSequence)
+                    .orderIndex(1)
+                    .name("Old name")
+                    .stepType(StepType.ACTION)
+                    .configJson("{}")
+                    .onSuccessAction(TransitionAction.CONTINUE)
+                    .onFailureAction(TransitionAction.ABORT)
+                    .build();
+            draftSequence.getSteps().add(existingStep);
+        }
+
+        @Test
+        @DisplayName("Обновляет существующий шаг")
+        void shouldUpdateExistingStep() {
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+            when(sequenceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            var request = new StepUpdateRequest(
+                    "New name", StepType.EVALUATE, "{\"x\":1}", null,
+                    TransitionAction.END, null, true,
+                    TransitionAction.GOTO, 1, true);
+
+            StepResponse response = service.updateStep(1L, 10L, request, 1L);
+
+            assertThat(response.name()).isEqualTo("New name");
+            assertThat(response.stepType()).isEqualTo(StepType.EVALUATE);
+            assertThat(response.onSuccessAction()).isEqualTo(TransitionAction.END);
+            assertThat(response.onFailureAction()).isEqualTo(TransitionAction.GOTO);
+            verify(auditLogPort).save(any(AuditLog.class));
+        }
+
+        @Test
+        @DisplayName("Бросает исключение если шаг не найден")
+        void shouldThrowWhenStepNotFound() {
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+
+            var request = new StepUpdateRequest(
+                    "X", StepType.ACTION, "{}", null,
+                    TransitionAction.END, null, false,
+                    TransitionAction.ABORT, null, false);
+
+            assertThatThrownBy(() -> service.updateStep(1L, 999L, request, 1L))
+                    .isInstanceOf(NoSuchElementException.class);
+        }
+
+        @Test
+        @DisplayName("Запрещает обновление шага не-DRAFT последовательности")
+        void shouldRejectUpdateStepOfActiveSequence() {
+            draftSequence.setStatus(SequenceStatus.ACTIVE);
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+
+            var request = new StepUpdateRequest(
+                    "X", StepType.ACTION, "{}", null,
+                    TransitionAction.END, null, false,
+                    TransitionAction.ABORT, null, false);
+
+            assertThatThrownBy(() -> service.updateStep(1L, 10L, request, 1L))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+
+        @Test
+        @DisplayName("Отклоняет обновление WAIT-шага без таймаута")
+        void shouldRejectWaitStepUpdateWithoutTimeout() {
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+
+            var request = new StepUpdateRequest(
+                    "Wait", StepType.WAIT, "{}", null,
+                    TransitionAction.CONTINUE, null, false,
+                    TransitionAction.ABORT, null, false);
+
+            assertThatThrownBy(() -> service.updateStep(1L, 10L, request, 1L))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("таймаут");
+        }
+    }
+
+    @Nested
+    @DisplayName("UC-02: Удаление шага")
+    class DeleteStepTests {
+
+        @Test
+        @DisplayName("Удаляет шаг и переиндексирует оставшиеся")
+        void shouldDeleteStepAndReindex() {
+            Step step1 = Step.builder().id(10L).sequence(draftSequence).orderIndex(1)
+                    .stepType(StepType.ACTION).configJson("{}")
+                    .onSuccessAction(TransitionAction.CONTINUE).onFailureAction(TransitionAction.ABORT).build();
+            Step step2 = Step.builder().id(20L).sequence(draftSequence).orderIndex(2)
+                    .stepType(StepType.ACTION).configJson("{}")
+                    .onSuccessAction(TransitionAction.END).onFailureAction(TransitionAction.ABORT).build();
+            draftSequence.getSteps().add(step1);
+            draftSequence.getSteps().add(step2);
+
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+            when(sequenceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            service.deleteStep(1L, 10L, 1L);
+
+            assertThat(draftSequence.getSteps()).hasSize(1);
+            assertThat(draftSequence.getSteps().get(0).getOrderIndex()).isEqualTo(1);
+            verify(auditLogPort).save(any(AuditLog.class));
+        }
+
+        @Test
+        @DisplayName("Бросает исключение если шаг для удаления не найден")
+        void shouldThrowWhenStepToDeleteNotFound() {
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+
+            assertThatThrownBy(() -> service.deleteStep(1L, 999L, 1L))
+                    .isInstanceOf(NoSuchElementException.class);
+        }
+
+        @Test
+        @DisplayName("Запрещает удаление шага из не-DRAFT последовательности")
+        void shouldRejectDeleteStepFromActiveSequence() {
+            draftSequence.setStatus(SequenceStatus.ACTIVE);
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+
+            assertThatThrownBy(() -> service.deleteStep(1L, 10L, 1L))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("UC-02: Изменение порядка шагов")
+    class ReorderStepsTests {
+
+        private Step step1;
+        private Step step2;
+
+        @BeforeEach
+        void setUp() {
+            step1 = Step.builder().id(10L).sequence(draftSequence).orderIndex(1)
+                    .stepType(StepType.ACTION).configJson("{}")
+                    .onSuccessAction(TransitionAction.CONTINUE).onFailureAction(TransitionAction.ABORT).build();
+            step2 = Step.builder().id(20L).sequence(draftSequence).orderIndex(2)
+                    .stepType(StepType.ACTION).configJson("{}")
+                    .onSuccessAction(TransitionAction.END).onFailureAction(TransitionAction.ABORT).build();
+            draftSequence.getSteps().add(step1);
+            draftSequence.getSteps().add(step2);
+        }
+
+        @Test
+        @DisplayName("Переставляет шаги в новом порядке")
+        void shouldReorderSteps() {
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+            when(sequenceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            List<StepResponse> response = service.reorderSteps(1L, List.of(20L, 10L), 1L);
+
+            assertThat(step2.getOrderIndex()).isEqualTo(1);
+            assertThat(step1.getOrderIndex()).isEqualTo(2);
+            assertThat(response).extracting(StepResponse::id).containsExactly(20L, 10L);
+            verify(auditLogPort).save(any(AuditLog.class));
+        }
+
+        @Test
+        @DisplayName("Бросает исключение если количество id не совпадает")
+        void shouldThrowWhenCountMismatch() {
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+
+            assertThatThrownBy(() -> service.reorderSteps(1L, List.of(10L), 1L))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("Бросает исключение если id шага не найден")
+        void shouldThrowWhenStepIdNotFound() {
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+
+            assertThatThrownBy(() -> service.reorderSteps(1L, List.of(10L, 999L), 1L))
+                    .isInstanceOf(NoSuchElementException.class);
+        }
+
+        @Test
+        @DisplayName("Запрещает изменение порядка в не-DRAFT последовательности")
+        void shouldRejectReorderOfActiveSequence() {
+            draftSequence.setStatus(SequenceStatus.ACTIVE);
+            when(sequenceRepository.findById(1L)).thenReturn(Optional.of(draftSequence));
+
+            assertThatThrownBy(() -> service.reorderSteps(1L, List.of(10L, 20L), 1L))
+                    .isInstanceOf(IllegalStateException.class);
         }
     }
 

@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
-import ru.protectinfotrans.eca.sequence.dto.PageResponse;
 
 // Доступен только администраторам — проверка настроена через SecurityConfig
 @Tag(name = "AuditLog", description = "Журнал аудита операций (только ADMIN)")

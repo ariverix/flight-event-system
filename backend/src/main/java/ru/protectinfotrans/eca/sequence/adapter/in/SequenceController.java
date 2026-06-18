@@ -9,9 +9,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import ru.protectinfotrans.eca.PageResponse;
 import ru.protectinfotrans.eca.sequence.dto.*;
 import ru.protectinfotrans.eca.sequence.port.in.SequenceManagementUseCase;
-import ru.protectinfotrans.eca.user.application.UserService;
+import ru.protectinfotrans.eca.user.port.out.UserLookupPort;
 
 import java.util.List;
 
@@ -22,7 +23,7 @@ import java.util.List;
 public class SequenceController {
 
     private final SequenceManagementUseCase sequenceUseCase;
-    private final UserService userService;
+    private final UserLookupPort userLookupPort;
 
     @Operation(summary = "Создать последовательность",
                description = "UC-01: Создаёт новую последовательность в статусе DRAFT")
@@ -134,7 +135,6 @@ public class SequenceController {
 
     private Long resolveUserId(Authentication auth) {
         if (auth == null || auth.getName() == null) return null;
-        var user = userService.findByUsername(auth.getName());
-        return user != null ? user.getId() : null;
+        return userLookupPort.findUserIdByUsername(auth.getName());
     }
 }

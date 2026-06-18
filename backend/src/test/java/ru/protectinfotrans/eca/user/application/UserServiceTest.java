@@ -5,10 +5,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.protectinfotrans.eca.AuditLog;
 import ru.protectinfotrans.eca.user.adapter.out.UserJpaRepository;
 import ru.protectinfotrans.eca.user.domain.Role;
@@ -33,6 +37,16 @@ class UserServiceTest {
 
     @Mock
     private AuditLogPort auditLogPort;
+
+    // Реальный BCrypt-энкодер — тесты проверяют фактическое хеширование/сравнение пароля,
+    // мок здесь не годится (нужна настоящая криптография для shouldHashPassword/checkPassword).
+    // @Spy оборачивает реальный объект так, чтобы Mockito смог внедрить его через @InjectMocks.
+    @Spy
+    private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    // Реальный ObjectMapper — нужен для сериализации деталей аудита в JSON.
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private UserService userService;
@@ -111,7 +125,7 @@ class UserServiceTest {
             verify(auditLogPort).save(auditCaptor.capture());
 
             AuditLog audit = auditCaptor.getValue();
-            assertThat(audit.getAction()).isEqualTo("USER_REGISTERED");
+            assertThat(audit.getAction()).isEqualTo("CREATE_USER");
             assertThat(audit.getEntityType()).isEqualTo("USER");
             assertThat(audit.getEntityId()).isEqualTo(123L);
         }
@@ -214,6 +228,30 @@ class UserServiceTest {
             assertThat(userService.existsByUsername("existing")).isTrue();
             assertThat(userService.existsByUsername("nonexisting")).isFalse();
         }
+
+        @Test
+        @DisplayName("Should find user id by username (UserLookupPort)")
+        void shouldFindUserIdByUsername() {
+            User user = User.builder()
+                    .id(42L)
+                    .username("testuser")
+                    .build();
+            when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+
+            Long result = userService.findUserIdByUsername("testuser");
+
+            assertThat(result).isEqualTo(42L);
+        }
+
+        @Test
+        @DisplayName("Should return null id when username not found (UserLookupPort)")
+        void shouldReturnNullIdWhenUsernameNotFound() {
+            when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
+
+            Long result = userService.findUserIdByUsername("unknown");
+
+            assertThat(result).isNull();
+        }
     }
 
     @Nested
@@ -306,7 +344,7 @@ class UserServiceTest {
             verify(auditLogPort).save(auditCaptor.capture());
 
             AuditLog audit = auditCaptor.getValue();
-            assertThat(audit.getAction()).isEqualTo("USER_TOGGLED");
+            assertThat(audit.getAction()).isEqualTo("TOGGLE_USER");
             assertThat(audit.getEntityType()).isEqualTo("USER");
             assertThat(audit.getEntityId()).isEqualTo(5L);
         }

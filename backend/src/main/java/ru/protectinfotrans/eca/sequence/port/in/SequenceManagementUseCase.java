@@ -1,5 +1,6 @@
 package ru.protectinfotrans.eca.sequence.port.in;
 
+import ru.protectinfotrans.eca.PageResponse;
 import ru.protectinfotrans.eca.sequence.dto.*;
 
 import java.util.List;

@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.dto.ExecutionInstanceResponse;
 import ru.protectinfotrans.eca.execution.port.in.ExecutionManagementUseCase;
-import ru.protectinfotrans.eca.sequence.dto.PageResponse;
+import ru.protectinfotrans.eca.PageResponse;
 
 @Tag(name = "Executions", description = "Статус выполнения последовательностей (UC-05)")
 @RestController
