@@ -28,6 +28,8 @@ interface Stats {
   runningExecutions: number;
   completedExecutions: number;
   totalMessages: number;
+  executionsToday: number;
+  successRate: number | null;
 }
 
 const EXEC_STATUS_LABEL: Record<string, string> = {
@@ -69,14 +71,20 @@ const useCountUp = (target: number, duration = 600) => {
   return value;
 };
 
-const AnimatedStat: React.FC<{ value: number; valueStyle?: React.CSSProperties; title: React.ReactNode }> = ({
-  value, valueStyle, title,
+const AnimatedStat: React.FC<{
+  value: number;
+  valueStyle?: React.CSSProperties;
+  title: React.ReactNode;
+  suffix?: string;
+}> = ({
+  value, valueStyle, title, suffix,
 }) => {
   const displayed = useCountUp(value);
   return (
     <Statistic
       title={title}
       value={displayed}
+      suffix={suffix}
       valueStyle={{ fontSize: 38, letterSpacing: '-0.03em', lineHeight: 1, ...valueStyle }}
     />
   );
@@ -90,6 +98,8 @@ export const Dashboard: React.FC = () => {
     runningExecutions: 0,
     completedExecutions: 0,
     totalMessages: 0,
+    executionsToday: 0,
+    successRate: null,
   });
   const [recentExecutions, setRecentExecutions] = useState<ExecutionInstanceResponse[]>([]);
   const { user } = useAuth();
@@ -117,14 +127,28 @@ export const Dashboard: React.FC = () => {
   const loadStats = useCallback(async () => {
     setLoading(true);
     try {
-      const [activeSeq, allSeq, runningExec, completedExec, messages, recent] = await Promise.all([
+      const [activeSeq, allSeq, runningExec, completedExec, abortedExec, messages, recentSample] = await Promise.all([
         sequenceApi.getSequences(0, 1, 'ACTIVE'),
         sequenceApi.getSequences(0, 1),
         executionApi.getExecutions(0, 1, 'RUNNING'),
         executionApi.getExecutions(0, 1, 'COMPLETED'),
+        executionApi.getExecutions(0, 1, 'ABORTED'),
         messageApi.getMessages(0, 1),
-        executionApi.getExecutions(0, 5),
+        // Executions are sorted newest-first server-side; a bounded sample is the
+        // best we can do client-side for "today" / success-rate without a backend
+        // aggregate endpoint (none exists yet — see report).
+        executionApi.getExecutions(0, 100),
       ]);
+
+      const todayStr = new Date().toDateString();
+      const executionsToday = recentSample.content.filter(
+        exec => new Date(exec.startedAt).toDateString() === todayStr
+      ).length;
+
+      const finished = completedExec.totalElements + abortedExec.totalElements;
+      const successRate = finished > 0
+        ? Math.round((completedExec.totalElements / finished) * 100)
+        : null;
 
       setStats({
         activeSequences: activeSeq.totalElements,
@@ -132,8 +156,10 @@ export const Dashboard: React.FC = () => {
         runningExecutions: runningExec.totalElements,
         completedExecutions: completedExec.totalElements,
         totalMessages: messages.totalElements,
+        executionsToday,
+        successRate,
       });
-      setRecentExecutions(recent.content);
+      setRecentExecutions(recentSample.content.slice(0, 5));
     } catch {
       // silently ignore — stats are non-critical, next auto-refresh will retry
     } finally {
@@ -154,35 +180,45 @@ export const Dashboard: React.FC = () => {
 
   const statCards = [
     {
-      title: 'Активные последовательности',
-      value: stats.activeSequences,
-      sub: `из ${stats.totalSequences} всего`,
+      title: 'Всего сценариев',
+      value: stats.totalSequences,
+      sub: 'последовательностей в системе',
       color: '#1677ff',
+      gradient: 'linear-gradient(135deg, #1677ff 0%, #6366f1 100%)',
       icon: <OrderedListOutlined />,
       href: '/sequences',
     },
     {
-      title: 'Активные выполнения',
-      value: stats.runningExecutions,
-      sub: stats.runningExecutions > 0 ? 'выполняются сейчас' : 'нет активных',
+      title: 'Активных сценариев',
+      value: stats.activeSequences,
+      sub: `из ${stats.totalSequences} всего`,
       color: '#00c853',
+      gradient: 'linear-gradient(135deg, #00c853 0%, #06b6d4 100%)',
       icon: <PlayCircleOutlined />,
+      pulse: stats.activeSequences > 0,
+      href: '/sequences',
+    },
+    {
+      title: 'Выполнений сегодня',
+      value: stats.executionsToday,
+      sub: stats.runningExecutions > 0 ? `${stats.runningExecutions} выполняется сейчас` : 'за текущие сутки',
+      color: '#faad14',
+      gradient: 'linear-gradient(135deg, #faad14 0%, #f5576c 100%)',
+      icon: <RocketOutlined />,
       pulse: stats.runningExecutions > 0,
       href: '/executions',
     },
     {
-      title: 'Всего сообщений',
-      value: stats.totalMessages,
-      sub: ' ',
-      color: '#faad14',
-      icon: <MessageOutlined />,
-      href: '/messages',
-    },
-    {
-      title: 'Завершено выполнений',
-      value: stats.completedExecutions,
-      sub: ' ',
-      color: '#52c41a',
+      title: 'Процент успеха',
+      value: stats.successRate ?? 0,
+      suffix: '%',
+      sub: stats.successRate === null ? 'нет завершённых выполнений' : `${stats.completedExecutions} успешных`,
+      color: stats.successRate === null || stats.successRate >= 80 ? '#52c41a' : stats.successRate >= 50 ? '#faad14' : '#ff4d4f',
+      gradient: stats.successRate === null || stats.successRate >= 80
+        ? 'linear-gradient(135deg, #52c41a 0%, #00c853 100%)'
+        : stats.successRate >= 50
+          ? 'linear-gradient(135deg, #faad14 0%, #ff7a45 100%)'
+          : 'linear-gradient(135deg, #ff4d4f 0%, #f5576c 100%)',
       icon: <CheckCircleOutlined />,
       href: '/executions',
     },
@@ -212,13 +248,13 @@ export const Dashboard: React.FC = () => {
                 <Skeleton active paragraph={{ rows: 2 }} />
               </Card>
             ) : (
-              <Card className="stat-card" style={{ borderColor: c.borderSecondary, flex: 1 }} onClick={() => card.href && navigate(card.href)}>
+              <Card className="stat-card stat-card-gradient" style={{ borderColor: c.borderSecondary, flex: 1, '--stat-gradient': card.gradient } as React.CSSProperties} onClick={() => card.href && navigate(card.href)}>
                 <div
                   className="stat-card-icon"
                   style={{
-                    background: `${card.color}1e`,
-                    color: card.color,
-                    boxShadow: `0 0 22px ${card.color}3a`,
+                    background: card.gradient,
+                    color: '#fff',
+                    boxShadow: `0 6px 18px ${card.color}55`,
                   }}
                 >
                   {card.icon}
@@ -226,8 +262,17 @@ export const Dashboard: React.FC = () => {
                 <AnimatedStat
                   title={<span style={{ color: c.textMuted, fontSize: 13 }}>{card.title}</span>}
                   value={card.value}
+                  suffix={card.suffix}
                   valueStyle={{ color: card.color, fontWeight: 700 }}
                 />
+                {card.suffix === '%' && (
+                  <div className="stat-card-progress-track" style={{ margin: '6px 0 2px' }}>
+                    <div
+                      className="stat-card-progress-fill"
+                      style={{ width: `${card.value}%`, background: card.gradient }}
+                    />
+                  </div>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                   {card.pulse && <span className="online-dot" />}
                   <Text style={{ color: c.textDimmer, fontSize: 12 }}>{card.sub}</Text>

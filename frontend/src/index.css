@@ -646,7 +646,32 @@ body[data-theme='light'] .page-title { color: #1f2328; }
   display: flex; align-items: center; justify-content: center;
   width: 48px; height: 48px; border-radius: 14px; margin-bottom: 14px;
   font-size: 20px; backdrop-filter: blur(10px);
+  transition: transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
 }
+.stat-card:hover .stat-card-icon { transform: scale(1.08) rotate(-3deg); }
+
+/* Gradient top-edge accent, sourced per-card via --stat-gradient */
+.stat-card-gradient { position: relative; }
+.stat-card-gradient::before {
+  background: var(--stat-gradient, var(--accent-blue)) !important;
+  height: 2px !important;
+  opacity: 0.85;
+  transition: opacity 0.28s ease, height 0.28s ease;
+}
+.stat-card-gradient:hover::before { height: 3px !important; opacity: 1; }
+
+/* Success-rate progress bar */
+.stat-card-progress-track {
+  height: 5px; border-radius: 3px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+body[data-theme='light'] .stat-card-progress-track { background: rgba(0,0,0,0.06); }
+.stat-card-progress-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.7s cubic-bezier(0.16,1,0.3,1);
+}
+
 .quick-action-card { transition: all 0.22s cubic-bezier(0.4,0,0.2,1) !important; }
 .quick-action-card:hover { transform: translateY(-2px) translateX(2px) !important; }
 
