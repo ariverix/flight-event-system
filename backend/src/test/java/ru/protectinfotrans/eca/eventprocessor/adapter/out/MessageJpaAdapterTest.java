@@ -12,6 +12,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
+import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,7 +20,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -103,16 +103,50 @@ class MessageJpaAdapterTest {
         }
     }
 
+    @Nested
+    @DisplayName("existsActualPositionReportSince")
+    class ExistsActualPositionReportSince {
+
+        @Test
+        @DisplayName("должен вызвать запрос без afterTime когда fromThisPointOnly не задан")
+        void shouldUseAnyPointQueryWhenAfterTimeIsNull() {
+            LocalDateTime sinceTime = LocalDateTime.now().minusMinutes(30);
+            when(jpaRepository.existsActualPositionReportSinceAnyPoint("RA-1234", sinceTime, PositionSource.ACARS))
+                    .thenReturn(true);
+
+            boolean result = adapter.existsActualPositionReportSince("RA-1234", sinceTime, PositionSource.ACARS, null);
+
+            assertThat(result).isTrue();
+            verify(jpaRepository).existsActualPositionReportSinceAnyPoint("RA-1234", sinceTime, PositionSource.ACARS);
+            verify(jpaRepository, never()).existsActualPositionReportSinceAfterPoint(any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("должен вызвать запрос с afterTime когда fromThisPointOnly=true")
+        void shouldUseAfterPointQueryWhenAfterTimeProvided() {
+            LocalDateTime sinceTime = LocalDateTime.now().minusMinutes(30);
+            LocalDateTime afterTime = LocalDateTime.now().minusMinutes(5);
+            when(jpaRepository.existsActualPositionReportSinceAfterPoint("RA-1234", sinceTime, null, afterTime))
+                    .thenReturn(false);
+
+            boolean result = adapter.existsActualPositionReportSince("RA-1234", sinceTime, null, afterTime);
+
+            assertThat(result).isFalse();
+            verify(jpaRepository).existsActualPositionReportSinceAfterPoint("RA-1234", sinceTime, null, afterTime);
+            verify(jpaRepository, never()).existsActualPositionReportSinceAnyPoint(any(), any(), any());
+        }
+    }
+
     @Test
-    @DisplayName("existsPositionReportWithinMinutes: должен делегировать с вычисленным sinceTime")
-    void shouldCheckPositionReportWithinMinutes() {
-        when(jpaRepository.existsPositionReportWithinMinutes(eq("RA-1234"), any(LocalDateTime.class)))
-                .thenReturn(true);
+    @DisplayName("findLastActualPositionReportTime: должен делегировать поиск последнего фактического отчёта")
+    void shouldFindLastActualPositionReportTime() {
+        LocalDateTime lastSeen = LocalDateTime.now().minusMinutes(12);
+        when(jpaRepository.findLastActualPositionReportTime("RA-1234", PositionSource.RADAR))
+                .thenReturn(Optional.of(lastSeen));
 
-        boolean result = adapter.existsPositionReportWithinMinutes("RA-1234", 30);
+        Optional<LocalDateTime> result = adapter.findLastActualPositionReportTime("RA-1234", PositionSource.RADAR);
 
-        assertThat(result).isTrue();
-        verify(jpaRepository).existsPositionReportWithinMinutes(eq("RA-1234"), any(LocalDateTime.class));
+        assertThat(result).contains(lastSeen);
     }
 
     @Nested

@@ -17,6 +17,7 @@ import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
 import ru.protectinfotrans.eca.execution.port.out.MessageOutputPort;
 import ru.protectinfotrans.eca.sequence.domain.Step;
 import ru.protectinfotrans.eca.sequence.domain.StepType;
+import ru.protectinfotrans.eca.sequence.domain.UplinkOrigin;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -89,7 +90,7 @@ class ActionStepRuleTest {
     }
 
     @Test
-    @DisplayName("SEND_UPLINK: должен отправить uplink сообщение и вернуть SUCCESS")
+    @DisplayName("SEND_UPLINK: должен отправить uplink сообщение с origin=COMPUTER_GENERATED по умолчанию и вернуть SUCCESS")
     void shouldExecuteSendUplink() {
         step.setConfigJson("""
             {
@@ -99,11 +100,31 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.sendUplink(anyString(), anyString(), any())).thenReturn(true);
+        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any())).thenReturn(true);
 
         rule.execute(step, instance, context);
 
-        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CLEARANCE"), any(Map.class));
+        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CLEARANCE"), any(Map.class), eq(UplinkOrigin.COMPUTER_GENERATED));
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("SEND_UPLINK: должен передать uplinkOrigin=EXTERNAL_USER если указан в конфиге")
+    void shouldExecuteSendUplinkWithExternalUserOrigin() {
+        step.setConfigJson("""
+            {
+                "actionType": "SEND_UPLINK",
+                "templateName": "CUSTOM_CLEARANCE",
+                "uplinkOrigin": "EXTERNAL_USER",
+                "params": {}
+            }
+            """);
+
+        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any())).thenReturn(true);
+
+        rule.execute(step, instance, context);
+
+        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CUSTOM_CLEARANCE"), any(Map.class), eq(UplinkOrigin.EXTERNAL_USER));
         assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
     }
 
@@ -192,10 +213,113 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.sendUplink(anyString(), anyString(), any())).thenReturn(false);
+        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any())).thenReturn(false);
 
         rule.execute(step, instance, context);
 
         assertThat(rule.getResult()).isEqualTo(StepResult.FAILURE);
+    }
+
+    @Test
+    @DisplayName("WAIT_TIME: должен интерпретировать unit=MIN и умножить на 60")
+    void shouldExecuteWaitTimeWithMinutesUnit() {
+        step.setConfigJson("""
+            {
+                "actionType": "WAIT_TIME",
+                "durationSeconds": 5,
+                "unit": "MIN"
+            }
+            """);
+
+        LocalDateTime fixedNow = LocalDateTime.of(2024, 1, 10, 10, 0);
+        ExecutionContext fixedContext = new ExecutionContext(
+                "VP-BAB", "SU1234", FlightStage.OFF, fixedNow, new HashMap<>()
+        );
+
+        rule.execute(step, instance, fixedContext);
+
+        assertThat(instance.getWaitTimeoutAt()).isEqualTo(fixedNow.plusSeconds(5 * 60L));
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("WAIT_TIME: должен интерпретировать unit=HOUR и умножить на 3600")
+    void shouldExecuteWaitTimeWithHoursUnit() {
+        step.setConfigJson("""
+            {
+                "actionType": "WAIT_TIME",
+                "durationSeconds": 2,
+                "unit": "HOUR"
+            }
+            """);
+
+        LocalDateTime fixedNow = LocalDateTime.of(2024, 1, 10, 10, 0);
+        ExecutionContext fixedContext = new ExecutionContext(
+                "VP-BAB", "SU1234", FlightStage.OFF, fixedNow, new HashMap<>()
+        );
+
+        rule.execute(step, instance, fixedContext);
+
+        assertThat(instance.getWaitTimeoutAt()).isEqualTo(fixedNow.plusSeconds(2 * 3600L));
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("WAIT_TIME: без unit должен трактовать durationSeconds как секунды (обратная совместимость)")
+    void shouldExecuteWaitTimeWithoutUnitDefaultsToSeconds() {
+        step.setConfigJson("""
+            {
+                "actionType": "WAIT_TIME",
+                "durationSeconds": 300
+            }
+            """);
+
+        LocalDateTime fixedNow = LocalDateTime.of(2024, 1, 10, 10, 0);
+        ExecutionContext fixedContext = new ExecutionContext(
+                "VP-BAB", "SU1234", FlightStage.OFF, fixedNow, new HashMap<>()
+        );
+
+        rule.execute(step, instance, fixedContext);
+
+        assertThat(instance.getWaitTimeoutAt()).isEqualTo(fixedNow.plusSeconds(300));
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("RAISE_CONDITION: должен принять нестандартный alertLevel без падения (лишь warn-лог)")
+    void shouldRaiseConditionWithNonCanonicalAlertLevelWithoutFailing() {
+        step.setConfigJson("""
+            {
+                "actionType": "RAISE_CONDITION",
+                "conditionName": "LEGACY_ALERT",
+                "alertLevel": "WARNING"
+            }
+            """);
+
+        when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
+
+        rule.execute(step, instance, context);
+
+        verify(messageOutputPort).raiseCondition("VP-BAB", "LEGACY_ALERT", "WARNING");
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("RAISE_CONDITION: должен принять канонический уровень CRITICAL (паритет с SITA)")
+    void shouldRaiseConditionWithCanonicalCriticalLevel() {
+        step.setConfigJson("""
+            {
+                "actionType": "RAISE_CONDITION",
+                "conditionName": "ENGINE_FAILURE",
+                "alertLevel": "CRITICAL"
+            }
+            """);
+
+        when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
+
+        rule.execute(step, instance, context);
+
+        verify(messageOutputPort).raiseCondition("VP-BAB", "ENGINE_FAILURE", "CRITICAL");
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
     }
 }

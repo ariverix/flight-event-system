@@ -7,8 +7,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
+import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  * Spring Data JPA репозиторий для входящих сообщений.
@@ -40,15 +42,43 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
             @Param("afterTime") LocalDateTime afterTime
     );
 
-    // NOTE: "POSITION" и "POS" — эвристика, в проде нужен enum шаблонов или отдельный тип
+    // Позиционный отчёт идентифицируется по непустому positionSource (не по эвристике имени шаблона) —
+    // estimatedPosition=false исключает оценочные позиции из любого источника (паритет с SITA).
+    // afterTime nullable: для PostgreSQL 42P18 нужны два отдельных метода, как и для message-критерия выше.
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
            "WHERE m.aircraftId = :aircraftId " +
-           "AND m.messageType = 'DOWNLINK' " +
-           "AND (m.templateName LIKE '%POSITION%' OR m.templateName LIKE '%POS%') " +
+           "AND m.positionSource IS NOT NULL " +
+           "AND m.estimatedPosition = false " +
+           "AND (:source IS NULL OR m.positionSource = :source) " +
            "AND m.receivedAt >= :sinceTime")
-    boolean existsPositionReportWithinMinutes(
+    boolean existsActualPositionReportSinceAnyPoint(
             @Param("aircraftId") String aircraftId,
-            @Param("sinceTime") LocalDateTime sinceTime
+            @Param("sinceTime") LocalDateTime sinceTime,
+            @Param("source") PositionSource source
+    );
+
+    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM IncomingMessage m " +
+           "WHERE m.aircraftId = :aircraftId " +
+           "AND m.positionSource IS NOT NULL " +
+           "AND m.estimatedPosition = false " +
+           "AND (:source IS NULL OR m.positionSource = :source) " +
+           "AND m.receivedAt >= :sinceTime " +
+           "AND m.receivedAt > :afterTime")
+    boolean existsActualPositionReportSinceAfterPoint(
+            @Param("aircraftId") String aircraftId,
+            @Param("sinceTime") LocalDateTime sinceTime,
+            @Param("source") PositionSource source,
+            @Param("afterTime") LocalDateTime afterTime
+    );
+
+    @Query("SELECT MAX(m.receivedAt) FROM IncomingMessage m " +
+           "WHERE m.aircraftId = :aircraftId " +
+           "AND m.positionSource IS NOT NULL " +
+           "AND m.estimatedPosition = false " +
+           "AND (:source IS NULL OR m.positionSource = :source)")
+    Optional<LocalDateTime> findLastActualPositionReportTime(
+            @Param("aircraftId") String aircraftId,
+            @Param("source") PositionSource source
     );
 
     Page<IncomingMessage> findByAircraftId(String aircraftId, Pageable pageable);

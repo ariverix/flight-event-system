@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
+import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -43,9 +44,23 @@ public class MessageJpaAdapter implements MessageRepositoryPort {
     }
 
     @Override
-    public boolean existsPositionReportWithinMinutes(String aircraftId, int minutesAgo) {
-        LocalDateTime sinceTime = LocalDateTime.now().minusMinutes(minutesAgo);
-        return jpaRepository.existsPositionReportWithinMinutes(aircraftId, sinceTime);
+    public boolean existsActualPositionReportSince(
+            String aircraftId,
+            LocalDateTime sinceTime,
+            PositionSource source,
+            LocalDateTime afterTime
+    ) {
+        // PostgreSQL 42P18: тот же workaround что и для existsByAircraftAndTypeAndTemplate —
+        // два отдельных запроса вместо одного с nullable afterTime-параметром.
+        if (afterTime == null) {
+            return jpaRepository.existsActualPositionReportSinceAnyPoint(aircraftId, sinceTime, source);
+        }
+        return jpaRepository.existsActualPositionReportSinceAfterPoint(aircraftId, sinceTime, source, afterTime);
+    }
+
+    @Override
+    public Optional<LocalDateTime> findLastActualPositionReportTime(String aircraftId, PositionSource source) {
+        return jpaRepository.findLastActualPositionReportTime(aircraftId, source);
     }
 
     @Override

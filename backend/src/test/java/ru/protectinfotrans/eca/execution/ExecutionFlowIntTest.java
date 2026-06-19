@@ -120,10 +120,13 @@ class ExecutionFlowIntTest extends BaseIntegrationTest {
     void variantA_happyPath_positionReportReceived() {
         // Предусловие: позиционный отчёт уже получен (в пределах 30 мин).
         // Имитирует ситуацию, когда ВС вышло на связь — UC-06 отчёт получен.
+        // position_source обязателен — POSITION_REPORTED ищет фактические (не estimated)
+        // отчёты именно по этому полю, а не по эвристике имени шаблона (паритет с SITA, P1-1).
         jdbcTemplate.update(
-                "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, received_at) " +
-                "VALUES (?, ?, ?, ?, ?, NOW())",
-                "DOWNLINK", "POSITION_REPORT", AIRCRAFT_ID, FLIGHT_NUMBER, "{}"
+                "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, " +
+                "received_at, position_source, is_estimated_position) " +
+                "VALUES (?, ?, ?, ?, ?, NOW(), ?, FALSE)",
+                "DOWNLINK", "POSITION_REPORT", AIRCRAFT_ID, FLIGHT_NUMBER, "{}", "ACARS"
         );
 
         // UC-06: Запустить экземпляр выполнения напрямую

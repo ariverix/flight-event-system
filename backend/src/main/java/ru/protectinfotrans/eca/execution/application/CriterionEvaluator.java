@@ -11,12 +11,18 @@ import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
 import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
 import ru.protectinfotrans.eca.sequence.domain.ComparisonOperator;
 import ru.protectinfotrans.eca.sequence.domain.CriterionType;
+import ru.protectinfotrans.eca.sequence.domain.PositionSource;
+import ru.protectinfotrans.eca.sequence.domain.TimeOperator;
+import ru.protectinfotrans.eca.sequence.domain.TimeReferencePoint;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/** Вычисляет критерии ECA — все 6 типов плюс COMPOUND (AND/OR). */
+/**
+ * Вычисляет критерии ECA — паритет с SITA Sequencer: message received, flight stage,
+ * position, time, плюс расширение CONDITION_ACTIVE и комбинатор COMPOUND (AND/OR).
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -26,7 +32,7 @@ public class CriterionEvaluator {
     private final ObjectMapper objectMapper;
 
     /**
-     * @param waitStartedAt для fromThisPointOnly в WAIT-шагах, null в EVALUATE
+     * @param waitStartedAt для fromThisPointOnly в WAIT-шагах (message/position критерии), null в EVALUATE
      */
     public boolean evaluate(String criteriaJson, ExecutionContext context, LocalDateTime waitStartedAt) {
         if (criteriaJson == null || criteriaJson.isBlank()) {
@@ -43,10 +49,11 @@ public class CriterionEvaluator {
                 case MESSAGE_RECEIVED -> evaluateMessageReceived(criteria, context, waitStartedAt);
                 // стадия берётся из контекста текущего события, не из БД
                 case FLIGHT_STAGE -> evaluateFlightStage(criteria, context);
-                // POS-репорты ищем в скользящем временном окне в таблице messages
-                case POSITION_REPORTED -> evaluatePositionReported(criteria, context);
-                // ETD/ETA и т.п. должны быть заранее положены в context.additionalData
-                case TIME_COMPARISON -> evaluateTimeComparison(criteria, context);
+                // POS-репорты ищем в скользящем временном окне в таблице messages,
+                // оценочные позиции игнорируются, fromThisPointOnly поддержан как и для MESSAGE_RECEIVED
+                case POSITION_REPORTED -> evaluatePosition(criteria, context, waitStartedAt);
+                // ETD/ETA/Init/Out/Off/On/In должны быть заранее положены в context.additionalData
+                case TIME_COMPARISON -> evaluateTime(criteria, context);
                 // активные алерты живут в IntegrationService (in-memory), пробрасываются в контекст
                 case CONDITION_ACTIVE -> evaluateConditionActive(criteria, context);
                 // рекурсивный AND/OR — передаём waitStartedAt вглубь для fromThisPointOnly
@@ -84,7 +91,7 @@ public class CriterionEvaluator {
             return false;
         }
 
-        // FlightStage объявлен в хронологическом порядке (INIT→OUT→OFF→ON→IN),
+        // FlightStage объявлен в хронологическом порядке (Init/Out/Off/On/In/Summary),
         // поэтому ordinal() корректен для сравнений "раньше/позже"
         return switch (operator) {
             case EQUALS -> currentStage == targetStage;
@@ -96,14 +103,51 @@ public class CriterionEvaluator {
         };
     }
 
-    private boolean evaluatePositionReported(Map<String, Object> criteria, ExecutionContext context) {
+    /**
+     * POSITION-критерий — паритет с SITA Sequencer:
+     * reported|not reported + in the last {x} min, источник ACARS/radar/ADS-B (опционально),
+     * оценочные (estimated) позиции игнорируются, опционально fromThisPointOnly.
+     */
+    private boolean evaluatePosition(Map<String, Object> criteria, ExecutionContext context, LocalDateTime waitStartedAt) {
+        // reported=true (по умолчанию) — "position reported"; reported=false — "position not reported"
+        boolean reported = (Boolean) criteria.getOrDefault("reported", true);
         Integer minutesAgo = (Integer) criteria.get("minutesAgo");
-        return messageRepository.existsPositionReportWithinMinutes(context.aircraftId(), minutesAgo);
+        if (minutesAgo == null) {
+            log.warn("POSITION criterion missing minutesAgo");
+            return false;
+        }
+
+        PositionSource source = criteria.get("source") != null
+                ? PositionSource.valueOf((String) criteria.get("source"))
+                : null;
+
+        Boolean fromThisPointOnly = (Boolean) criteria.getOrDefault("fromThisPointOnly", false);
+        LocalDateTime afterTime = (fromThisPointOnly && waitStartedAt != null) ? waitStartedAt : null;
+
+        LocalDateTime now = context.currentTime() != null ? context.currentTime() : LocalDateTime.now();
+        LocalDateTime sinceTime = now.minusMinutes(minutesAgo);
+
+        boolean actuallyReported = messageRepository.existsActualPositionReportSince(
+                context.aircraftId(),
+                sinceTime,
+                source,
+                afterTime
+        );
+
+        // "not reported" — это инверсия: окно {x} мин не содержит ни одного фактического отчёта.
+        // "Off"-таймстамп как точка отсчёта для not-reported учитывается через afterTime/waitStartedAt
+        // самого WAIT-шага (вызывающая сторона передаёт сюда момент Off как waitStartedAt при необходимости).
+        return reported ? actuallyReported : !actuallyReported;
     }
 
-    private boolean evaluateTimeComparison(Map<String, Object> criteria, ExecutionContext context) {
-        String operator = (String) criteria.get("operator");
-        String referencePoint = (String) criteria.get("referencePoint");
+    /**
+     * TIME-критерий — паритет с SITA Sequencer: is before|is equal to|is after
+     * опорная точка ETD/ETA/Init/Out/Off/On/In ± {x} мин.
+     */
+    private boolean evaluateTime(Map<String, Object> criteria, ExecutionContext context) {
+        TimeOperator operator = TimeOperator.valueOf((String) criteria.get("operator"));
+        TimeReferencePoint referencePoint = TimeReferencePoint.valueOf(
+                ((String) criteria.get("referencePoint")).toUpperCase());
         Integer offsetMinutes = (Integer) criteria.getOrDefault("offsetMinutes", 0);
 
         LocalDateTime referenceTime = getReferenceTime(referencePoint, context);
@@ -116,10 +160,9 @@ public class CriterionEvaluator {
         LocalDateTime now = context.currentTime();
 
         return switch (operator) {
-            case "IS_BEFORE" -> now.isBefore(targetTime);
-            case "IS_EQUAL" -> now.isEqual(targetTime);
-            case "IS_AFTER" -> now.isAfter(targetTime);
-            default -> false;
+            case IS_BEFORE -> now.isBefore(targetTime);
+            case IS_EQUAL -> now.isEqual(targetTime);
+            case IS_AFTER -> now.isAfter(targetTime);
         };
     }
 
@@ -143,7 +186,7 @@ public class CriterionEvaluator {
         }
 
         // allMatch/anyMatch дают short-circuit: AND останавливается на первом false,
-        // OR — на первом true, что важно при дорогих критериях типа MESSAGE_RECEIVED
+        // OR — на первом true, что важно при дорогих критериях типа MESSAGE_RECEIVED/POSITION
         if ("AND".equals(operator)) {
             return children.stream().allMatch(child -> {
                 try {
@@ -169,7 +212,7 @@ public class CriterionEvaluator {
         return false;
     }
 
-    private LocalDateTime getReferenceTime(String referencePoint, ExecutionContext context) {
-        return (LocalDateTime) context.additionalData().get(referencePoint.toLowerCase() + "Time");
+    private LocalDateTime getReferenceTime(TimeReferencePoint referencePoint, ExecutionContext context) {
+        return (LocalDateTime) context.additionalData().get(referencePoint.name().toLowerCase() + "Time");
     }
 }

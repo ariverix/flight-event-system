@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
+import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -46,12 +47,31 @@ public interface MessageRepositoryPort {
     );
 
     /**
-     * Проверка получения позиционного отчёта за последние N минут.
-     * Позиционный отчёт - это сообщение DOWNLINK с templateName содержащим "POSITION" или "POS".
+     * Проверка получения ФАКТИЧЕСКОГО (не estimated) позиционного отчёта за последние N минут —
+     * паритет с SITA Sequencer: оценочные позиции игнорируются POSITION-критерием.
+     *
+     * Позиционный отчёт — сообщение с непустым positionSource (ACARS/RADAR/ADS_B).
      *
      * @param aircraftId идентификатор ВС
-     * @param minutesAgo количество минут назад
-     * @return true если позиционный отчёт был за указанный период
+     * @param sinceTime нижняя граница окна (now - x минут)
+     * @param source источник отчёта (null = любой источник)
+     * @param afterTime для "from this point only": учитывать только отчёты после этого времени
+     *                  (null = учитывать всю историю в пределах окна sinceTime)
+     * @return true если фактический позиционный отчёт найден
      */
-    boolean existsPositionReportWithinMinutes(String aircraftId, int minutesAgo);
+    boolean existsActualPositionReportSince(
+            String aircraftId,
+            LocalDateTime sinceTime,
+            PositionSource source,
+            LocalDateTime afterTime
+    );
+
+    /**
+     * Момент последнего ФАКТИЧЕСКОГО позиционного отчёта по ВС (для диагностики/"not reported").
+     *
+     * @param aircraftId идентификатор ВС
+     * @param source источник отчёта (null = любой источник)
+     * @return время последнего фактического отчёта, либо empty если отчётов не было вовсе
+     */
+    Optional<LocalDateTime> findLastActualPositionReportTime(String aircraftId, PositionSource source);
 }

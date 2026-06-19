@@ -13,6 +13,7 @@ import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.in.MessageInputPort;
 import ru.protectinfotrans.eca.eventprocessor.port.out.EventPublisherPort;
 import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
+import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -51,6 +52,8 @@ public class EventProcessorService implements MessageInputPort {
                 .content(content)
                 .metadataJson(serializeMetadata(metadata))
                 .receivedAt(LocalDateTime.now())
+                .positionSource(extractPositionSource(metadata))
+                .estimatedPosition(extractEstimatedFlag(metadata))
                 .build();
 
         message = messageRepository.save(message);
@@ -105,6 +108,59 @@ public class EventProcessorService implements MessageInputPort {
             log.warn("Failed to extract flight stage from metadata", e);
             return null;
         }
+    }
+
+    /**
+     * Источник позиционного отчёта (ACARS/RADAR/ADS_B) — паритет с SITA Sequencer.
+     * Null для немпозиционных сообщений (отсутствие ключа в metadata И отсутствие
+     * признаков позиционных данных).
+     * <p>
+     * Защитный fallback: если клиент (UI/внешняя система) прислал координаты
+     * (latitude/longitude) в metadata, но явно не указал positionSource, сообщение
+     * всё равно является позиционным отчётом по сути — проставляем дефолтный ACARS
+     * и предупреждаем в лог, чтобы не терять позиционные данные молча
+     * (POSITION_REPORTED-критерий требует positionSource IS NOT NULL — P1-1).
+     */
+    private PositionSource extractPositionSource(Map<String, Object> metadata) {
+        if (metadata == null) {
+            return null;
+        }
+
+        if (metadata.containsKey("positionSource")) {
+            try {
+                String sourceName = (String) metadata.get("positionSource");
+                return PositionSource.valueOf(sourceName);
+            } catch (Exception e) {
+                log.warn("Failed to extract position source from metadata", e);
+                return null;
+            }
+        }
+
+        if (metadata.containsKey("latitude") || metadata.containsKey("longitude")) {
+            log.warn("Position report metadata contains latitude/longitude but no explicit "
+                    + "positionSource — defaulting to {} so the POSITION_REPORTED criterion "
+                    + "(requires position_source IS NOT NULL) does not silently ignore this message",
+                    PositionSource.ACARS);
+            return PositionSource.ACARS;
+        }
+
+        return null;
+    }
+
+    /**
+     * Признак оценочной (estimated) позиции. По умолчанию false (фактическая) —
+     * консервативный дефолт, чтобы не терять фактические позиции без явной пометки.
+     */
+    private boolean extractEstimatedFlag(Map<String, Object> metadata) {
+        if (metadata == null || !metadata.containsKey("estimatedPosition")) {
+            return false;
+        }
+
+        Object value = metadata.get("estimatedPosition");
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return Boolean.parseBoolean(String.valueOf(value));
     }
 
     private String serializeMetadata(Map<String, Object> metadata) {

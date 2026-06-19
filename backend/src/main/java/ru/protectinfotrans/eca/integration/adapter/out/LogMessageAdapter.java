@@ -3,6 +3,7 @@ package ru.protectinfotrans.eca.integration.adapter.out;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import ru.protectinfotrans.eca.execution.port.out.MessageOutputPort;
+import ru.protectinfotrans.eca.sequence.domain.UplinkOrigin;
 
 import java.util.List;
 import java.util.Map;
@@ -14,7 +15,13 @@ public class LogMessageAdapter implements MessageOutputPort {
 
     @Override
     public boolean sendUplink(String aircraftId, String templateName, Map<String, Object> params) {
-        log.info("[UPLINK] Sending to aircraft={}, template={}, params={}", aircraftId, templateName, params);
+        return sendUplink(aircraftId, templateName, params, UplinkOrigin.COMPUTER_GENERATED);
+    }
+
+    @Override
+    public boolean sendUplink(String aircraftId, String templateName, Map<String, Object> params, UplinkOrigin origin) {
+        log.info("[UPLINK] Sending to aircraft={}, template={}, origin={}, params={}",
+                aircraftId, templateName, origin, params);
         // TODO: реальная отправка
         return true;
     }

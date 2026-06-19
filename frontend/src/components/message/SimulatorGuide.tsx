@@ -36,7 +36,7 @@ const GUIDE_ITEMS = [
           {
             title: 'Позиционный отчёт',
             type: 'DOWNLINK', tmpl: 'POSITION_REPORT', ac: 'VP-BQR', fl: 'SU1234',
-            meta: '{"latitude": 55.7558, "longitude": 37.6173}',
+            meta: '{"latitude": 55.7558, "longitude": 37.6173, "positionSource": "ACARS"}',
             hint: 'Запустит "Запрос позиционного отчёта после взлёта"',
           },
           {

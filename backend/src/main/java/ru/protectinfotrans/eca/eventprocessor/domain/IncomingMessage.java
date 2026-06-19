@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
 import java.time.LocalDateTime;
 
@@ -40,6 +41,22 @@ public class IncomingMessage {
     private String metadataJson;
 
     private LocalDateTime receivedAt;
+
+    /**
+     * Источник позиционного отчёта (ACARS/RADAR/ADS_B). Null для немпозиционных сообщений.
+     * Используется POSITION-критерием — паритет с SITA Sequencer.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "position_source")
+    private PositionSource positionSource;
+
+    /**
+     * true — позиция оценочная (estimated), а не фактическая.
+     * POSITION-критерий обязан игнорировать оценочные позиции — паритет с SITA Sequencer.
+     */
+    @Builder.Default
+    @Column(name = "is_estimated_position", nullable = false)
+    private boolean estimatedPosition = false;
 
     @PrePersist
     protected void onCreate() {

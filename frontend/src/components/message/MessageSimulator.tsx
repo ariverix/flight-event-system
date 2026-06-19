@@ -144,7 +144,7 @@ export const MessageSimulator: React.FC = () => {
 
   // Быстрые пресеты для заполнения формы
   const QUICK_PRESETS = [
-    { label: '📡 Позиция',   type: 'DOWNLINK', tmpl: 'POSITION_REPORT',   ac: 'VP-BQR',   fl: 'SU1234', meta: '{"latitude":55.7558,"longitude":37.6173}' },
+    { label: '📡 Позиция',   type: 'DOWNLINK', tmpl: 'POSITION_REPORT',   ac: 'VP-BQR',   fl: 'SU1234', meta: '{"latitude":55.7558,"longitude":37.6173,"positionSource":"ACARS","estimatedPosition":false}' },
     { label: '🌤 Метео',     type: 'GROUND',   tmpl: 'WEATHER_UPDATE',     ac: 'SU9876',   fl: 'AFL123', meta: '{"temperature":-5,"wind":"270/10kt"}' },
     { label: '⏰ Задержка',  type: 'GROUND',   tmpl: 'DELAY_NOTICE',       ac: 'SU9876',   fl: 'AFL123', meta: '{"reason":"weather","delayMinutes":30}' },
     { label: '✈ Предполёт', type: 'DOWNLINK', tmpl: 'PREFLIGHT_COMPLETE', ac: 'SU1234',   fl: 'AFL456', meta: '{"pilot":"Ivanov","copilot":"Petrov"}' },
@@ -463,7 +463,7 @@ export const MessageSimulator: React.FC = () => {
               badge: 'DOWNLINK · POSITION_REPORT',
               ac: 'VP-BQR', fl: 'SU1234',
               note: 'Запустит "Запрос позиционного отчёта после взлёта"',
-              fill: () => { setSimulationType('message'); setTimeout(() => form.setFieldsValue({ messageType: 'DOWNLINK', templateName: 'POSITION_REPORT', aircraftId: 'VP-BQR', flightNumber: 'SU1234', metadataJson: '{"latitude":55.7558,"longitude":37.6173}' }), 0); },
+              fill: () => { setSimulationType('message'); setTimeout(() => form.setFieldsValue({ messageType: 'DOWNLINK', templateName: 'POSITION_REPORT', aircraftId: 'VP-BQR', flightNumber: 'SU1234', metadataJson: '{"latitude":55.7558,"longitude":37.6173,"positionSource":"ACARS","estimatedPosition":false}' }), 0); },
             },
             {
               icon: '⚡', color: '#10b981',
