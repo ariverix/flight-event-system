@@ -24,7 +24,7 @@
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
 | P1-1 | Паритет SITA: 3 типа шагов (ACTION/EVALUATE/WAIT), 6 типов критериев с операторами и AND/OR | sequence-engine-dev | Done | reviewer PASS (1 цикл bug-fixer: position_source fallback). Все типы шагов/критериев, операторы, AND/OR nested, from-this-point-only, estimated-ignore. Миграция V21. 292 теста зелёные. |
-| P1-2 | Решения CONTINUE/GOTO/END/ABORT (true/false) + Notify; start/stop-критерии непрерывной оценки | sequence-engine-dev | Pending | — |
+| P1-2 | Решения CONTINUE/GOTO/END/ABORT (true/false) + Notify; start/stop-критерии непрерывной оценки | sequence-engine-dev | Done | reviewer PASS. Независимые true/false решения, GOTO вперёд/назад, Notify, start/stop непрерывной оценки (схема V2/V3 уже поддерживала). Починены 2 бага: бесконечный синхронный GOTO-цикл (loop guard 1000→ABORT), устаревший WAIT-таймаут при повторном входе. 307 тестов. |
 | P1-3 | Персистентный стейт инстанса: таблица `sequence_instance` + миграция + репозиторий | db-dev + sequence-engine-dev | Pending | — |
 | P1-4 | Resume после рестарта незавершённых инстансов | sequence-engine-dev + test-engineer | Pending | — |
 | P1-5 | Durable-планировщик WAIT/таймаутов (БД-backed) | sequence-engine-dev | Pending | — |
@@ -101,7 +101,7 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 292 зелёных.
+- Тестов: 307 зелёных.
 - Последняя миграция: V21 (`messages.position_source` + `is_estimated_position`).
 - JaCoCo gate baseline: LINE ≥ 0.88, INSTR ≥ 0.90 (цель проекта — 85% по
   изменённому коду на гейте ревью, см. CLAUDE.md, п.5 рабочего протокола).

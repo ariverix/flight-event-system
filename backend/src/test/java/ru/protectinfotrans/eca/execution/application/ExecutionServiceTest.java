@@ -656,6 +656,132 @@ class ExecutionServiceTest {
     }
 
     @Nested
+    @DisplayName("Защита от бесконечного синхронного цикла (P1-2)")
+    class InfiniteLoopProtectionUnitTests {
+
+        @Test
+        @DisplayName("цикл CONTINUE/GOTO без WAIT должен быть прерван MAX_SYNCHRONOUS_TRANSITIONS и завершиться ABORTED")
+        void infiniteLoopIsAbortedByTransitionLimit() {
+            // Двухшаговый цикл: step1 CONTINUE -> step2, step2 onSuccess GOTO -> step1, навечно.
+            Sequence loopSequence = Sequence.builder()
+                    .id(200L)
+                    .name("Loop sequence")
+                    .status(SequenceStatus.ACTIVE)
+                    .steps(new ArrayList<>())
+                    .build();
+
+            Step loopStep1 = Step.builder()
+                    .id(10L).sequence(loopSequence).orderIndex(1).name("Loop1")
+                    .stepType(StepType.ACTION).configJson("{}")
+                    .onSuccessAction(TransitionAction.CONTINUE)
+                    .onFailureAction(TransitionAction.CONTINUE)
+                    .build();
+            Step loopStep2 = Step.builder()
+                    .id(11L).sequence(loopSequence).orderIndex(2).name("Loop2")
+                    .stepType(StepType.ACTION).configJson("{}")
+                    .onSuccessAction(TransitionAction.GOTO).onSuccessGotoStep(1)
+                    .onFailureAction(TransitionAction.GOTO).onFailureGotoStep(1)
+                    .build();
+            loopSequence.getSteps().add(loopStep1);
+            loopSequence.getSteps().add(loopStep2);
+
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(5L)
+                    .sequenceId(200L)
+                    .aircraftId("VP-LOOP")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(1)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(sequenceQuery.findById(200L)).thenReturn(Optional.of(loopSequence));
+            when(executionRepository.save(any())).thenReturn(instance);
+            // ACTION всегда SUCCESS — цикл никогда не разрывается сам по себе
+            when(ecaRuleEngine.executeStep(any(), any(), any())).thenReturn(StepResult.SUCCESS);
+
+            service.advanceExecution(instance, loopStep1, StepResult.SUCCESS);
+
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+            assertThat(instance.getCompletedAt()).isNotNull();
+            // история должна быть конечной и не превышать лимит+1 (исходный шаг + лимит переходов)
+            assertThat(instance.getStepHistory().size())
+                    .isLessThanOrEqualTo(ExecutionService.MAX_SYNCHRONOUS_TRANSITIONS + 1);
+            assertThat(instance.getStepHistory().size()).isGreaterThan(10);
+        }
+    }
+
+    @Nested
+    @DisplayName("Сброс waitStartedAt/waitTimeoutAt при выходе из WAIT-шага (P1-2, GOTO назад)")
+    class WaitTimeoutResetUnitTests {
+
+        @Test
+        @DisplayName("выход из WAIT-шага (FAILURE по таймауту) должен сбросить waitStartedAt/waitTimeoutAt")
+        void leavingWaitStepClearsTimeoutFields() {
+            Step waitStep = Step.builder()
+                    .id(20L).sequence(sequence).orderIndex(1).name("Wait step")
+                    .stepType(StepType.WAIT).configJson("{}").timeoutSeconds(60)
+                    .onSuccessAction(TransitionAction.CONTINUE)
+                    .onFailureAction(TransitionAction.ABORT)
+                    .build();
+
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(1L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.WAITING)
+                    .currentStepIndex(1)
+                    .waitStartedAt(LocalDateTime.now().minusMinutes(2))
+                    .waitTimeoutAt(LocalDateTime.now().minusMinutes(1))
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+            when(executionRepository.save(any())).thenReturn(instance);
+
+            service.advanceExecution(instance, waitStep, StepResult.FAILURE); // FAILURE -> ABORT
+
+            assertThat(instance.getWaitStartedAt()).isNull();
+            assertThat(instance.getWaitTimeoutAt()).isNull();
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+
+        @Test
+        @DisplayName("выход из ACTION-шага (WAIT_TIME) НЕ должен сбрасывать waitStartedAt/waitTimeoutAt")
+        void leavingActionStepKeepsTimeoutFields() {
+            Step actionStep = Step.builder()
+                    .id(21L).sequence(sequence).orderIndex(1).name("Action wait_time")
+                    .stepType(StepType.ACTION).configJson("{\"actionType\":\"WAIT_TIME\"}")
+                    .onSuccessAction(TransitionAction.END)
+                    .onFailureAction(TransitionAction.END)
+                    .build();
+
+            LocalDateTime waitStart = LocalDateTime.now().minusMinutes(1);
+            LocalDateTime waitTimeout = LocalDateTime.now().plusMinutes(1);
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(1L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(1)
+                    .waitStartedAt(waitStart)
+                    .waitTimeoutAt(waitTimeout)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+            when(executionRepository.save(any())).thenReturn(instance);
+
+            service.advanceExecution(instance, actionStep, StepResult.SUCCESS); // SUCCESS -> END
+
+            // ACTION WAIT_TIME хранит здесь метаданные о вычисленной паузе — это не активное
+            // ожидание критерия WAIT-шага, поэтому поля не сбрасываются при переходе.
+            assertThat(instance.getWaitStartedAt()).isEqualTo(waitStart);
+            assertThat(instance.getWaitTimeoutAt()).isEqualTo(waitTimeout);
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.COMPLETED);
+        }
+    }
+
+    @Nested
     @DisplayName("checkWaitTimeouts - граничные случаи")
     class CheckWaitTimeoutsEdgeCases {
 

@@ -26,6 +26,7 @@ import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
 import ru.protectinfotrans.eca.sequence.domain.Sequence;
 import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;
 import ru.protectinfotrans.eca.sequence.domain.Step;
+import ru.protectinfotrans.eca.sequence.domain.StepType;
 import ru.protectinfotrans.eca.sequence.domain.TransitionAction;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -46,6 +47,17 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Slf4j
 public class ExecutionService {
+
+    /**
+     * Защита от бесконечного синхронного цикла CONTINUE/GOTO.
+     * Если цепочка шагов без WAIT замыкается в цикл (ACTION/EVALUATE крутят друг друга
+     * через GOTO), executeTransition→advanceExecution рекурсия не разрывается событием —
+     * без лимита это StackOverflowError/зависание потока обработки события.
+     * WAIT всегда разрывает цепочку (executeStep возвращает null, рекурсия не продолжается),
+     * поэтому лимит — это защита именно от "горячих" ACTION/EVALUATE-циклов, а не от
+     * легитимного семантического зацикливания через WAIT (которое допустимо в SITA).
+     */
+    public static final int MAX_SYNCHRONOUS_TRANSITIONS = 1000;
 
     private final ExecutionRepositoryPort executionRepository;
     private final SequenceQueryPort sequenceQuery;
@@ -219,6 +231,10 @@ public class ExecutionService {
     }
 
     public void advanceExecution(ExecutionInstance instance, Step step, StepResult result) {
+        advanceExecution(instance, step, result, 0);
+    }
+
+    private void advanceExecution(ExecutionInstance instance, Step step, StepResult result, int transitionCount) {
         TransitionAction action;
         Integer transitionTarget = null;
         boolean notify;
@@ -244,6 +260,20 @@ public class ExecutionService {
 
         instance.getStepHistory().add(stepExecution);
 
+        // WAIT-шаг resolved (SUCCESS/FAILURE) — его окно ожидания закрыто. Не очищать здесь
+        // waitStartedAt/waitTimeoutAt означает, что при повторном визите того же или другого
+        // WAIT-шага (например через GOTO назад) WaitStepRule увидит УЖЕ истёкший таймаут от
+        // предыдущего визита и немедленно вернёт FAILURE без реального ожидания — баг,
+        // который проявляется именно в сценариях GOTO-назад на WAIT (паритет с SITA требует,
+        // чтобы каждый новый визит WAIT-шага открывал новое окно ожидания).
+        // Только для StepType.WAIT: ACTION WAIT_TIME использует эти же поля как метаданные
+        // о вычисленной длительности паузы (см. ActionStepRule) и должен сохранять их после
+        // завершения шага — это другая семантика, не активное ожидание критерия.
+        if (step.getStepType() == StepType.WAIT) {
+            instance.setWaitStartedAt(null);
+            instance.setWaitTimeoutAt(null);
+        }
+
         Integer nextStepIndex = determineNextStep(instance, action, transitionTarget);
         eventPublisher.publishEvent(new StepTransitionEvent(
                 instance.getId(),
@@ -257,7 +287,15 @@ public class ExecutionService {
             notifyStepCompletion(instance, step, result);
         }
 
-        executeTransition(instance, action, transitionTarget);
+        // лимит — защита от бесконечного синхронного цикла CONTINUE/GOTO без WAIT (см. MAX_SYNCHRONOUS_TRANSITIONS)
+        if (transitionCount >= MAX_SYNCHRONOUS_TRANSITIONS) {
+            log.error("Synchronous transition limit ({}) exceeded for instance {} — aborting to prevent infinite loop",
+                    MAX_SYNCHRONOUS_TRANSITIONS, instance.getId());
+            abortExecution(instance);
+            return;
+        }
+
+        executeTransition(instance, action, transitionTarget, transitionCount + 1);
     }
 
     private Integer determineNextStep(ExecutionInstance instance, TransitionAction action, Integer target) {
@@ -268,7 +306,8 @@ public class ExecutionService {
         };
     }
 
-    private void executeTransition(ExecutionInstance instance, TransitionAction action, Integer transitionTarget) {
+    private void executeTransition(ExecutionInstance instance, TransitionAction action, Integer transitionTarget,
+                                    int transitionCount) {
         Sequence sequence = sequenceQuery.findById(instance.getSequenceId()).orElseThrow();
 
         switch (action) {
@@ -288,7 +327,7 @@ public class ExecutionService {
                     StepResult result = ecaRuleEngine.executeStep(nextStep, instance, context);
 
                     if (result != null) {
-                        advanceExecution(instance, nextStep, result);
+                        advanceExecution(instance, nextStep, result, transitionCount);
                     }
                 } else {
                     completeExecution(instance);
@@ -303,6 +342,9 @@ public class ExecutionService {
                     return;
                 }
 
+                // GOTO поддерживает переход и назад (target < currentStepIndex), и вперёд
+                // (target > currentStepIndex) — это не ограничивается, как в SITA Sequencer;
+                // защита от бесконечного цикла — лимит transitionCount в advanceExecution.
                 instance.setCurrentStepIndex(transitionTarget);
                 instance.setStatus(ExecutionStatus.RUNNING);
                 executionRepository.save(instance);
@@ -316,7 +358,7 @@ public class ExecutionService {
                 StepResult result = ecaRuleEngine.executeStep(targetStep, instance, context);
 
                 if (result != null) {
-                    advanceExecution(instance, targetStep, result);
+                    advanceExecution(instance, targetStep, result, transitionCount);
                 }
             }
             case END -> completeExecution(instance);
