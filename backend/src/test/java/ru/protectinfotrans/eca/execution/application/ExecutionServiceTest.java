@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
@@ -76,6 +77,14 @@ class ExecutionServiceTest {
     @Spy
     private InstanceContextCodec instanceContextCodec = new InstanceContextCodec(new ObjectMapper());
 
+    // P1-5: self-инъекция ExecutionService через ObjectProvider (см. javadoc поля `self` в
+    // ExecutionService) — в unit-тесте нет реального Spring AOP-прокси, поэтому
+    // self.getObject() стабится так, чтобы возвращать ТОТ ЖЕ service-объект, который тестируем.
+    // @Transactional(REQUIRES_NEW) семантика здесь не проверяется (это unit-тест без контейнера
+    // транзакций) — она покрыта интеграционным тестом single-fire на реальном Postgres.
+    @Mock
+    private ObjectProvider<ExecutionService> self;
+
     @InjectMocks
     private ExecutionService service;
 
@@ -86,6 +95,7 @@ class ExecutionServiceTest {
     void setUp() {
         // Mock ConditionQueryPort to return empty conditions by default (lenient for tests that don't use it)
         lenient().when(conditionQueryPort.getActiveConditions(anyString())).thenReturn(Set.of());
+        lenient().when(self.getObject()).thenReturn(service);
 
         sequence = Sequence.builder()
                 .id(100L)
@@ -289,24 +299,57 @@ class ExecutionServiceTest {
         @Test
         @DisplayName("должен обработать истёкшие таймауты WAIT-шагов")
         void shouldProcessExpiredTimeouts() {
+            LocalDateTime expiredAt = LocalDateTime.now().minusMinutes(1);
             ExecutionInstance instance = ExecutionInstance.builder()
                     .id(1L)
                     .sequenceId(100L)
                     .aircraftId("VP-BAB")
                     .status(ExecutionStatus.WAITING)
                     .currentStepIndex(1)
-                    .waitTimeoutAt(LocalDateTime.now().minusMinutes(1))
+                    .waitTimeoutAt(expiredAt)
                     .stepHistory(new ArrayList<>())
                     .build();
 
             when(executionRepository.findWaitingWithExpiredTimeout(any())).thenReturn(List.of(instance));
+            // P1-5: claim должен быть вызван и подтверждён, прежде чем advanceExecution запустится
+            when(executionRepository.claimExpiredTimeout(eq(1L), eq(expiredAt))).thenReturn(true);
+            when(executionRepository.findById(1L)).thenReturn(Optional.of(instance));
             when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
             when(executionRepository.save(any())).thenReturn(instance);
 
             service.checkWaitTimeouts();
 
+            // claim должен быть вызван ровно один раз с правильными id/expectedTimeout
+            verify(executionRepository).claimExpiredTimeout(1L, expiredAt);
             // Проверяем что advanceExecution был вызван с FAILURE
             verify(executionRepository, atLeastOnce()).save(any());
+        }
+
+        @Test
+        @DisplayName("не должен выполнять переход если claim не удался (проигран конкурентному поллеру)")
+        void shouldSkipTransitionWhenClaimLost() {
+            LocalDateTime expiredAt = LocalDateTime.now().minusMinutes(1);
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(1L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BAB")
+                    .status(ExecutionStatus.WAITING)
+                    .currentStepIndex(1)
+                    .waitTimeoutAt(expiredAt)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(executionRepository.findWaitingWithExpiredTimeout(any())).thenReturn(List.of(instance));
+            // claim проигран — конкурентный поллер уже забрал этот таймаут
+            when(executionRepository.claimExpiredTimeout(eq(1L), eq(expiredAt))).thenReturn(false);
+
+            service.checkWaitTimeouts();
+
+            verify(executionRepository).claimExpiredTimeout(1L, expiredAt);
+            // ни findById, ни save не должны вызываться — обработка не должна продолжаться
+            verify(executionRepository, never()).findById(any());
+            verify(executionRepository, never()).save(any());
+            verify(sequenceQuery, never()).findById(any());
         }
     }
 
@@ -886,17 +929,20 @@ class ExecutionServiceTest {
         @Test
         @DisplayName("должен пропустить просроченный инстанс если последовательность не найдена")
         void shouldSkipExpiredInstanceWhenSequenceNotFound() {
+            LocalDateTime expiredAt = LocalDateTime.now().minusMinutes(1);
             ExecutionInstance expired = ExecutionInstance.builder()
                     .id(5L)
                     .sequenceId(999L)
                     .aircraftId("VP-BAB")
                     .status(ExecutionStatus.WAITING)
                     .currentStepIndex(1)
-                    .waitTimeoutAt(LocalDateTime.now().minusMinutes(1))
+                    .waitTimeoutAt(expiredAt)
                     .stepHistory(new ArrayList<>())
                     .build();
 
             when(executionRepository.findWaitingWithExpiredTimeout(any())).thenReturn(List.of(expired));
+            when(executionRepository.claimExpiredTimeout(eq(5L), eq(expiredAt))).thenReturn(true);
+            when(executionRepository.findById(5L)).thenReturn(Optional.of(expired));
             when(sequenceQuery.findById(999L)).thenReturn(Optional.empty());
 
             service.checkWaitTimeouts();

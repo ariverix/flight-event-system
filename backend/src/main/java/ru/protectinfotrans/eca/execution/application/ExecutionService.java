@@ -3,9 +3,9 @@ package ru.protectinfotrans.eca.execution.application;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.modulith.events.ApplicationModuleListener;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,6 +70,22 @@ public class ExecutionService {
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final InstanceContextCodec instanceContextCodec;
+
+    /**
+     * P1-5: self-инъекция через {@code ObjectProvider}, а не прямое поле {@code ExecutionService},
+     * чтобы получить Spring AOP-прокси САМОГО СЕБЯ для вызова {@link #claimAndAdvanceTimeout}
+     * из {@link #checkWaitTimeouts} (тот же класс). Прямой вызов {@code this.claimAndAdvanceTimeout(...)}
+     * был бы self-invocation — Spring transactional proxy НЕ перехватывает вызовы метода на
+     * {@code this} внутри того же объекта, поэтому {@code @Transactional(REQUIRES_NEW)} на
+     * {@code claimAndAdvanceTimeout} был бы безмолвно проигнорирован (выполнился бы в текущей,
+     * НЕ новой транзакции, или вовсе без транзакции, если вызывающий метод не транзакционен).
+     * {@code ObjectProvider<ExecutionService>} разрывает цикл конструкторной DI (обычное
+     * {@code final ExecutionService self}-поле в конструкторе с {@code @RequiredArgsConstructor}
+     * привело бы к само-зависимости бина от самого себя на этапе создания) и резолвится в
+     * прокси лениво, при первом обращении в {@code checkWaitTimeouts}, когда контекст уже
+     * полностью поднят.
+     */
+    private final ObjectProvider<ExecutionService> self;
 
     /**
      * Точка входа для всех событий от Event Processor.
@@ -506,30 +522,102 @@ public class ExecutionService {
         ));
     }
 
-    /** каждые 10 сек переводим просроченные WAIT-шаги в FAILURE */
-    @Scheduled(fixedRate = 10000)
+    /**
+     * P1-5: перебирает просроченные WAIT-таймауты — durable single-fire через атомарный
+     * claim в БД, не in-memory расписание. Сам опрос ({@code @Scheduled}, см.
+     * {@link WaitTimeoutScheduler}) — это только триггер; вся гарантия "ровно один раз" живёт
+     * в строке БД (см. {@code ExecutionJpaRepository#claimExpiredTimeout}), не в этом методе и
+     * не во внутреннем состоянии планировщика.
+     *
+     * <p><b>Зачем нужен claim, если состояние и так персистентно (P1-3/P1-4):</b> сам факт, что
+     * {@code wait_timeout_at} лежит в БД и переживает рестарт, ещё не гарантирует, что переход
+     * по таймауту выполнится РОВНО один раз — без claim'а при нескольких репликах backend
+     * (или просто при перекрытии двух тиков {@code @Scheduled} из-за долгой обработки) один и
+     * тот же просроченный инстанс мог бы быть прочитан {@code findWaitingWithExpiredTimeout}
+     * параллельно более чем одним потоком/процессом и обработан (advanceExecution) дважды —
+     * двойной переход по false-ветке, двойная отправка/уведомление. Это намеренно НЕ зона
+     * leader election (P6-1): корректность single-fire здесь обеспечивается на уровне СТРОКИ
+     * БД (атомарный claim), а не на уровне "кто сейчас лидер опроса" — поэтому она верна
+     * ОДИНАКОВО для одной реплики, для нескольких реплик и для самопересечения тиков одной
+     * реплики, без какой-либо распределённой координации.
+     *
+     * <p>Каждый инстанс обрабатывается в собственной {@code REQUIRES_NEW} транзакции
+     * ({@link #claimAndAdvanceTimeout}) — по той же причине, что и {@code resumeRunningInstanceAfterRestart}
+     * (P1-4): отдельная транзакция на инстанс, минимальное время удержания блокировки строки,
+     * сбой одного инстанса не портит сессию/транзакцию для остальных кандидатов в этом тике.
+     *
+     * <p>Метод сам НЕ {@code @Transactional} (читает кандидатов одним read-only запросом —
+     * консистентность каждого отдельного claim'а гарантируется в БД, не транзакцией-обёрткой
+     * над всем циклом). Каждый {@link #claimAndAdvanceTimeout} вызывается ЧЕРЕЗ
+     * {@link #self} (Spring AOP-прокси этого же бина, см. javadoc поля {@link #self}) — без
+     * этого self-invocation проигнорировал бы {@code @Transactional(REQUIRES_NEW)} на
+     * целевом методе.
+     */
     public void checkWaitTimeouts() {
         LocalDateTime now = LocalDateTime.now();
         // NOTE: нужен составной индекс по (status, wait_timeout_at) —
-        // без него при сотнях активных экземпляров это full scan каждые 10 сек
+        // без него при сотнях активных экземпляров это full scan каждые 10 сек.
+        // Это только список КАНДИДАТОВ — без захвата строк, конкурентные поллеры могут
+        // увидеть один и тот же инстанс здесь; single-fire гарантирует claimAndAdvanceTimeout.
         List<ExecutionInstance> expiredInstances = executionRepository.findWaitingWithExpiredTimeout(now);
 
         for (ExecutionInstance instance : expiredInstances) {
-            log.info("Timeout expired for instance {} at {}", instance.getId(), instance.getWaitTimeoutAt());
-
-            Sequence sequence = sequenceQuery.findById(instance.getSequenceId()).orElse(null);
-            if (sequence == null) {
-                continue;
+            try {
+                self.getObject().claimAndAdvanceTimeout(instance.getId(), instance.getWaitTimeoutAt());
+            } catch (Exception e) {
+                // один сбойный инстанс не должен останавливать обработку остальных кандидатов
+                // в этом тике — следующий тик @Scheduled подхватит его повторно (таймаут
+                // остаётся непогашенным, пока claim не подтверждён успешным коммитом)
+                log.error("Failed to process timeout claim for instance {} — will retry on next tick",
+                        instance.getId(), e);
             }
+        }
+    }
 
-            Step currentStep = sequence.getSteps().stream()
-                    .filter(s -> s.getOrderIndex().equals(instance.getCurrentStepIndex()))
-                    .findFirst()
-                    .orElse(null);
+    /**
+     * P1-5: пытается атомарно захватить (claim) просроченный таймаут конкретного инстанса и,
+     * если удалось, выполняет бизнес-переход по false-ветке (FAILURE). Если claim не удался
+     * (вернулось {@code false} — строка уже обработана другим конкурентным потоком/репликой,
+     * либо таймаут уже не актуален, например из-за нового визита WAIT-шага через GOTO), метод
+     * не делает ничего — переход уже выполнен (или будет выполнен) тем потоком, который
+     * выиграл claim.
+     *
+     * <p>После успешного claim инстанс перечитывается из БД ({@code findById}), а не
+     * переиспользуется объект, переданный аргументом: claim — это bulk JPQL UPDATE с
+     * {@code clearAutomatically = true} (см. {@code ExecutionJpaRepository#claimExpiredTimeout}),
+     * persistence context очищается, и переданный объект become detached с устаревшим
+     * {@code waitTimeoutAt} (тем, что было ДО claim). Дальнейшая бизнес-логика
+     * ({@code advanceExecution}) должна оперировать актуальным управляемым объектом.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void claimAndAdvanceTimeout(Long instanceId, LocalDateTime expectedTimeout) {
+        boolean claimed = executionRepository.claimExpiredTimeout(instanceId, expectedTimeout);
+        if (!claimed) {
+            log.debug("Timeout claim for instance {} lost to a concurrent poller (or no longer applicable) — skipping",
+                    instanceId);
+            return;
+        }
 
-            if (currentStep != null) {
-                advanceExecution(instance, currentStep, StepResult.FAILURE);
-            }
+        ExecutionInstance instance = executionRepository.findById(instanceId).orElse(null);
+        if (instance == null) {
+            log.warn("Timeout claimed for instance {} but instance no longer found", instanceId);
+            return;
+        }
+
+        log.info("Timeout expired for instance {} at {} (claimed)", instance.getId(), expectedTimeout);
+
+        Sequence sequence = sequenceQuery.findById(instance.getSequenceId()).orElse(null);
+        if (sequence == null) {
+            return;
+        }
+
+        Step currentStep = sequence.getSteps().stream()
+                .filter(s -> s.getOrderIndex().equals(instance.getCurrentStepIndex()))
+                .findFirst()
+                .orElse(null);
+
+        if (currentStep != null) {
+            advanceExecution(instance, currentStep, StepResult.FAILURE);
         }
     }
 

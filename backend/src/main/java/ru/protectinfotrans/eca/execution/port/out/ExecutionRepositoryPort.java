@@ -39,9 +39,22 @@ public interface ExecutionRepositoryPort {
 
     /**
      * Найти все WAITING экземпляры с истёкшим таймаутом.
-     * Используется в @Scheduled checkWaitTimeouts.
+     * Используется в @Scheduled checkWaitTimeouts как источник КАНДИДАТОВ — сама выборка
+     * не захватывает строки, поэтому конкурентные поллеры могут увидеть один и тот же
+     * инстанс. Реальный single-fire даёт {@link #claimExpiredTimeout}.
      */
     List<ExecutionInstance> findWaitingWithExpiredTimeout(LocalDateTime now);
+
+    /**
+     * P1-5: атомарный claim одного просроченного WAIT-таймаута условным UPDATE
+     * ({@code wait_timeout_at} переводится в {@code NULL} только если он ещё равен
+     * {@code expectedTimeout} и статус ещё {@code WAITING}).
+     *
+     * @return {@code true}, если претензия (claim) удалась — ровно один вызывающий поток/реплика
+     *         получает {@code true} для данного {@code (id, expectedTimeout)}, остальные
+     *         конкурентные вызовы получают {@code false} и НЕ должны выполнять бизнес-переход.
+     */
+    boolean claimExpiredTimeout(Long id, LocalDateTime expectedTimeout);
 
     /**
      * Найти ВСЕ незавершённые экземпляры (RUNNING/WAITING) вне зависимости от ВС.
