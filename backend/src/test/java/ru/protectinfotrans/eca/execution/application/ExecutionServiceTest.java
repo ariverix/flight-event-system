@@ -371,6 +371,8 @@ class ExecutionServiceTest {
                     .build();
 
             when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(instance));
+            // P1-6: checkStopCriterionTransactional перечитывает инстанс по id в своей транзакции
+            when(executionRepository.findById(1L)).thenReturn(Optional.of(instance));
             when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
             when(criterionEvaluator.evaluate(anyString(), any(), any())).thenReturn(true);
             when(executionRepository.save(any())).thenReturn(instance);
@@ -394,6 +396,7 @@ class ExecutionServiceTest {
                     .build();
 
             when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(instance));
+            when(executionRepository.findById(1L)).thenReturn(Optional.of(instance));
             when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
 
             service.processEvent(event);
@@ -414,6 +417,7 @@ class ExecutionServiceTest {
                     .build();
 
             when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(instance));
+            when(executionRepository.findById(1L)).thenReturn(Optional.of(instance));
             when(sequenceQuery.findById(999L)).thenReturn(Optional.empty());
             when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of());
 
@@ -534,6 +538,8 @@ class ExecutionServiceTest {
                     .build();
 
             when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(waitingInstance));
+            // P1-6: tryResumeWaitingInstanceTransactional перечитывает инстанс по id в своей транзакции
+            when(executionRepository.findById(2L)).thenReturn(Optional.of(waitingInstance));
             when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
             when(ecaRuleEngine.executeStep(any(), any(), any())).thenReturn(StepResult.SUCCESS);
             when(executionRepository.save(any())).thenReturn(waitingInstance);
@@ -556,6 +562,7 @@ class ExecutionServiceTest {
                     .build();
 
             when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(waitingInstance));
+            when(executionRepository.findById(2L)).thenReturn(Optional.of(waitingInstance));
             when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
 
             service.processEvent(event);
@@ -576,6 +583,7 @@ class ExecutionServiceTest {
                     .build();
 
             when(executionRepository.findActiveByAircraftId("VP-BAB")).thenReturn(List.of(waitingInstance));
+            when(executionRepository.findById(2L)).thenReturn(Optional.of(waitingInstance));
             when(sequenceQuery.findById(999L)).thenReturn(Optional.empty());
             when(sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE)).thenReturn(List.of());
 

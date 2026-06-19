@@ -70,13 +70,37 @@ public class ExecutionInstance {
     private LocalDateTime updatedAt;
 
     /**
-     * Заложено под будущую оптимистическую блокировку (P1-6). НЕ аннотировано
-     * @Version намеренно — включение оптимистической блокировки (JPA-проверка
-     * версии при update, ObjectOptimisticLockingFailureException и т.п.) — это
-     * отдельная задача P1-6, не часть P1-3. Сейчас это обычная nullable-колонка,
-     * не участвующая в логике конкурентного доступа.
+     * P1-6: активная оптимистическая блокировка JPA. Колонка добавлена и бэкафиллена
+     * нулём миграцией V22 (P1-3) как раз ради этого включения — см. комментарий там.
+     * Hibernate сам инкрементирует version при каждом UPDATE через {@code save()} и
+     * бросает {@link org.springframework.orm.ObjectOptimisticLockingFailureException}
+     * (Spring оборачивает {@code OptimisticLockException}), если строка в БД успела
+     * измениться между чтением и записью этой же транзакции — это и закрывает гонку
+     * "два потока конкурентно читают/пишут ОДИН И ТОТ ЖЕ инстанс" (см.
+     * {@code ExecutionService} — обработка одного NormalizedEvent на инстанс теперь
+     * в собственной {@code REQUIRES_NEW}-транзакции с retry на конфликте версии).
+     *
+     * <p><b>Совместимость с claim-логикой таймаутов (P1-5):</b>
+     * {@code ExecutionJpaRepository#claimExpiredTimeout} — это {@code @Modifying}
+     * bulk JPQL UPDATE с {@code clearAutomatically = true}. Bulk UPDATE выполняется
+     * напрямую в БД через JPQL-предикат {@code wait_timeout_at = :expectedTimeout} и
+     * НЕ проходит через Hibernate dirty-checking механизм — column version в нём не
+     * участвует и не инкрементируется (это нормально и ожидаемо для bulk-операций:
+     * у самого claim'а уже есть собственный атомарный предикат на уровне СТРОКИ,
+     * описанный в его javadoc, который даёт ту же гарантию single-fire без участия
+     * @Version). {@code clearAutomatically=true} очищает persistence context сразу
+     * после claim — следующий {@code findById} в {@code claimAndAdvanceTimeout}
+     * перечитывает строку заново вместе с её АКТУАЛЬНЫМ version (тем, что реально в
+     * БД), так что дальнейший {@code advanceExecution → save()} в той же транзакции
+     * не словит мнимый конфликт версии из-за устаревшего in-memory значения.
+     *
+     * <p>Колонка nullable на уровне БД (V22), но {@code @PrePersist} здесь и
+     * {@code DEFAULT 0} в БД гарантируют, что фактическое значение всегда не NULL
+     * для каждой когда-либо сохранённой через JPA строки — отдельная миграция
+     * "version NOT NULL" не требуется для корректной работы {@code @Version}.
      */
-    @Column(name = "version")
+    @Version
+    @Column(name = "version", nullable = false)
     private Long version;
 
     @PrePersist

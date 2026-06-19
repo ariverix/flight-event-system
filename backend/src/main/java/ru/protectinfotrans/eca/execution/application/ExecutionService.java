@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.modulith.events.ApplicationModuleListener;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,8 +45,23 @@ import java.util.Set;
  * Слушает NormalizedEvent, проверяет start/stop критерии,
  * управляет жизненным циклом экземпляров и таймаутами WAIT-шагов.
  */
+/*
+ * P1-6: класс БОЛЬШЕ НЕ помечен общим {@code @Transactional} (как было до P1-6). Раньше эта
+ * классовая аннотация означала, что {@link #processEvent} целиком — включая фан-аут по ВСЕМ
+ * затронутым инстансам в {@code checkStartCriteria}/{@code checkStopCriteria}/
+ * {@code processWaitingInstances} — выполнялся в ОДНОЙ транзакции: длинная транзакция, держащая
+ * блокировки строк всех затронутых инстансов до самого конца, и при сбое (включая оптимистический
+ * конфликт версии после включения {@code @Version}) откатывались бы заодно и уже корректно
+ * обработанные соседние инстансы. Теперь транзакционность расставлена точечно на каждом методе,
+ * который должен быть атомарной единицей: per-instance операции — {@code REQUIRES_NEW} (см.
+ * {@link #checkStopCriterionTransactional}, {@link #tryResumeWaitingInstanceTransactional},
+ * {@link #claimAndAdvanceTimeout}, {@link #resumeRunningInstanceAfterRestart}); цепочка переходов
+ * ОДНОГО инстанса ({@link #startExecution}, {@link #advanceExecution}) — обычная {@code @Transactional}
+ * (REQUIRED) каждая своя; верхнеуровневые обходчики кандидатов ({@link #processEvent},
+ * {@link #checkWaitTimeouts}) сами НЕ транзакционны — они только читают read-only список кандидатов
+ * и диспетчеризуют каждого в его собственную транзакцию.
+ */
 @Service
-@Transactional
 @RequiredArgsConstructor
 @Slf4j
 public class ExecutionService {
@@ -88,7 +104,31 @@ public class ExecutionService {
     private final ObjectProvider<ExecutionService> self;
 
     /**
-     * Точка входа для всех событий от Event Processor.
+     * P1-6: ограничение количества попыток retry при конфликте оптимистической блокировки
+     * (см. {@link #withOptimisticRetry}). Конфликт версии под реальной нагрузкой — событие
+     * довольно редкое (один и тот же инстанс должен быть конкурентно тронут ДВУМЯ событиями
+     * почти одновременно) и почти всегда разрешается за 1-2 повторных попытки; ограничение
+     * нужно лишь как защита от патологического случая (бесконечный retry если что-то системно
+     * не так), а не как ожидаемый рабочий путь.
+     */
+    public static final int MAX_OPTIMISTIC_LOCK_RETRIES = 5;
+
+    /**
+     * P1-6: точка входа для всех событий от Event Processor. НЕ {@code @Transactional}
+     * (как и {@link #checkWaitTimeouts}) — один {@code NormalizedEvent} может затронуть
+     * МНОГО инстансов (фан-аут: много последовательностей на один борт; одна последовательность
+     * на много бортов, у каждого свой указатель шага — см. CLAUDE.md). Раньше вся обработка шла
+     * в ОДНОЙ транзакции класса ({@code @Transactional} на уровне класса) — длинная транзакция,
+     * держащая блокировки строк ВСЕХ затронутых инстансов до самого конца обработки события, и
+     * при сбое одного инстанса (включая оптимистический конфликт версии) откатывались бы заодно
+     * и уже обработанные соседние инстансы. Теперь каждый кандидат (start/stop/waiting) обрабатывается
+     * в СОБСТВЕННОЙ транзакции: для start (новый инстанс — INSERT, конфликт версии невозможен
+     * по построению) — {@link #startExecution} (REQUIRED); для stop/waiting на УЖЕ существующем
+     * инстансе — {@link #checkStopCriterionTransactional}, {@link #tryResumeWaitingInstanceTransactional}
+     * (обе REQUIRES_NEW) —
+     * так же, как уже сделано для таймаутов (P1-5) и resume (P1-4). Инстансы независимы — их
+     * обработка корректна и при выполнении строго последовательно в одном потоке (как сейчас вызывает
+     * {@code @ApplicationModuleListener}), и при потенциальном параллельном фан-ауте в будущем.
      */
     @ApplicationModuleListener
     public void processEvent(NormalizedEvent event) {
@@ -98,6 +138,45 @@ public class ExecutionService {
         checkStartCriteria(event);
         checkStopCriteria(event);
         processWaitingInstances(event);
+    }
+
+    /**
+     * P1-6: выполняет {@code action} с bounded retry при конфликте оптимистической блокировки
+     * ({@link ObjectOptimisticLockingFailureException}). Стратегия — retry, а не skip: конфликт
+     * версии означает, что СТРОКА инстанса изменилась между чтением и записью в рамках текущей
+     * попытки (например другое событие на тот же борт успело продвинуть тот же инстанс первым) —
+     * сам факт конфликта НЕ говорит, что текущее событие уже неактуально или что его обработка
+     * не нужна: оно всё ещё должно быть учтено (например stop-критерий должен сработать, WAIT
+     * должен резолвиться) над УЖЕ актуальным состоянием инстанса. Безусловный skip потерял бы
+     * обработку этого события для данного инстанса. Каждая попытка перечитывает инстанс заново
+     * (через {@code Long instanceId}, не закэшированный объект) внутри новой {@code REQUIRES_NEW}
+     * транзакции — поэтому повторная попытка всегда видит актуальную (post-conflict) версию строки,
+     * а не повторяет тот же устаревший update.
+     *
+     * <p>Если инстанс за время retry успел перейти в терминальный статус (COMPLETED/ABORTED) —
+     * вызываемый {@code action} сам обязан это обнаружить (перечитывает инстанс по id и проверяет
+     * статус) и no-op'нуться идемпотентно, не предполагая, что переданный {@code instanceId} ещё
+     * активен. Это и предотвращает "двойной переход/двойной побочный эффект" под конкуренцией —
+     * не сам retry-wrapper, а то, что каждая транзакция начинается с перечитывания актуального
+     * состояния, а не с слепого повтора прежнего намерения.
+     */
+    private void withOptimisticRetry(Long instanceId, String operationName, Runnable action) {
+        int attempt = 0;
+        while (true) {
+            try {
+                action.run();
+                return;
+            } catch (ObjectOptimisticLockingFailureException e) {
+                attempt++;
+                if (attempt >= MAX_OPTIMISTIC_LOCK_RETRIES) {
+                    log.error("Optimistic lock conflict on instance {} ({}) — giving up after {} attempts",
+                            instanceId, operationName, attempt, e);
+                    return;
+                }
+                log.debug("Optimistic lock conflict on instance {} ({}) — retry attempt {}/{}",
+                        instanceId, operationName, attempt, MAX_OPTIMISTIC_LOCK_RETRIES);
+            }
+        }
     }
 
     /**
@@ -146,44 +225,91 @@ public class ExecutionService {
         }
     }
 
+    /**
+     * P1-6: список кандидатов читается ОДНИМ read-only запросом (без захвата строк — как и
+     * {@code findWaitingWithExpiredTimeout} в P1-5), а сама обработка каждого кандидата уходит
+     * в {@link #checkStopCriterionTransactional} — собственная {@code REQUIRES_NEW}-транзакция
+     * на инстанс, вызванная через {@link #self} (Spring AOP-прокси, без self-invocation — см.
+     * javadoc поля {@link #self}). Конфликт версии на конкретном инстансе оборачивается
+     * {@link #withOptimisticRetry}.
+     */
     private void checkStopCriteria(NormalizedEvent event) {
         List<ExecutionInstance> activeInstances = executionRepository.findActiveByAircraftId(event.aircraftId());
 
         for (ExecutionInstance instance : activeInstances) {
-            Sequence sequence = sequenceQuery.findById(instance.getSequenceId()).orElse(null);
-            if (sequence == null) {
-                log.warn("Sequence {} not found for instance {}", instance.getSequenceId(), instance.getId());
-                continue;
-            }
-
-            if (sequence.getStopCriteriaJson() == null || sequence.getStopCriteriaJson().isBlank()) {
-                continue;
-            }
-
-            ExecutionContext context = buildContext(event);
-            boolean criterionMet = criterionEvaluator.evaluate(sequence.getStopCriteriaJson(), context, null);
-
-            if (criterionMet) {
-                log.info("Stop criteria met for instance {} of sequence {}", instance.getId(), sequence.getId());
-                abortExecution(instance);
-            }
+            Long instanceId = instance.getId();
+            withOptimisticRetry(instanceId, "checkStopCriteria",
+                    () -> self.getObject().checkStopCriterionTransactional(instanceId, event));
         }
     }
 
+    /**
+     * P1-6: обрабатывает stop-критерий ОДНОГО инстанса в собственной транзакции. Перечитывает
+     * инстанс по id (а не использует объект, переданный из {@link #checkStopCriteria}) — это
+     * актуальное, управляемое ТЕКУЩЕЙ транзакцией состояние, в т.ч. актуальная версия для
+     * оптимистической блокировки; устаревший detached-объект из внешнего read-only списка
+     * привёл бы к гарантированному конфликту версии на первом же save(), а не к полезному retry.
+     * Идемпотентен: если инстанс уже не активен (другой конкурентный путь его завершил раньше),
+     * no-op.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void checkStopCriterionTransactional(Long instanceId, NormalizedEvent event) {
+        ExecutionInstance instance = executionRepository.findById(instanceId).orElse(null);
+        if (instance == null || (instance.getStatus() != ExecutionStatus.RUNNING
+                && instance.getStatus() != ExecutionStatus.WAITING)) {
+            return;
+        }
+
+        Sequence sequence = sequenceQuery.findById(instance.getSequenceId()).orElse(null);
+        if (sequence == null) {
+            log.warn("Sequence {} not found for instance {}", instance.getSequenceId(), instance.getId());
+            return;
+        }
+
+        if (sequence.getStopCriteriaJson() == null || sequence.getStopCriteriaJson().isBlank()) {
+            return;
+        }
+
+        ExecutionContext context = buildContext(event);
+        boolean criterionMet = criterionEvaluator.evaluate(sequence.getStopCriteriaJson(), context, null);
+
+        if (criterionMet) {
+            log.info("Stop criteria met for instance {} of sequence {}", instance.getId(), sequence.getId());
+            abortExecution(instance);
+        }
+    }
+
+    /**
+     * P1-6: то же разделение на инстанс-в-своей-транзакции, что и {@link #checkStopCriteria}.
+     */
     private void processWaitingInstances(NormalizedEvent event) {
         // findActiveByAircraftId возвращает RUNNING+WAITING, фильтруем здесь —
-        // один запрос вместо двух, и список уже в транзакции
+        // один read-only запрос вместо двух
         List<ExecutionInstance> waitingInstances = executionRepository.findActiveByAircraftId(event.aircraftId())
                 .stream()
                 .filter(inst -> inst.getStatus() == ExecutionStatus.WAITING)
                 .toList();
 
         for (ExecutionInstance instance : waitingInstances) {
-            tryResumeWaitingInstance(instance, event);
+            Long instanceId = instance.getId();
+            withOptimisticRetry(instanceId, "tryResumeWaitingInstance",
+                    () -> self.getObject().tryResumeWaitingInstanceTransactional(instanceId, event));
         }
     }
 
-    private void tryResumeWaitingInstance(ExecutionInstance instance, NormalizedEvent event) {
+    /**
+     * P1-6: обрабатывает один WAITING-инстанс в собственной {@code REQUIRES_NEW}-транзакции —
+     * перечитывает инстанс по id (см. {@link #checkStopCriterionTransactional} про детачмент и
+     * устаревшую версию). Идемпотентен: если инстанс к моменту обработки уже не WAITING (резолвлен
+     * конкурентно другим событием/таймаутом раньше), no-op.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void tryResumeWaitingInstanceTransactional(Long instanceId, NormalizedEvent event) {
+        ExecutionInstance instance = executionRepository.findById(instanceId).orElse(null);
+        if (instance == null || instance.getStatus() != ExecutionStatus.WAITING) {
+            return;
+        }
+
         Sequence sequence = sequenceQuery.findById(instance.getSequenceId()).orElse(null);
         if (sequence == null) {
             log.warn("Sequence {} not found for instance {}", instance.getSequenceId(), instance.getId());
@@ -291,6 +417,15 @@ public class ExecutionService {
         }
     }
 
+    /**
+     * P1-6: явная {@code @Transactional} (REQUIRED) — раньше транзакция была неявной (классовая
+     * аннотация). Старт нового инстанса — это всегда INSERT новой строки (а не update существующей),
+     * поэтому конфликта версии при создании быть не может по построению; явная аннотация здесь
+     * нужна для того, чтобы каждый старт (в т.ч. при фан-ауте на несколько последовательностей в
+     * {@code checkStartCriteria}) был ОТДЕЛЬНОЙ атомарной транзакцией, а не делил одну большую с
+     * остальными кандидатами события.
+     */
+    @Transactional
     public void startExecution(Long sequenceId, String aircraftId, String flightNumber) {
         Sequence sequence = sequenceQuery.findById(sequenceId)
                 .orElseThrow(() -> new IllegalArgumentException("Sequence not found: " + sequenceId));
@@ -333,6 +468,16 @@ public class ExecutionService {
         }
     }
 
+    /**
+     * P1-6: явная {@code @Transactional} (REQUIRED). Продакшен-вызовы этого метода происходят
+     * либо изнутри {@link #startExecution} (тоже REQUIRED — присоединяется к той же транзакции),
+     * либо из {@code REQUIRES_NEW}-методов на конкретный инстанс ({@link #tryResumeWaitingInstanceTransactional},
+     * {@link #resumeRunningInstanceAfterRestart}, {@link #claimAndAdvanceTimeout}) — REQUIRED
+     * просто присоединяется к уже открытой транзакции без новой границы. Явная аннотация — защита
+     * на случай вызова из кода без уже открытой транзакции (даёт ту же атомарность "один инстанс =
+     * одна транзакция", что и остальные per-instance методы).
+     */
+    @Transactional
     public void advanceExecution(ExecutionInstance instance, Step step, StepResult result) {
         advanceExecution(instance, step, result, 0);
     }
