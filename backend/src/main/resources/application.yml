@@ -28,6 +28,11 @@ spring:
 server:
   port: 8080
 
+logging:
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT:ecs}
+
 management:
   endpoints:
     web:

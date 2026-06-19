@@ -1,12 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%level] [%logger{36}] — %msg%n</pattern>
-            <charset>UTF-8</charset>
-        </encoder>
-    </appender>
+    <!--
+        Базовый набор Spring Boot: подключает CONSOLE-appender, который при заданном
+        свойстве logging.structured.format.console (см. application.yml, по умолчанию
+        "ecs") автоматически переключается на структурный JSON-формат через встроенный
+        StructuredLogEncoder (Spring Boot 3.4+, без сторонних зависимостей типа
+        logstash-logback-encoder). Текущий MDC (включая correlationId, см.
+        CorrelationContext/CorrelationIdFilter) автоматически попадает в каждую запись.
+
+        Если logging.structured.format.console пустой (профиль dev, см. ниже) —
+        appender работает в обычном текстовом режиме по CONSOLE_LOG_PATTERN.
+    -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!--
+        Профиль dev: человекочитаемый текстовый лог вместо JSON, для локальной разработки.
+        CONSOLE_LOG_STRUCTURED_FORMAT не переопределяем здесь (logback не допускает
+        пустое value у <property>) — вместо этого в dev-профиле задаём
+        logging.structured.format.console="" в application-dev.yml/переменной окружения,
+        а тут только меняем человекочитаемый паттерн на тот случай, если формат не задан.
+    -->
+    <springProfile name="dev">
+        <property name="CONSOLE_LOG_PATTERN"
+                   value="%d{yyyy-MM-dd HH:mm:ss} [%level] [%logger{36}] [%X{correlationId}] — %msg%n"/>
+    </springProfile>
 
     <!-- Входящие сообщения — DEBUG -->
     <logger name="ru.protectinfotrans.eca.eventprocessor" level="DEBUG"/>

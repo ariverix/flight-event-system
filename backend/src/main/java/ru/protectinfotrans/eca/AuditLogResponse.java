@@ -16,6 +16,7 @@ public class AuditLogResponse {
     Long entityId;
     String detailsJson;
     LocalDateTime createdAt;
+    String correlationId;
 
     public static AuditLogResponse fromEntity(AuditLog log) {
         return AuditLogResponse.builder()
@@ -26,6 +27,7 @@ public class AuditLogResponse {
                 .entityId(log.getEntityId())
                 .detailsJson(log.getDetailsJson())
                 .createdAt(log.getCreatedAt())
+                .correlationId(log.getCorrelationId())
                 .build();
     }
 }

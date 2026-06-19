@@ -213,6 +213,43 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
+                    <!--
+                        ВРЕМЕННЫЙ baseline-порог покрытия (P0-1, RUN_PLAN.md).
+                        Фактическое измеренное покрытие на момент введения гейта (2026-06-19,
+                        mvn -B verify, локальный прогон): INSTRUCTION ~92.7%, LINE ~91.1%.
+                        Порог ниже измеренного, чтобы не блокировать текущий зелёный пайплайн
+                        небольшими погрешностями округления/окружения CI.
+                        Целевой порог по CLAUDE.md — 85% (уже фактически достигнут и превышен),
+                        но эта project-wide цифра в CLAUDE.md устарела и должна быть отдельно
+                        актуализирована. Любое последующее повышение порога — отдельным тикетом,
+                        по мере роста реального покрытия, порог НЕЛЬЗЯ снижать без ревью.
+                    -->
+                    <execution>
+                        <id>jacoco-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.88</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.90</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

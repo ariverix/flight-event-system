@@ -1,0 +1,7 @@
+# Профиль для локальной разработки: человекочитаемый текстовый лог вместо JSON.
+# Активируется через SPRING_PROFILES_ACTIVE=dev (или spring.profiles.active=dev).
+# По умолчанию (без профиля) логи структурные JSON — см. application.yml.
+logging:
+  structured:
+    format:
+      console: ""

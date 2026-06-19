@@ -1,0 +1,121 @@
+name: CI
+
+# Промышленный CI-пайплайн (P0-1, RUN_PLAN.md):
+#   backend: build -> test (включает ApplicationModules.verify(), см. ModularityTests) ->
+#            JaCoCo coverage gate (baseline-порог, см. комментарий в backend/pom.xml) -> package
+#   frontend: install -> typecheck -> build (быстрый, не блокирующий backend job)
+#
+# PR не должен мёржиться без зелёного job `backend`.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (build, test, Modulith-verify, coverage gate)
+    runs-on: ubuntu-latest
+
+    # БД для интеграционных тестов: BaseIntegrationTest подключается к
+    # jdbc:postgresql://localhost:5432/eca_test (eca_user/eca_password) напрямую,
+    # без Testcontainers. Поэтому поднимаем сервис-контейнер Postgres с теми же
+    # именем БД/учётными данными, что и в локальной разработке (см. docker-compose.yml).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: eca_test
+          POSTGRES_USER: eca_user
+          POSTGRES_PASSWORD: eca_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eca_user -d eca_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Grant execute permission to mvnw
+        working-directory: backend
+        run: chmod +x mvnw
+
+      - name: Build, test, Modulith-verify, coverage gate (mvn verify)
+        working-directory: backend
+        # mvn verify прогоняет: compile -> test (включая ModularityTests,
+        # ApplicationModules.verify()) -> jacoco:report -> jacoco:check (coverage gate) -> package.
+        # Профиль windows-docker в pom.xml активируется только под Windows и здесь не подключается —
+        # отдельный DOCKER_HOST не требуется, т.к. интеграционные тесты используют реальный
+        # сервис-контейнер Postgres выше, а не Testcontainers container-launch API.
+        # mvnw запускается через `bash mvnw`, а не `./mvnw` — файл в репозитории имеет CRLF-окончания
+        # строк (создан на Windows), что ломает прямой запуск шебанга `#!/bin/sh` на Linux-раннере.
+        run: bash mvnw -B verify
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/eca_test
+          SPRING_DATASOURCE_USERNAME: eca_user
+          SPRING_DATASOURCE_PASSWORD: eca_password
+
+      - name: Upload JaCoCo coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco/
+          retention-days: 14
+
+      - name: Upload surefire test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
+          retention-days: 14
+
+  frontend:
+    name: Frontend (install, typecheck, build)
+    runs-on: ubuntu-latest
+    # Не блокирует мёрж backend-а — отдельный быстрый сигнал по фронтенду.
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check
+        working-directory: frontend
+        run: npm run check
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build

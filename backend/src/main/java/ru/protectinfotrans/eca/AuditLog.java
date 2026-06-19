@@ -37,6 +37,14 @@ public class AuditLog {
 
     private LocalDateTime createdAt;
 
+    /**
+     * Сквозной идентификатор запроса/сообщения (см. {@link CorrelationContext#CORRELATION_ID}),
+     * связывающий запись аудита со структурными JSON-логами. Nullable: исторические записи
+     * и системные действия без HTTP-контекста его не имеют.
+     */
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
