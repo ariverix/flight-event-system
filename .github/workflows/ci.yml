@@ -2,7 +2,8 @@ name: CI
 
 # Промышленный CI-пайплайн (P0-1, RUN_PLAN.md):
 #   backend: build -> test (включает ApplicationModules.verify(), см. ModularityTests) ->
-#            JaCoCo coverage gate (baseline-порог, см. комментарий в backend/pom.xml) -> package
+#            JaCoCo coverage gate (baseline-порог, см. комментарий в backend/pom.xml) ->
+#            license report зависимостей (P0-6, информационный, не блокирует сборку) -> package
 #   frontend: install -> typecheck -> build (быстрый, не блокирующий backend job)
 #
 # PR не должен мёржиться без зелёного job `backend`.
@@ -90,6 +91,21 @@ jobs:
           name: surefire-reports
           path: backend/target/surefire-reports/
           retention-days: 14
+
+      # License report зависимостей (P0-6, RUN_PLAN.md): информационный отчёт по
+      # лицензиям всех (включая транзитивных) Maven-зависимостей backend, для
+      # compliance/Реестра российского ПО (см. docs/security/fstec-checklist.md).
+      # Генерируется goal'ом license-maven-plugin, привязанным к фазе verify в
+      # backend/pom.xml — уже выполнился в составе предыдущего шага `mvn verify`,
+      # здесь только публикуем готовый артефакт. Не фейлит сборку по лицензиям —
+      # политику запрещённых/разрешённых лицензий вводит compliance отдельным тикетом.
+      - name: Upload dependency license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: backend/target/site/aggregate-third-party-report.html
+          retention-days: 90
 
   frontend:
     name: Frontend (install, typecheck, build)

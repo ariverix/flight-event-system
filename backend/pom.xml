@@ -25,6 +25,7 @@
         <springdoc.version>2.8.4</springdoc.version>
         <testcontainers.version>1.20.4</testcontainers.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <license-maven-plugin.version>2.4.0</license-maven-plugin.version>
     </properties>
 
     <dependencies>
@@ -249,6 +250,35 @@
                                 </rule>
                             </rules>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+                License report зависимостей (P0-6, RUN_PLAN.md).
+                Цель P0 — ИНФОРМАЦИОННЫЙ отчёт по лицензиям всех зависимостей (включая
+                транзитивные), без фейла сборки по конкретным лицензиям — политику
+                запрещённых/разрешённых лицензий вводит compliance отдельным тикетом
+                (см. docs/security/fstec-checklist.md, раздел "Включение в Реестр
+                российского ПО" / лицензионная чистота перед P8-3).
+                Goal aggregate-third-party-report генерирует человекочитаемый HTML-отчёт
+                (target/site/aggregate-third-party-report.html) со списком зависимостей,
+                их лицензий и координат — публикуется как CI-артефакт (см. ci.yml).
+                Привязан к фазе verify, чтобы отчёт обновлялся вместе с обычной сборкой
+                (`mvn verify`), но НЕ влияет на её результат — сам goal не имеет
+                fail-конфигурации.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>${license-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>aggregate-third-party-report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>aggregate-third-party-report</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
