@@ -84,6 +84,7 @@ public class ExecutionQueryService implements ExecutionManagementUseCase {
                 instance.getWaitTimeoutAt(),
                 instance.getStartedAt(),
                 instance.getCompletedAt(),
+                instance.getUpdatedAt(),
                 steps
         );
     }

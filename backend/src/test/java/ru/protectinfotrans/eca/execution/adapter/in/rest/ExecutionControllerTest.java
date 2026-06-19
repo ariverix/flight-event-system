@@ -42,7 +42,7 @@ class ExecutionControllerTest {
         void shouldListExecutionsWithFilters() {
             var instance = new ExecutionInstanceResponse(
                     1L, 2L, "Seq", "RA-1234", "SU100", ExecutionStatus.RUNNING,
-                    0, "{}", null, null, null, null, List.of());
+                    0, "{}", null, null, null, null, null, List.of());
             var page = new PageResponse<>(List.of(instance), 1, 1, 0, 20);
             when(executionManagement.listExecutions(0, 20, ExecutionStatus.RUNNING, "RA-1234", 2L))
                     .thenReturn(page);
@@ -80,7 +80,7 @@ class ExecutionControllerTest {
         void shouldGetExecutionById() {
             var instance = new ExecutionInstanceResponse(
                     5L, 2L, "Seq", "RA-1234", "SU100", ExecutionStatus.COMPLETED,
-                    3, "{}", null, null, null, null, List.of());
+                    3, "{}", null, null, null, null, null, List.of());
             when(executionManagement.getExecution(5L)).thenReturn(instance);
 
             ResponseEntity<ExecutionInstanceResponse> response = controller.getExecution(5L);

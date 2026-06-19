@@ -70,6 +70,12 @@ class ExecutionServiceTest {
     @Spy
     private ObjectMapper objectMapper;
 
+    // Реальный (не mock) кодек контекста — это чистая сериализация/десериализация без внешних
+    // зависимостей кроме ObjectMapper, мокать её смысла не имеет: тесты должны видеть реальный
+    // round-trip contextJson, который проверяется в интеграционных P1-3 сценарных тестах.
+    @Spy
+    private InstanceContextCodec instanceContextCodec = new InstanceContextCodec(new ObjectMapper());
+
     @InjectMocks
     private ExecutionService service;
 

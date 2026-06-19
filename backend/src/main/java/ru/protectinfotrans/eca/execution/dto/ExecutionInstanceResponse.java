@@ -22,6 +22,7 @@ public record ExecutionInstanceResponse(
         LocalDateTime waitTimeoutAt,
         LocalDateTime startedAt,
         LocalDateTime completedAt,
+        LocalDateTime updatedAt,
         List<StepExecutionResponse> stepExecutions
 ) {
 }

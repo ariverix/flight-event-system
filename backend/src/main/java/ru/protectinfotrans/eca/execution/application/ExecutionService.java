@@ -12,6 +12,7 @@ import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
+import ru.protectinfotrans.eca.execution.domain.InstanceContext;
 import ru.protectinfotrans.eca.execution.domain.StepExecution;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
 import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
@@ -67,6 +68,7 @@ public class ExecutionService {
     private final ConditionQueryPort conditionQueryPort;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final InstanceContextCodec instanceContextCodec;
 
     /**
      * Точка входа для всех событий от Event Processor.
@@ -205,7 +207,7 @@ public class ExecutionService {
                 .flightNumber(flightNumber)
                 .status(ExecutionStatus.RUNNING)
                 .currentStepIndex(1)
-                .contextJson("{}")
+                .contextJson(instanceContextCodec.encode(InstanceContext.empty()))
                 .build();
 
         instance = executionRepository.save(instance);
@@ -222,6 +224,8 @@ public class ExecutionService {
         Step firstStep = sequence.getSteps().stream()
                 .min(java.util.Comparator.comparingInt(Step::getOrderIndex))
                 .orElseThrow();
+        // первый шаг нового инстанса — restoreFromThisPointReferenceIfNeeded здесь не нужен:
+        // нет "предыдущего resolved шага", чья точка отсчёта могла бы быть запомнена в контексте
         ExecutionContext context = buildDefaultContext(aircraftId, flightNumber);
         StepResult result = ecaRuleEngine.executeStep(firstStep, instance, context);
 
@@ -270,6 +274,14 @@ public class ExecutionService {
         // о вычисленной длительности паузы (см. ActionStepRule) и должен сохранять их после
         // завершения шага — это другая семантика, не активное ожидание критерия.
         if (step.getStepType() == StepType.WAIT) {
+            // точку отсчёта "from this point only" этого WAIT-шага запоминаем в персистентный
+            // контекст ДО очистки waitStartedAt — иначе следующий шаг по CONTINUE (например
+            // EVALUATE с fromThisPointOnly, читающий instance.getWaitStartedAt()) увидит null
+            // и потеряет точку отсчёта, хотя WAIT только что её установил. Контекст переживает
+            // и эту очистку, и рестарт сервиса (хранится в context JSONB).
+            if (instance.getWaitStartedAt() != null) {
+                rememberFromThisPointReference(instance, step.getOrderIndex(), instance.getWaitStartedAt());
+            }
             instance.setWaitStartedAt(null);
             instance.setWaitTimeoutAt(null);
         }
@@ -312,16 +324,19 @@ public class ExecutionService {
 
         switch (action) {
             case CONTINUE -> {
+                Integer resolvedStepIndex = instance.getCurrentStepIndex();
                 int nextIndex = instance.getCurrentStepIndex() + 1;
                 if (nextIndex <= sequence.getSteps().size()) {
-                    instance.setCurrentStepIndex(nextIndex);
-                    instance.setStatus(ExecutionStatus.RUNNING);
-                    executionRepository.save(instance);
-
                     Step nextStep = sequence.getSteps().stream()
                             .filter(s -> s.getOrderIndex().equals(nextIndex))
                             .findFirst()
                             .orElseThrow();
+
+                    instance.setCurrentStepIndex(nextIndex);
+                    instance.setStatus(ExecutionStatus.RUNNING);
+                    restoreFromThisPointReferenceIfNeeded(instance, resolvedStepIndex, nextStep);
+                    // один save() — консистентный снапшот (указатель шага + статус + контекст)
+                    executionRepository.save(instance);
 
                     ExecutionContext context = buildDefaultContext(instance.getAircraftId(), instance.getFlightNumber());
                     StepResult result = ecaRuleEngine.executeStep(nextStep, instance, context);
@@ -334,6 +349,7 @@ public class ExecutionService {
                 }
             }
             case GOTO -> {
+                Integer resolvedStepIndex = instance.getCurrentStepIndex();
                 // невалидный GOTO → ABORT, не исключение:
                 // последовательность не должна ронять весь поток событий для других ВС
                 if (transitionTarget == null || transitionTarget < 1 || transitionTarget > sequence.getSteps().size()) {
@@ -342,17 +358,19 @@ public class ExecutionService {
                     return;
                 }
 
+                Step targetStep = sequence.getSteps().stream()
+                        .filter(s -> s.getOrderIndex().equals(transitionTarget))
+                        .findFirst()
+                        .orElseThrow();
+
                 // GOTO поддерживает переход и назад (target < currentStepIndex), и вперёд
                 // (target > currentStepIndex) — это не ограничивается, как в SITA Sequencer;
                 // защита от бесконечного цикла — лимит transitionCount в advanceExecution.
                 instance.setCurrentStepIndex(transitionTarget);
                 instance.setStatus(ExecutionStatus.RUNNING);
+                restoreFromThisPointReferenceIfNeeded(instance, resolvedStepIndex, targetStep);
+                // один save() — консистентный снапшот (указатель шага + статус + контекст)
                 executionRepository.save(instance);
-
-                Step targetStep = sequence.getSteps().stream()
-                        .filter(s -> s.getOrderIndex().equals(transitionTarget))
-                        .findFirst()
-                        .orElseThrow();
 
                 ExecutionContext context = buildDefaultContext(instance.getAircraftId(), instance.getFlightNumber());
                 StepResult result = ecaRuleEngine.executeStep(targetStep, instance, context);
@@ -472,5 +490,47 @@ public class ExecutionService {
                 LocalDateTime.now(),
                 additionalData
         );
+    }
+
+    /**
+     * Запоминает точку отсчёта "from this point only" шага {@code stepIndex} в персистентном
+     * контексте инстанса ({@code contextJson}). Не вызывает save() сам — пишет только в поле
+     * на entity, реальная запись в БД происходит на ближайшем save() вызывающей стороны (один
+     * консистентный снапшот стейта на переходе, не отдельная транзакция под контекст).
+     */
+    private void rememberFromThisPointReference(ExecutionInstance instance, int stepIndex, LocalDateTime referenceTime) {
+        InstanceContext context = instanceContextCodec.decode(instance.getContextJson());
+        InstanceContext updated = context.withFromThisPointReference(stepIndex, referenceTime);
+        instance.setContextJson(instanceContextCodec.encode(updated));
+    }
+
+    /**
+     * Перед выполнением следующего/целевого шага восстанавливает waitStartedAt из персистентного
+     * контекста, если на entity он уже null (очищен при выходе из WAIT-шага resolvedStepIndex,
+     * см. advanceExecution) и для resolvedStepIndex в контексте есть запомненная точка отсчёта
+     * "from this point only". Покрывает WAIT->EVALUATE (CONTINUE/GOTO) переходы, где следующий
+     * шаг тоже читает instance.getWaitStartedAt() для своего fromThisPointOnly и ожидает увидеть
+     * точку отсчёта только что resolved WAIT-шага, а также восстановление после рестарта сервиса —
+     * контекст лежит в БД, а не in-memory.
+     *
+     * <p>НЕ восстанавливаем, если nextStep сам является WAIT: новый визит WAIT-шага обязан
+     * открывать новое окно ожидания (см. комментарий в advanceExecution про GOTO-назад на WAIT) —
+     * подстановка старой точки отсчёта в waitStartedAt до первого прогона WaitStepRule привела бы
+     * к тому, что fromThisPointOnly-критерий этого нового визита использует чужое старое окно.
+     *
+     * @param resolvedStepIndex индекс шага, который только что был resolved (т.е. instance.getCurrentStepIndex()
+     *                          ДО перехода на следующий/целевой шаг) — именно под этим индексом
+     *                          advanceExecution запоминает точку отсчёта при выходе из WAIT-шага.
+     * @param nextStep          шаг, на который выполняется переход (CONTINUE/GOTO target).
+     */
+    private void restoreFromThisPointReferenceIfNeeded(ExecutionInstance instance, Integer resolvedStepIndex, Step nextStep) {
+        if (instance.getWaitStartedAt() != null || resolvedStepIndex == null || nextStep.getStepType() == StepType.WAIT) {
+            return;
+        }
+        InstanceContext context = instanceContextCodec.decode(instance.getContextJson());
+        LocalDateTime reference = context.getFromThisPointReference(resolvedStepIndex);
+        if (reference != null) {
+            instance.setWaitStartedAt(reference);
+        }
     }
 }
