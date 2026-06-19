@@ -7,6 +7,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
@@ -189,6 +190,88 @@ public class ExecutionService {
         if (result != null) {
             log.info("WAIT step resolved with result {} for instance {}", result, instance.getId());
             advanceExecution(instance, currentStep, result);
+        }
+    }
+
+    /**
+     * P1-4: повторно прогоняет текущий шаг RUNNING-инстанса, найденного при старте приложения
+     * незавершённым (см. {@code ExecutionResumeRunner}). RUNNING на этом шаге означает, что
+     * процесс упал между "перейти на шаг N и сохранить указатель" (executeTransition/startExecution
+     * делают save() ДО executeStep) и "обработать результат шага N" (advanceExecution) — то есть
+     * шаг N либо не успел выполниться вовсе, либо выполнился, но его результат/переход не были
+     * обработаны. Единственный детерминированный путь восстановления — повторно выполнить шаг N
+     * через тот же {@code ecaRuleEngine.executeStep} и тот же {@code advanceExecution}, которые
+     * использует штатный поток (executeTransition/startExecution) — не вводим отдельную ветку логики.
+     *
+     * <p><b>Идемпотентность сейчас:</b> для EVALUATE/WAIT повторный прогон безопасен и побочных
+     * эффектов не имеет (чистая проверка критерия). Для ACTION с эффектом, видимым извне
+     * (SEND_UPLINK/SEND_GROUND), повторный прогон ПОСЛЕ рестарта может повторно отправить
+     * сообщение, если шаг успел физически уйти во внешний канал до краша, но до того, как
+     * advanceExecution передвинул currentStepIndex. Это осознанный пробел, закрываемый Outbox
+     * (P1-7): там отправка становится идемпотентной операцией с собственным дедуп-ключом
+     * (instance.id + stepIndex), а не вызовом канала "напрямую" из правила. Сейчас гарантия —
+     * "at-least-once и не потеряно", не "exactly-once".
+     *
+     * <p><b>Транзакционная изоляция (P1-4, фикс ревью):</b> {@code REQUIRES_NEW}, а не
+     * {@code REQUIRED} класса по умолчанию. {@code ExecutionResumeRunner#run} обходит ВСЕ
+     * найденные RUNNING-инстансы в цикле и сам больше не открывает общую транзакцию на весь
+     * цикл (см. его комментарий) — без {@code REQUIRES_NEW} здесь резюм одного инстанса делил
+     * бы Hibernate-сессию/транзакцию со следующими вызовами в рамках вызывающего кода, и сбой,
+     * инвалидирующий сессию при flush (constraint violation, optimistic lock и т.п., а не просто
+     * бизнес-исключение), оставил бы EntityManager в невалидном состоянии для соседних инстансов.
+     * {@code REQUIRES_NEW} коммитит/роллбэкает каждый инстанс в собственной транзакции —
+     * сбой одного физически не достижим из транзакции другого. Вызывается ИЗ {@code ExecutionResumeRunner}
+     * через внедрённый Spring-прокси этого бина (DI, не {@code this.method()}) — самовызов
+     * (self-invocation) здесь не возникает, проксирование {@code @Transactional} работает.
+     *
+     * <p><b>Почему перечитываем instance по id, а не используем переданный объект напрямую:</b>
+     * {@code instance} приходит из {@code ExecutionResumeRunner}, который сам больше не держит
+     * общую транзакцию — он получил {@code instance} из {@code findAllActive()} в УЖЕ закрытой
+     * транзакции/Hibernate-сессии (другой вызов репозитория). Внутри новой {@code REQUIRES_NEW}
+     * транзакции этот объект — detached-entity с закрытой сессией: обращение к ленивым связям
+     * (например {@code stepHistory} в {@code advanceExecution}) бросает
+     * {@code LazyInitializationException}, даже если все скалярные поля читаются нормально.
+     * Перечитывание по id привязывает работу к свежему, управляемому текущей транзакцией
+     * объекту. Фоллбэк на переданный {@code instance}, если перечитать не удалось (id ещё не
+     * задан или запись не найдена), сохраняет поведение по умолчанию для existing unit-тестов
+     * на mock {@code ExecutionRepositoryPort}, которые не настраивают {@code findById} явно.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void resumeRunningInstanceAfterRestart(ExecutionInstance instance) {
+        ExecutionInstance managedInstance = instance.getId() != null
+                ? executionRepository.findById(instance.getId()).orElse(instance)
+                : instance;
+
+        Sequence sequence = sequenceQuery.findById(managedInstance.getSequenceId()).orElse(null);
+        if (sequence == null) {
+            log.warn("Resume: sequence {} not found for instance {} — leaving as is",
+                    managedInstance.getSequenceId(), managedInstance.getId());
+            return;
+        }
+
+        Step currentStep = sequence.getSteps().stream()
+                .filter(s -> s.getOrderIndex().equals(managedInstance.getCurrentStepIndex()))
+                .findFirst()
+                .orElse(null);
+
+        if (currentStep == null) {
+            log.warn("Resume: current step {} not found in sequence {} for instance {} — leaving as is",
+                    managedInstance.getCurrentStepIndex(), sequence.getId(), managedInstance.getId());
+            return;
+        }
+
+        log.info("Resume: re-executing step {} ({}) for RUNNING instance {} after restart",
+                currentStep.getOrderIndex(), currentStep.getStepType(), managedInstance.getId());
+
+        ExecutionContext context = buildDefaultContext(managedInstance.getAircraftId(), managedInstance.getFlightNumber());
+        StepResult result = ecaRuleEngine.executeStep(currentStep, managedInstance, context);
+
+        if (result != null) {
+            advanceExecution(managedInstance, currentStep, result);
+        } else {
+            // шаг сам перевёл инстанс в WAITING (например WAIT-шаг ещё не получил критерий) —
+            // executeStep уже выставил waitStartedAt/waitTimeoutAt на instance, сохраняем снапшот
+            executionRepository.save(managedInstance);
         }
     }
 

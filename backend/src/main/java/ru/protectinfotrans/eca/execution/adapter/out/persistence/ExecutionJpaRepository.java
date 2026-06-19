@@ -35,6 +35,12 @@ public interface ExecutionJpaRepository extends JpaRepository<ExecutionInstance,
     List<ExecutionInstance> findWaitingWithExpiredTimeout(@Param("now") LocalDateTime now);
 
     /**
+     * Все незавершённые экземпляры (RUNNING/WAITING) вне зависимости от ВС — для resume при старте (P1-4).
+     */
+    @Query("SELECT e FROM ExecutionInstance e WHERE e.status IN ('RUNNING', 'WAITING')")
+    List<ExecutionInstance> findAllActive();
+
+    /**
      * Универсальный поиск с фильтрацией.
      */
     @Query("SELECT e FROM ExecutionInstance e WHERE " +

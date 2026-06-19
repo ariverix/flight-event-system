@@ -26,7 +26,7 @@
 | P1-1 | Паритет SITA: 3 типа шагов (ACTION/EVALUATE/WAIT), 6 типов критериев с операторами и AND/OR | sequence-engine-dev | Done | reviewer PASS (1 цикл bug-fixer: position_source fallback). Все типы шагов/критериев, операторы, AND/OR nested, from-this-point-only, estimated-ignore. Миграция V21. 292 теста зелёные. |
 | P1-2 | Решения CONTINUE/GOTO/END/ABORT (true/false) + Notify; start/stop-критерии непрерывной оценки | sequence-engine-dev | Done | reviewer PASS. Независимые true/false решения, GOTO вперёд/назад, Notify, start/stop непрерывной оценки (схема V2/V3 уже поддерживала). Починены 2 бага: бесконечный синхронный GOTO-цикл (loop guard 1000→ABORT), устаревший WAIT-таймаут при повторном входе. 307 тестов. |
 | P1-3 | Персистентный стейт инстанса: таблица `sequence_instance` + миграция + репозиторий | db-dev + sequence-engine-dev | Done | reviewer PASS. `execution_instances`(=sequence_instance) уже имела шаг/статус/таймауты/context; V22 +updated_at +version(nullable, задел P1-6). Механизм InstanceContext/Codec, save-on-every-transition. Починен баг: from-this-point-only reference переживает очистку waitStartedAt и рестарт (готово к P1-4). OpenAPI обновлён. 321 тест. |
-| P1-4 | Resume после рестарта незавершённых инстансов | sequence-engine-dev + test-engineer | Pending | — |
+| P1-4 | Resume после рестарта незавершённых инстансов | sequence-engine-dev + test-engineer | Done | reviewer PASS (1 цикл bug-fixer: транзакционная изоляция — REQUIRES_NEW на инстанс, reload-by-id от detached/LazyInit, тест с PG-триггером). `ExecutionResumeRunner` (ApplicationRunner на ApplicationReadyEvent) сканирует RUNNING/WAITING при старте; WAITING восстанавливается "бесплатно" (WAIT-окно и from-this-point-only уже персистентны с P1-3, читаются заново слушателем/scheduler); RUNNING докручивается повторным детерминированным прогоном текущего шага (`ExecutionService#resumeRunningInstanceAfterRestart`). Гарантия сейчас — at-least-once (не exactly-once для ACTION с внешним эффектом) — усиливается Outbox в P1-7. Без миграции (V22 уже всё нужное персистит). Multi-replica/leader election — зона P6-1, не реализовано. 337 тестов.
 | P1-5 | Durable-планировщик WAIT/таймаутов (БД-backed) | sequence-engine-dev | Pending | — |
 | P1-6 | Конкурентность: оптимистические блокировки, без гонок на много инстансов | sequence-engine-dev | Pending | — |
 | P1-7 | Transactional Outbox (`event_publication`) + идемпотентный приём + ADR Outbox vs прямой вызов | architect + sequence-engine-dev + db-dev | Pending | — |
@@ -101,7 +101,7 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 321 зелёных.
+- Тестов: 338 зелёных.
 - Последняя миграция: V22 (`execution_instances.updated_at` + `version`).
 - JaCoCo gate baseline: LINE ≥ 0.88, INSTR ≥ 0.90 (цель проекта — 85% по
   изменённому коду на гейте ревью, см. CLAUDE.md, п.5 рабочего протокола).

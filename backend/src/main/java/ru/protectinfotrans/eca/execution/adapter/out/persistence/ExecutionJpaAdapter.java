@@ -56,4 +56,9 @@ public class ExecutionJpaAdapter implements ExecutionRepositoryPort {
     public List<ExecutionInstance> findWaitingWithExpiredTimeout(LocalDateTime now) {
         return jpaRepository.findWaitingWithExpiredTimeout(now);
     }
+
+    @Override
+    public List<ExecutionInstance> findAllActive() {
+        return jpaRepository.findAllActive();
+    }
 }

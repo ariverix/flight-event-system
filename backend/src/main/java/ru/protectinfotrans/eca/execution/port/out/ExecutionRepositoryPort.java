@@ -42,4 +42,12 @@ public interface ExecutionRepositoryPort {
      * Используется в @Scheduled checkWaitTimeouts.
      */
     List<ExecutionInstance> findWaitingWithExpiredTimeout(LocalDateTime now);
+
+    /**
+     * Найти ВСЕ незавершённые экземпляры (RUNNING/WAITING) вне зависимости от ВС.
+     * Используется при старте приложения (P1-4 resume) для восстановления незавершённых
+     * инстансов после рестарта сервиса — {@code findActiveByAircraftId} тут не подходит,
+     * так как на старте неизвестен конкретный борт.
+     */
+    List<ExecutionInstance> findAllActive();
 }

@@ -788,6 +788,98 @@ class ExecutionServiceTest {
     }
 
     @Nested
+    @DisplayName("resumeRunningInstanceAfterRestart - P1-4 resume RUNNING-инстансов")
+    class ResumeRunningInstanceAfterRestartTests {
+
+        @Test
+        @DisplayName("должен повторно выполнить текущий шаг и продвинуть инстанс при детерминированном результате")
+        void shouldReExecuteCurrentStepAndAdvance() {
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(7L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BQR")
+                    .flightNumber("SU1234")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(1)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+            when(ecaRuleEngine.executeStep(any(), any(), any())).thenReturn(StepResult.SUCCESS);
+            when(executionRepository.save(any())).thenReturn(instance);
+
+            service.resumeRunningInstanceAfterRestart(instance);
+
+            verify(ecaRuleEngine, atLeastOnce()).executeStep(any(), any(), any());
+            // step1 onSuccess=CONTINUE -> currentStepIndex продвинулся за пределы исходного значения
+            assertThat(instance.getCurrentStepIndex()).isGreaterThanOrEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("должен сохранить инстанс как WAITING если повторный шаг ещё не resolved (null результат)")
+        void shouldPersistWaitingStateWhenStepNotYetResolved() {
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(8L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BQR")
+                    .flightNumber("SU1234")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(1)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+            when(ecaRuleEngine.executeStep(any(), any(), any())).thenReturn(null);
+            when(executionRepository.save(any())).thenReturn(instance);
+
+            service.resumeRunningInstanceAfterRestart(instance);
+
+            verify(executionRepository).save(instance);
+            verify(eventPublisher, never()).publishEvent(any(ExecutionCompletedEvent.class));
+        }
+
+        @Test
+        @DisplayName("должен оставить инстанс как есть если последовательность не найдена")
+        void shouldLeaveInstanceUntouchedWhenSequenceNotFound() {
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(9L)
+                    .sequenceId(999L)
+                    .aircraftId("VP-BQR")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(1)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(sequenceQuery.findById(999L)).thenReturn(Optional.empty());
+
+            service.resumeRunningInstanceAfterRestart(instance);
+
+            verify(ecaRuleEngine, never()).executeStep(any(), any(), any());
+            verify(executionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("должен оставить инстанс как есть если текущий шаг не найден в последовательности")
+        void shouldLeaveInstanceUntouchedWhenStepNotFound() {
+            ExecutionInstance instance = ExecutionInstance.builder()
+                    .id(10L)
+                    .sequenceId(100L)
+                    .aircraftId("VP-BQR")
+                    .status(ExecutionStatus.RUNNING)
+                    .currentStepIndex(99)
+                    .stepHistory(new ArrayList<>())
+                    .build();
+
+            when(sequenceQuery.findById(100L)).thenReturn(Optional.of(sequence));
+
+            service.resumeRunningInstanceAfterRestart(instance);
+
+            verify(ecaRuleEngine, never()).executeStep(any(), any(), any());
+            verify(executionRepository, never()).save(any());
+        }
+    }
+
+    @Nested
     @DisplayName("checkWaitTimeouts - граничные случаи")
     class CheckWaitTimeoutsEdgeCases {
 
