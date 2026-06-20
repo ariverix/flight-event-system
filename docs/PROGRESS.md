@@ -37,7 +37,7 @@
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
 | P2-1 | Входящий шлюз ACARS: приём → нормализация → `MessageReceived`, идемпотентность по ID сообщения | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: TOCTOU-гонка). Идемпотентность шлюза по `externalMessageId` (persist-before-process, find-before-save), V25 `messages.external_message_id` + partial UNIQUE. Гонка: saveAndFlush+catch DataIntegrityViolation+recovery-read REQUIRES_NEW (graceful, без 500); 8-поточный тест на реальном Postgres. Дополняет идемпотентность потребителя P1-7. 397 тестов. |
-| P2-2 | Парсеры ARINC 620/618 / Type B / AFTN | integration-dev | Pending | — |
+| P2-2 | Парсеры ARINC 620/618 / Type B / AFTN | integration-dev | Done | reviewer PASS (правка: openapi обновлён). Парсеры ARINC 618/620/Type B/AFTN (integration.parser), raw-эндпоинт `/messages/incoming/raw` в integration (вызов eventprocessor через port-in NamedInterface — цикл границ разрешён). Извлечение tail/flight/type/payload/externalMessageId, AN/FI паритет. Тесты на реальных примерах + негатив. Без миграции. 443 теста. |
 | P2-3 | Исходящий шлюз: uplink/ground через Outbox | integration-dev | Pending | — |
 | P2-4 | Позывные + таблица `callsign_matching` → определение FI | integration-dev + db-dev | Pending | — |
 | P2-5 | Источники позиций ACARS/ADS-B/radar, фактические vs оценочные | integration-dev | Pending | — |
@@ -101,7 +101,7 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 397 зелёных.
+- Тестов: 443 зелёных.
 - Последняя миграция: V25 (`messages.external_message_id` + partial UNIQUE).
 - **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
 
