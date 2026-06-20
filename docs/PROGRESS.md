@@ -36,7 +36,7 @@
 
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
-| P2-1 | Входящий шлюз ACARS: приём → нормализация → `MessageReceived`, идемпотентность по ID сообщения | integration-dev | Pending | — |
+| P2-1 | Входящий шлюз ACARS: приём → нормализация → `MessageReceived`, идемпотентность по ID сообщения | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: TOCTOU-гонка). Идемпотентность шлюза по `externalMessageId` (persist-before-process, find-before-save), V25 `messages.external_message_id` + partial UNIQUE. Гонка: saveAndFlush+catch DataIntegrityViolation+recovery-read REQUIRES_NEW (graceful, без 500); 8-поточный тест на реальном Postgres. Дополняет идемпотентность потребителя P1-7. 397 тестов. |
 | P2-2 | Парсеры ARINC 620/618 / Type B / AFTN | integration-dev | Pending | — |
 | P2-3 | Исходящий шлюз: uplink/ground через Outbox | integration-dev | Pending | — |
 | P2-4 | Позывные + таблица `callsign_matching` → определение FI | integration-dev + db-dev | Pending | — |
@@ -101,9 +101,9 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 375 зелёных.
-- Последняя миграция: V24 (`sequences.logging_enabled` + таблица `tracking_event_log`).
-- **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS).
+- Тестов: 397 зелёных.
+- Последняя миграция: V25 (`messages.external_message_id` + partial UNIQUE).
+- **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
 

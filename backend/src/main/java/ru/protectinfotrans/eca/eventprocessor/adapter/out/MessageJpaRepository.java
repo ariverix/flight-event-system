@@ -84,4 +84,7 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
     Page<IncomingMessage> findByAircraftId(String aircraftId, Pageable pageable);
     Page<IncomingMessage> findByMessageType(MessageType messageType, Pageable pageable);
     Page<IncomingMessage> findByAircraftIdAndMessageType(String aircraftId, MessageType messageType, Pageable pageable);
+
+    // P2-1: lookup идемпотентности шлюза по идентификатору внешней ACARS-системы.
+    Optional<IncomingMessage> findByExternalMessageId(String externalMessageId);
 }

@@ -6,6 +6,8 @@ export interface IncomingMessageRequest {
   aircraftId: string;
   flightNumber?: string;
   metadataJson?: string;
+  /** Идентификатор сообщения от внешней ACARS-системы — ключ идемпотентности шлюза (P2-1). */
+  externalMessageId?: string;
 }
 
 export interface FlightStageChangeRequest {
@@ -22,4 +24,6 @@ export interface MessageResponse {
   flightNumber: string | null;
   receivedAt: string;
   metadataJson: string | null;
+  /** Идентификатор сообщения от внешней ACARS-системы — ключ идемпотентности шлюза (P2-1). */
+  externalMessageId?: string;
 }

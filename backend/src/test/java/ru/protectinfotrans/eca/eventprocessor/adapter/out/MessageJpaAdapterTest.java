@@ -71,6 +71,51 @@ class MessageJpaAdapterTest {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    @DisplayName("saveAndFlush: должен сохранить сообщение и принудительно сделать flush")
+    void shouldSaveAndFlush() {
+        var message = IncomingMessage.builder().aircraftId("RA-1234").externalMessageId("REF-1").build();
+        when(jpaRepository.save(message)).thenReturn(message);
+
+        IncomingMessage result = adapter.saveAndFlush(message);
+
+        assertThat(result).isEqualTo(message);
+        verify(jpaRepository).save(message);
+        verify(jpaRepository).flush();
+    }
+
+    @Test
+    @DisplayName("findByExternalMessageIdInNewTransaction: должен делегировать recovery-read в репозиторий")
+    void shouldFindByExternalMessageIdInNewTransaction() {
+        var message = IncomingMessage.builder().id(8L).externalMessageId("ARINC-REF-RACE").build();
+        when(jpaRepository.findByExternalMessageId("ARINC-REF-RACE")).thenReturn(Optional.of(message));
+
+        Optional<IncomingMessage> result = adapter.findByExternalMessageIdInNewTransaction("ARINC-REF-RACE");
+
+        assertThat(result).contains(message);
+    }
+
+    @Test
+    @DisplayName("findByExternalMessageId: должен делегировать поиск по идентификатору внешней системы")
+    void shouldFindByExternalMessageId() {
+        var message = IncomingMessage.builder().id(7L).externalMessageId("ARINC-REF-777").build();
+        when(jpaRepository.findByExternalMessageId("ARINC-REF-777")).thenReturn(Optional.of(message));
+
+        Optional<IncomingMessage> result = adapter.findByExternalMessageId("ARINC-REF-777");
+
+        assertThat(result).contains(message);
+    }
+
+    @Test
+    @DisplayName("findByExternalMessageId: должен вернуть Optional.empty если идентификатор не встречался")
+    void shouldReturnEmptyWhenExternalMessageIdNotFound() {
+        when(jpaRepository.findByExternalMessageId("UNKNOWN-REF")).thenReturn(Optional.empty());
+
+        Optional<IncomingMessage> result = adapter.findByExternalMessageId("UNKNOWN-REF");
+
+        assertThat(result).isEmpty();
+    }
+
     @Nested
     @DisplayName("existsByAircraftAndTypeAndTemplate")
     class ExistsByAircraftAndTypeAndTemplate {

@@ -60,7 +60,7 @@ class MessageControllerTest {
         @DisplayName("должен принять сообщение и вернуть id")
         void shouldReceiveMessage() {
             IncomingMessageRequest request = new IncomingMessageRequest(
-                    MessageType.DOWNLINK, "STATUS", "VP-BAB", "SU1234", null);
+                    MessageType.DOWNLINK, "STATUS", "VP-BAB", "SU1234", null, null);
 
             when(eventProcessorService.receiveMessage(
                     eq(MessageType.DOWNLINK), eq("STATUS"), eq("VP-BAB"), eq("SU1234"), isNull(), isNull()))
@@ -77,7 +77,7 @@ class MessageControllerTest {
         @DisplayName("должен распарсить metadataJson и передать его сервису")
         void shouldParseMetadataJson() {
             IncomingMessageRequest request = new IncomingMessageRequest(
-                    MessageType.UPLINK, "CLEARANCE", "VP-BAB", "SU1234", "{\"key\":\"value\"}");
+                    MessageType.UPLINK, "CLEARANCE", "VP-BAB", "SU1234", "{\"key\":\"value\"}", null);
 
             when(eventProcessorService.receiveMessage(any(), any(), any(), any(), any(), anyMap()))
                     .thenReturn(1L);
@@ -95,7 +95,7 @@ class MessageControllerTest {
         @DisplayName("должен игнорировать некорректный metadataJson без ошибки")
         void shouldIgnoreInvalidMetadataJson() {
             IncomingMessageRequest request = new IncomingMessageRequest(
-                    MessageType.DOWNLINK, "STATUS", "VP-BAB", "SU1234", "{not-valid");
+                    MessageType.DOWNLINK, "STATUS", "VP-BAB", "SU1234", "{not-valid", null);
 
             when(eventProcessorService.receiveMessage(any(), any(), any(), any(), any(), isNull()))
                     .thenReturn(2L);
@@ -112,10 +112,65 @@ class MessageControllerTest {
         @DisplayName("должен игнорировать пустой metadataJson")
         void shouldIgnoreBlankMetadataJson() {
             IncomingMessageRequest request = new IncomingMessageRequest(
-                    MessageType.DOWNLINK, "STATUS", "VP-BAB", "SU1234", "   ");
+                    MessageType.DOWNLINK, "STATUS", "VP-BAB", "SU1234", "   ", null);
 
             when(eventProcessorService.receiveMessage(any(), any(), any(), any(), any(), isNull()))
                     .thenReturn(3L);
+
+            controller.receiveMessage(request);
+
+            verify(eventProcessorService).receiveMessage(
+                    eq(MessageType.DOWNLINK), eq("STATUS"), eq("VP-BAB"), eq("SU1234"), isNull(), isNull());
+        }
+
+        @Test
+        @DisplayName("должен передать externalMessageId сервису через metadata-карту, когда metadataJson отсутствует")
+        void shouldMergeExternalMessageIdIntoMetadataWhenNoMetadataJson() {
+            IncomingMessageRequest request = new IncomingMessageRequest(
+                    MessageType.DOWNLINK, "STATUS", "VP-BAB", "SU1234", null, "ARINC-REF-001");
+
+            when(eventProcessorService.receiveMessage(any(), any(), any(), any(), any(), anyMap()))
+                    .thenReturn(10L);
+
+            controller.receiveMessage(request);
+
+            ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+            verify(eventProcessorService).receiveMessage(
+                    eq(MessageType.DOWNLINK), eq("STATUS"), eq("VP-BAB"), eq("SU1234"), isNull(), captor.capture());
+
+            assertThat(captor.getValue()).containsEntry("externalMessageId", "ARINC-REF-001");
+        }
+
+        @Test
+        @DisplayName("должен объединить externalMessageId с уже распарсенным metadataJson, не теряя существующие поля")
+        void shouldMergeExternalMessageIdWithParsedMetadataJson() {
+            IncomingMessageRequest request = new IncomingMessageRequest(
+                    MessageType.DOWNLINK, "POSITION_REPORT", "VP-BAB", "SU1234",
+                    "{\"positionSource\":\"ACARS\"}", "ARINC-REF-002");
+
+            when(eventProcessorService.receiveMessage(any(), any(), any(), any(), any(), anyMap()))
+                    .thenReturn(11L);
+
+            controller.receiveMessage(request);
+
+            ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+            verify(eventProcessorService).receiveMessage(
+                    eq(MessageType.DOWNLINK), eq("POSITION_REPORT"), eq("VP-BAB"), eq("SU1234"), isNull(),
+                    captor.capture());
+
+            assertThat(captor.getValue())
+                    .containsEntry("externalMessageId", "ARINC-REF-002")
+                    .containsEntry("positionSource", "ACARS");
+        }
+
+        @Test
+        @DisplayName("должен игнорировать пустой externalMessageId (не добавлять в metadata)")
+        void shouldIgnoreBlankExternalMessageId() {
+            IncomingMessageRequest request = new IncomingMessageRequest(
+                    MessageType.DOWNLINK, "STATUS", "VP-BAB", "SU1234", null, "   ");
+
+            when(eventProcessorService.receiveMessage(any(), any(), any(), any(), any(), isNull()))
+                    .thenReturn(12L);
 
             controller.receiveMessage(request);
 
@@ -155,6 +210,7 @@ class MessageControllerTest {
                     .flightNumber("SU1234")
                     .receivedAt(LocalDateTime.now())
                     .metadataJson(null)
+                    .externalMessageId("ARINC-REF-999")
                     .build();
 
             Page<IncomingMessage> page = new PageImpl<>(List.of(message));
@@ -167,6 +223,7 @@ class MessageControllerTest {
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().getContent()).hasSize(1);
             assertThat(response.getBody().getContent().get(0).aircraftId()).isEqualTo("VP-BAB");
+            assertThat(response.getBody().getContent().get(0).externalMessageId()).isEqualTo("ARINC-REF-999");
         }
 
         @Test

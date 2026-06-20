@@ -15,6 +15,7 @@ public record MessageResponse(
         String aircraftId,
         String flightNumber,
         LocalDateTime receivedAt,
-        String metadataJson
+        String metadataJson,
+        String externalMessageId
 ) {
 }

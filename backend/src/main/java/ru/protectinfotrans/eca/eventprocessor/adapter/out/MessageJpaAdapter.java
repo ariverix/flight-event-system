@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
@@ -26,6 +28,31 @@ public class MessageJpaAdapter implements MessageRepositoryPort {
     @Override
     public Optional<IncomingMessage> findById(Long id) {
         return jpaRepository.findById(id);
+    }
+
+    @Override
+    public Optional<IncomingMessage> findByExternalMessageId(String externalMessageId) {
+        return jpaRepository.findByExternalMessageId(externalMessageId);
+    }
+
+    /**
+     * См. javadoc порта. Без явной смены propagation (REQUIRED по умолчанию — присоединяется
+     * к транзакции вызывающего, как обычный save). Явный {@code flush()}: constraint violation
+     * партиционного unique index (V25) должен материализоваться СЕЙЧАС ЖЕ, внутри транзакции
+     * вызывающего метода, а не на коммите — иначе перехватить его внутри вызывающего метода
+     * (и откатить транзакцию штатно через Spring AOP-прокси) было бы невозможно.
+     */
+    @Override
+    public IncomingMessage saveAndFlush(IncomingMessage message) {
+        IncomingMessage saved = jpaRepository.save(message);
+        jpaRepository.flush();
+        return saved;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<IncomingMessage> findByExternalMessageIdInNewTransaction(String externalMessageId) {
+        return jpaRepository.findByExternalMessageId(externalMessageId);
     }
 
     @Override

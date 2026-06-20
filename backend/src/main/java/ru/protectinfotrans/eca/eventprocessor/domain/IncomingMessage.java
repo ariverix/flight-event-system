@@ -58,6 +58,15 @@ public class IncomingMessage {
     @Column(name = "is_estimated_position", nullable = false)
     private boolean estimatedPosition = false;
 
+    /**
+     * Идентификатор сообщения от внешней ACARS-системы (ARINC message reference,
+     * AFTN serial number и т.п.) — ключ идемпотентности шлюза (P2-1). Nullable: не все
+     * источники присылают его надёжно. UNIQUE среди непустых значений (V25) — гарантирует,
+     * что повторная доставка с тем же идентификатором не создаёт вторую запись.
+     */
+    @Column(name = "external_message_id")
+    private String externalMessageId;
+
     @PrePersist
     protected void onCreate() {
         receivedAt = LocalDateTime.now();

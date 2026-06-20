@@ -22,6 +22,7 @@ import ru.protectinfotrans.eca.eventprocessor.dto.FlightStageChangeRequest;
 import ru.protectinfotrans.eca.eventprocessor.dto.IncomingMessageRequest;
 import ru.protectinfotrans.eca.eventprocessor.dto.MessageResponse;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -62,6 +63,15 @@ public class MessageController {
             } catch (Exception e) {
                 log.warn("Failed to parse metadataJson: {}", e.getMessage());
             }
+        }
+
+        // externalMessageId — отдельное поле протокола (не произвольная metadata), но
+        // передаётся в EventProcessorService через ту же metadata-карту (см.
+        // EventProcessorService.extractExternalMessageId) — без расширения сигнатуры
+        // MessageInputPort.receiveMessage, которую вызывают много существующих интеграций/тестов.
+        if (request.externalMessageId() != null && !request.externalMessageId().isBlank()) {
+            metadata = metadata == null ? new HashMap<>() : new HashMap<>(metadata);
+            metadata.put("externalMessageId", request.externalMessageId());
         }
 
         Long messageId = eventProcessorService.receiveMessage(
@@ -128,7 +138,8 @@ public class MessageController {
                 msg.getAircraftId(),
                 msg.getFlightNumber(),
                 msg.getReceivedAt(),
-                msg.getMetadataJson()
+                msg.getMetadataJson(),
+                msg.getExternalMessageId()
         ));
 
         return ResponseEntity.ok(response);
