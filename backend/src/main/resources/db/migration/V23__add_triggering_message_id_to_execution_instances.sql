@@ -1,0 +1,62 @@
+-- P1-7 (часть 2a, db-dev): закрывает пробел идемпотентности, зафиксированный
+-- архитектором в ADR-0002 (docs/adr/ADR-0002-transactional-outbox-vs-direct-call.md,
+-- раздел "Спецификация для реализации", п.2 "Нужна ли миграция V23").
+--
+-- Пробел: ExecutionService.checkStartCriteria -> startExecution всегда делает
+-- INSERT нового execution_instances при совпадении старт-критерия. Spring
+-- Modulith Event Publication Registry (Transactional Outbox, V10) даёт
+-- at-least-once доставку NormalizedEvent — повторная доставка ОДНОГО И ТОГО
+-- ЖЕ события (после republish-on-restart/retry) сейчас создаёт ДУБЛИРУЮЩИЙ
+-- ExecutionInstance, т.к. нет проверки "уже стартован по этому событию".
+--
+-- Решение (ADR-0002, "Итоговая рекомендация архитектора"): хранить на
+-- execution_instances идентификатор исходного NormalizedEvent.messageId,
+-- по которому инстанс был запущен, и проверять перед INSERT, нет ли уже
+-- инстанса с тем же (sequence_id, aircraft_id, flight_number,
+-- triggering_message_id). Сама проверка-дедуп — часть 2b (sequence-engine-dev,
+-- ExecutionService), эта миграция добавляет ТОЛЬКО схему.
+--
+-- Решение явно НЕ создаёт generic processed_events/dedup-таблицу — архитектор
+-- отклонил такую абстракцию как избыточную для текущего объёма (см. ADR-0002,
+-- "Alternatives considered"): естественный дедуп-ключ уже есть в данных самого
+-- инстанса, отдельный реестр не нужен.
+
+-- Nullable: старые инстансы (до этой миграции) и инстансы, запущенные не по
+-- конкретному сообщению (например ручной старт через API/UI, если такой
+-- сценарий есть), не имеют triggering_message_id и не участвуют в дедупе.
+ALTER TABLE execution_instances
+    ADD COLUMN triggering_message_id BIGINT NULL;
+
+-- Индекс под дедуп-запрос перед INSERT в startExecution:
+--   SELECT 1 FROM execution_instances
+--   WHERE sequence_id = :sequenceId
+--     AND aircraft_id = :aircraftId
+--     AND flight_number = :flightNumber
+--     AND triggering_message_id = :triggeringMessageId
+--   LIMIT 1
+--
+-- Состав колонок и их порядок выбран по точному дедуп-ключу из ADR-0002:
+-- (sequence_id, aircraft_id, flight_number, triggering_message_id) —
+-- ИМЕННО с flight_number, потому что один борт (aircraft_id) может легитимно
+-- иметь НЕСКОЛЬКО последовательных инстансов одной и той же sequence за разные
+-- рейсы (разные flight_number) — без flight_number в ключе индекс/запрос
+-- ошибочно посчитал бы дубликатом старт той же sequence для следующего рейса
+-- того же борта. triggering_message_id — последняя колонка композита: она
+-- самая селективная (уникальна почти всегда, NULL для старых/безсобытийных
+-- записей), но именно поэтому ставится последней — Postgres эффективно
+-- использует составной B-tree индекс при равенстве ВСЕХ ведущих колонок
+-- (sequence_id, aircraft_id, flight_number фильтруются равенством в каждом
+-- вызове checkStartCriteria, см. ExecutionService), а NULL-значения
+-- triggering_message_id у старых записей не мешают точечному поиску по
+-- конкретному НЕ-NULL значению, которое всегда передаёт дедуп-запрос (поиск
+-- ведётся только для свежесозданного NormalizedEvent с известным messageId).
+--
+-- Альтернатива "индекс только по triggering_message_id" была отклонена:
+-- сам по себе triggering_message_id не используется ни в одном другом
+-- запросе движка (поиск всегда идёт в связке с конкретным sequence_id +
+-- aircraft_id + flight_number, как и определяет сам инстанс), и отдельный
+-- индекс не покрыл бы существующий паттерн поиска активных инстансов по
+-- борту/статусу (idx_exec_aircraft_status, V4) — это другой запрос, не
+-- предмет этой миграции.
+CREATE INDEX idx_exec_dedup_trigger
+    ON execution_instances (sequence_id, aircraft_id, flight_number, triggering_message_id);

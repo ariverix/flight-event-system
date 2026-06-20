@@ -9,6 +9,15 @@ import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
 
 // @ApplicationModuleListener гарантирует at-least-once доставку через Spring Modulith
 // Event Publication Registry (Transactional Outbox)
+//
+// TODO(P1-7, ADR-0002): onStepNotification НЕ идемпотентен — notificationPort.notifyStepResult
+// не имеет дедуп-ключа, повторная доставка StepNotificationEvent (republish-on-restart/retry)
+// даст повторное уведомление. Цена сейчас нулевая: NotificationPort реализован LogNotificationAdapter
+// (заглушка-лог), материального внешнего эффекта нет. Пересмотреть при замене заглушки на реальный
+// канал (P3-4) — естественный дедуп-ключ (executionId, stepIndex, result) уже есть в самом событии
+// и достаточен для дедупа на стороне будущего реального адаптера (например INSERT ... ON CONFLICT
+// DO NOTHING в таблицу отправленных уведомлений). См. docs/adr/ADR-0002-transactional-outbox-vs-direct-call.md,
+// раздел "Спецификация для реализации", п.3 (строка NotificationEventListener) и п.5 (NotificationEventListener).
 @Component
 @RequiredArgsConstructor
 @Slf4j

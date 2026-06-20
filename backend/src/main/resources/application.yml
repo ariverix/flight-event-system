@@ -24,6 +24,23 @@ spring:
       jdbc:
         schema-initialization:
           enabled: true
+      # P1-7 / ADR-0002 (docs/adr/ADR-0002-transactional-outbox-vs-direct-call.md):
+      # without this flag, an event_publication row left with completion_date IS NULL
+      # after a process crash/restart is NEVER retried automatically — Transactional
+      # Outbox would only guarantee atomicity, not at-least-once delivery across restarts.
+      # Property verified against spring-modulith-events-core 1.3.1
+      # META-INF/spring-configuration-metadata.json: the namespace moved from
+      # spring.modulith.republish-outstanding-events-on-restart (deprecated since 1.3,
+      # removal planned in 1.4) to spring.modulith.events.republish-outstanding-events-on-restart.
+      republish-outstanding-events-on-restart: true
+      # Явно фиксируем completion-mode=update (это и текущий default 1.3.1, см. та же
+      # spring-configuration-metadata.json) — завершённая публикация ОСТАЁТСЯ строкой с
+      # заполненным completion_date, а не удаляется (DELETE). Это сделано для аудита: хотя
+      # event_publication — внутренний реестр доставки Modulith, а не бизнес Event Log
+      # класса Tracking (CLAUDE.md) и не источник данных для него, оставление записей
+      # позволяет диагностировать прошедшие доставки без отдельного журнала. TTL-очистка
+      # таблицы — эксплуатационная задача вне объёма P1-7 (см. ADR-0002, "Что НЕ входит").
+      completion-mode: update
 
 server:
   port: 8080

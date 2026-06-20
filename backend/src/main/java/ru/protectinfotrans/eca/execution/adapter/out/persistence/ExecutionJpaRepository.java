@@ -103,4 +103,12 @@ public interface ExecutionJpaRepository extends JpaRepository<ExecutionInstance,
             @Param("sequenceId") Long sequenceId,
             Pageable pageable
     );
+
+    /**
+     * P1-7 (часть 2b, ADR-0002): дедуп-проверка перед {@code startExecution} —
+     * опирается на индекс {@code idx_exec_dedup_trigger} (V23) по точно тем же четырём
+     * колонкам и в том же порядке.
+     */
+    boolean existsBySequenceIdAndAircraftIdAndFlightNumberAndTriggeringMessageId(
+            Long sequenceId, String aircraftId, String flightNumber, Long triggeringMessageId);
 }

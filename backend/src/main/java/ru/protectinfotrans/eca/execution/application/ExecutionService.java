@@ -182,6 +182,13 @@ public class ExecutionService {
     /**
      * Для MESSAGE_RECEIVED сравниваем с текущим событием напрямую —
      * запрос к БД давал ложные срабатывания на старых сообщениях.
+     *
+     * <p>P1-7 (ADR-0002): {@code event.messageId()} прокидывается в {@link #startExecution}
+     * как {@code triggeringMessageId} — дедуп-ключ против повторной доставки ЭТОГО ЖЕ
+     * {@code NormalizedEvent} (republish-on-restart/retry Spring Modulith Event Publication
+     * Registry). {@code messageId} может быть {@code null} для системных событий без
+     * исходного сообщения (например {@code EventProcessorService#notifyFlightStageChange}) —
+     * для них дедуп по {@code triggeringMessageId} неприменим (см. javadoc {@link #startExecution}).
      */
     private void checkStartCriteria(NormalizedEvent event) {
         List<Sequence> activeSequences = sequenceQuery.findAllByStatus(SequenceStatus.ACTIVE);
@@ -189,13 +196,13 @@ public class ExecutionService {
         for (Sequence sequence : activeSequences) {
             if (sequence.getStartCriteriaJson() == null || sequence.getStartCriteriaJson().isBlank()) {
                 if (event.flightStage() == FlightStage.INIT) {
-                    startExecution(sequence.getId(), event.aircraftId(), event.flightNumber());
+                    startExecution(sequence.getId(), event.aircraftId(), event.flightNumber(), event.messageId());
                 }
             } else {
                 boolean criterionMet = matchesStartCriteria(sequence.getStartCriteriaJson(), event);
                 if (criterionMet) {
                     log.info("Start criteria met for sequence {} and aircraft {}", sequence.getId(), event.aircraftId());
-                    startExecution(sequence.getId(), event.aircraftId(), event.flightNumber());
+                    startExecution(sequence.getId(), event.aircraftId(), event.flightNumber(), event.messageId());
                 }
             }
         }
@@ -345,14 +352,20 @@ public class ExecutionService {
      * через тот же {@code ecaRuleEngine.executeStep} и тот же {@code advanceExecution}, которые
      * использует штатный поток (executeTransition/startExecution) — не вводим отдельную ветку логики.
      *
-     * <p><b>Идемпотентность сейчас:</b> для EVALUATE/WAIT повторный прогон безопасен и побочных
-     * эффектов не имеет (чистая проверка критерия). Для ACTION с эффектом, видимым извне
-     * (SEND_UPLINK/SEND_GROUND), повторный прогон ПОСЛЕ рестарта может повторно отправить
-     * сообщение, если шаг успел физически уйти во внешний канал до краша, но до того, как
-     * advanceExecution передвинул currentStepIndex. Это осознанный пробел, закрываемый Outbox
-     * (P1-7): там отправка становится идемпотентной операцией с собственным дедуп-ключом
-     * (instance.id + stepIndex), а не вызовом канала "напрямую" из правила. Сейчас гарантия —
-     * "at-least-once и не потеряно", не "exactly-once".
+     * <p><b>Идемпотентность сейчас (обновлено P1-7/ADR-0002):</b> для EVALUATE/WAIT повторный
+     * прогон безопасен и побочных эффектов не имеет (чистая проверка критерия). Для ACTION с
+     * эффектом, видимым извне (SEND_UPLINK/SEND_GROUND), повторный прогон ПОСЛЕ рестарта может
+     * повторно отправить сообщение, если шаг успел физически уйти во внешний канал до краша, но
+     * до того, как advanceExecution передвинул currentStepIndex. ADR-0002 (docs/adr/ADR-0002-
+     * transactional-outbox-vs-direct-call.md, Decision п.2) фиксирует, что {@code ActionStepRule}
+     * → {@code MessageOutputPort} остаётся ПРЯМЫМ синхронным вызовом (не Outbox-событием) —
+     * поэтому Outbox/republish (часть 2b) НЕ закрывает этот конкретный пробел, как предполагал
+     * более ранний комментарий здесь. Цена сейчас нулевая — {@code MessageOutputPort} реализован
+     * заглушкой ({@code LogMessageAdapter}), реального внешнего эффекта нет. Дедуп-ключ
+     * {@code instance.id + stepIndex} остаётся верным дизайном для будущего реального адаптера —
+     * переоценить при замене заглушки (см. ADR-0002, "Спецификация для реализации", п.2 строка
+     * про {@code NotificationEventListener}/будущий ACARS-адаптер, и п.5 "Что НЕ входит в объём").
+     * Сейчас гарантия — "at-least-once и не потеряно", не "exactly-once".
      *
      * <p><b>Транзакционная изоляция (P1-4, фикс ревью):</b> {@code REQUIRES_NEW}, а не
      * {@code REQUIRED} класса по умолчанию. {@code ExecutionResumeRunner#run} обходит ВСЕ
@@ -424,9 +437,54 @@ public class ExecutionService {
      * нужна для того, чтобы каждый старт (в т.ч. при фан-ауте на несколько последовательностей в
      * {@code checkStartCriteria}) был ОТДЕЛЬНОЙ атомарной транзакцией, а не делил одну большую с
      * остальными кандидатами события.
+     *
+     * <p>P1-7 (ADR-0002): сохранён как отдельная перегрузка БЕЗ {@code triggeringMessageId} для
+     * вызывающих, у которых нет исходного {@code NormalizedEvent} (ручной/программный старт,
+     * существующие тесты на демо-сценарии P1-1..P1-6) — делегирует на
+     * {@link #startExecution(Long, String, String, Long)} с {@code triggeringMessageId = null},
+     * что означает "дедуп по сообщению не применяется" (см. javadoc там).
      */
     @Transactional
     public void startExecution(Long sequenceId, String aircraftId, String flightNumber) {
+        startExecution(sequenceId, aircraftId, flightNumber, null);
+    }
+
+    /**
+     * P1-7 (ADR-0002, "Спецификация для реализации", п.1): идемпотентный старт нового
+     * инстанса. {@code triggeringMessageId} — {@code NormalizedEvent.messageId}, чьё совпадение
+     * со старт-критерием вызвало этот старт ({@link #checkStartCriteria}).
+     *
+     * <p><b>Дедуп-проверка применяется ТОЛЬКО когда {@code triggeringMessageId != null}.</b>
+     * Причина: at-least-once доставка Spring Modulith Event Publication Registry
+     * (republish-outstanding-events-on-restart, retry на транзиентной ошибке listener'а) может
+     * повторно доставить ОДИН И ТОТ ЖЕ {@code NormalizedEvent} — без проверки повторная доставка
+     * создала бы дублирующийся {@code ExecutionInstance} на каждый повтор. Дедуп-ключ —
+     * {@code (sequenceId, aircraftId, flightNumber, triggeringMessageId)}, НЕ просто факт "есть
+     * активный инстанс этой sequence для этого ВС": один борт может легитимно иметь несколько
+     * ПОСЛЕДОВАТЕЛЬНЫХ инстансов одной и той же sequence за разные рейсы — это не дубликаты.
+     *
+     * <p>Если {@code triggeringMessageId == null} (старт НЕ от конкретного сообщения — например
+     * {@code EventProcessorService#notifyFlightStageChange}, смена стадии без исходного
+     * {@code IncomingMessage}, или ручной/программный старт), дедуп-проверка по нему
+     * принципиально неприменима: {@code NULL} не идентифицирует конкретное "то самое" событие
+     * (в SQL {@code NULL <> NULL}), и среди записей до V23 / без события {@code triggering_message_id}
+     * у всех {@code NULL} — проверка "уже существует с {@code triggeringMessageId = NULL}" дала
+     * бы ложные совпадения с НЕСВЯЗАННЫМИ прошлыми стартами той же sequence/ВС/рейса. Риск
+     * повторной доставки для таких событий вне объёма этого ADR (см. "Что НЕ входит в объём
+     * части 2") — он не нов и не увеличен этим изменением: до P1-7 дедупа для старта не было
+     * вообще ни для одного случая, теперь он закрыт именно для доминирующего и материально
+     * рискового случая (message-triggered старт).
+     */
+    @Transactional
+    public void startExecution(Long sequenceId, String aircraftId, String flightNumber, Long triggeringMessageId) {
+        if (triggeringMessageId != null
+                && executionRepository.existsByDedupKey(sequenceId, aircraftId, flightNumber, triggeringMessageId)) {
+            log.info("Skipping duplicate startExecution: instance already exists for sequence={}, aircraft={}, "
+                            + "flight={}, triggeringMessageId={} (at-least-once redelivery, no-op)",
+                    sequenceId, aircraftId, flightNumber, triggeringMessageId);
+            return;
+        }
+
         Sequence sequence = sequenceQuery.findById(sequenceId)
                 .orElseThrow(() -> new IllegalArgumentException("Sequence not found: " + sequenceId));
 
@@ -442,6 +500,7 @@ public class ExecutionService {
                 .status(ExecutionStatus.RUNNING)
                 .currentStepIndex(1)
                 .contextJson(instanceContextCodec.encode(InstanceContext.empty()))
+                .triggeringMessageId(triggeringMessageId)
                 .build();
 
         instance = executionRepository.save(instance);

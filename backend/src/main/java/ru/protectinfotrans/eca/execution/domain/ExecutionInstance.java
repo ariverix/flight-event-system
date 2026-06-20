@@ -52,6 +52,23 @@ public class ExecutionInstance {
     @Column(name = "wait_timeout_at")
     private LocalDateTime waitTimeoutAt;
 
+    /**
+     * P1-7 (часть 2a, V23): идентификатор {@code NormalizedEvent.messageId},
+     * по совпадению старт-критерия которого был создан этот инстанс. Nullable —
+     * старые инстансы (до V23) и инстансы, стартованные не по конкретному
+     * событию, его не имеют.
+     *
+     * <p>Только хранение/маппинг — проверка дедупа "уже есть инстанс с таким же
+     * (sequenceId, aircraftId, flightNumber, triggeringMessageId)" перед
+     * {@code startExecution} — это часть 2b (sequence-engine-dev,
+     * {@code ExecutionService}), см. ADR-0002
+     * (docs/adr/ADR-0002-transactional-outbox-vs-direct-call.md). Эта колонка
+     * сама по себе НЕ применяет идемпотентность — она только даёт данные, по
+     * которым идемпотентность будет реализована.
+     */
+    @Column(name = "triggering_message_id")
+    private Long triggeringMessageId;
+
     @Builder.Default
     @OneToMany(mappedBy = "executionInstance", cascade = CascadeType.ALL)
     @OrderBy("executedAt ASC")

@@ -14,3 +14,4 @@ ADR фиксируют кросс-модульные и стратегическ
 | № | Название | Статус |
 |---|---|---|
 | [ADR-0001](ADR-0001-modular-monolith-vs-microservices.md) | Модульный монолит (Spring Modulith) против микросервисов | Accepted |
+| [ADR-0002](ADR-0002-transactional-outbox-vs-direct-call.md) | Transactional Outbox (Spring Modulith Event Publication Registry) против прямого синхронного вызова между модулями | Accepted |

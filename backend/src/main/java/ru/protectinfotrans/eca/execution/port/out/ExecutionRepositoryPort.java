@@ -63,4 +63,27 @@ public interface ExecutionRepositoryPort {
      * так как на старте неизвестен конкретный борт.
      */
     List<ExecutionInstance> findAllActive();
+
+    /**
+     * P1-7 (часть 2b, ADR-0002): дедуп-проверка перед {@code startExecution} — существует ли
+     * уже {@code ExecutionInstance} с тем же {@code (sequenceId, aircraftId, flightNumber,
+     * triggeringMessageId)}. Используется ТОЛЬКО когда {@code triggeringMessageId != null}
+     * (старт, вызванный конкретным {@code NormalizedEvent.messageId}) — at-least-once
+     * доставка Spring Modulith Event Publication Registry (republish on restart, retry) может
+     * повторно доставить ОДНО И ТО ЖЕ событие, и без этой проверки повторная доставка создала
+     * бы дублирующийся инстанс (см. ADR-0002, "Оценка текущего состояния").
+     *
+     * <p>Опирается на индекс {@code idx_exec_dedup_trigger} (V23, db-dev) —
+     * {@code (sequence_id, aircraft_id, flight_number, triggering_message_id)} в этом
+     * порядке: первые три колонки — точный идентификатор "какой именно запуск", последняя
+     * (самая селективная, но и самая часто NULL у старых/безсобытийных записей) — сам
+     * дедуп-ключ события.
+     *
+     * @param triggeringMessageId НЕ должен быть {@code null} — вызывающая сторона
+     *                            ({@link ru.protectinfotrans.eca.execution.application.ExecutionService})
+     *                            обязана сама решать, нужен ли дедуп для null-случая (старт не от
+     *                            конкретного сообщения), и не вызывать этот метод в таком случае —
+     *                            см. javadoc {@code ExecutionService#startExecution}.
+     */
+    boolean existsByDedupKey(Long sequenceId, String aircraftId, String flightNumber, Long triggeringMessageId);
 }

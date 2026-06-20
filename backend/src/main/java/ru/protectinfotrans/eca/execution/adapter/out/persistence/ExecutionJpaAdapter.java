@@ -84,4 +84,10 @@ public class ExecutionJpaAdapter implements ExecutionRepositoryPort {
     public List<ExecutionInstance> findAllActive() {
         return jpaRepository.findAllActive();
     }
+
+    @Override
+    public boolean existsByDedupKey(Long sequenceId, String aircraftId, String flightNumber, Long triggeringMessageId) {
+        return jpaRepository.existsBySequenceIdAndAircraftIdAndFlightNumberAndTriggeringMessageId(
+                sequenceId, aircraftId, flightNumber, triggeringMessageId);
+    }
 }

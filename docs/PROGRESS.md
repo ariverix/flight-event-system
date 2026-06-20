@@ -29,7 +29,7 @@
 | P1-4 | Resume после рестарта незавершённых инстансов | sequence-engine-dev + test-engineer | Done | reviewer PASS (1 цикл bug-fixer: транзакционная изоляция — REQUIRES_NEW на инстанс, reload-by-id от detached/LazyInit, тест с PG-триггером). `ExecutionResumeRunner` (ApplicationRunner на ApplicationReadyEvent) сканирует RUNNING/WAITING при старте; WAITING восстанавливается "бесплатно" (WAIT-окно и from-this-point-only уже персистентны с P1-3, читаются заново слушателем/scheduler); RUNNING докручивается повторным детерминированным прогоном текущего шага (`ExecutionService#resumeRunningInstanceAfterRestart`). Гарантия сейчас — at-least-once (не exactly-once для ACTION с внешним эффектом) — усиливается Outbox в P1-7. Без миграции (V22 уже всё нужное персистит). Multi-replica/leader election — зона P6-1, не реализовано. 337 тестов.
 | P1-5 | Durable-планировщик WAIT/таймаутов (БД-backed) | sequence-engine-dev | Done | reviewer PASS. Single-fire через атомарный условный UPDATE-claim (`wait_timeout_at=NULL WHERE id AND status AND wait_timeout_at=expected`), REQUIRES_NEW, без ShedLock/Quartz и без миграции (импортозамещение). WaitTimeoutScheduler (@Scheduled, тонкий). Переживает рестабт. Конкурентный тест 8 потоков на реальном Postgres. leader election не нужен для корректности. 343 теста. |
 | P1-6 | Конкурентность: оптимистические блокировки, без гонок на много инстансов | sequence-engine-dev | Done | reviewer PASS. `@Version` на ExecutionInstance (колонка из V22, без новой миграции); bounded-retry (5) на ObjectOptimisticLockingFailureException с перечитыванием в REQUIRES_NEW; фан-аут event→много инстансов: per-instance REQUIRES_NEW через self-proxy (снята классовая @Transactional). Конкурентные микротесты 10-25 инстансов/потоков на реальном Postgres. 349 тестов. |
-| P1-7 | Transactional Outbox (`event_publication`) + идемпотентный приём + ADR Outbox vs прямой вызов | architect + sequence-engine-dev + db-dev | Pending | — |
+| P1-7 | Transactional Outbox (`event_publication`) + идемпотентный приём + ADR Outbox vs прямой вызов | architect + sequence-engine-dev + db-dev | Done | reviewer PASS. ADR-0002 (Outbox через Spring Modulith Event Publication Registry vs прямой вызов; исключение ActionStepRule→MessageOutputPort синхронно). Флаги republish-on-restart + completion-mode=update (сверены с metadata 1.3.1). Идемпотентность startExecution через V23 `triggering_message_id` + dedup-индекс. 8 тестов (republish через настоящий Modulith API, dedup, atomicity). 361 тест. Follow-up: см. backlog. |
 | P1-8 | Event Log класса Tracking: завершение шага / старт-стоп последовательности | observability-agent | Pending | — |
 
 ## P2 — Интеграция ACARS
@@ -101,8 +101,14 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 349 зелёных.
-- Последняя миграция: V22 (`execution_instances.updated_at` + `version`).
+- Тестов: 361 зелёных.
+- Последняя миграция: V23 (`execution_instances.triggering_message_id` + dedup-индекс).
+
+## Backlog / follow-up (отложенные, зафиксированы при ревью)
+
+- **Default-deny в SecurityConfig** (из P0-3 ревью): цепочка матчеров заканчивается `.anyRequest().permitAll()` (default-allow) — будущий контроллер без явного matcher окажется открытым. Закрыть в P4-1 (RBAC).
+- **Dedup startExecution — unique constraint / claim-механизм** (из P1-7 ревью): сейчас дедуп read-then-write без unique-constraint; безопасно при текущей последовательной at-least-once семантике Modulith (single-node, restart-republish), но при нескольких репликах backend (P6-1) или scheduled-retry с параллельным опросом потребуется unique constraint или claim (как для WAIT-таймаутов в P1-5). Пересмотреть в P6-1.
+- **CLAUDE.md канонические метрики устарели**: заявлено «119 тестов / JaCoCo 72%», фактически 361 тест / ~94%. Обновить документ (требует решения Дениса — не трогаю автономно).
 - JaCoCo gate baseline: LINE ≥ 0.88, INSTR ≥ 0.90 (цель проекта — 85% по
   изменённому коду на гейте ревью, см. CLAUDE.md, п.5 рабочего протокола).
 - `ApplicationModules.verify()`: зелёный, нарушений границ не найдено.
