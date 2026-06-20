@@ -30,7 +30,7 @@
 | P1-5 | Durable-планировщик WAIT/таймаутов (БД-backed) | sequence-engine-dev | Done | reviewer PASS. Single-fire через атомарный условный UPDATE-claim (`wait_timeout_at=NULL WHERE id AND status AND wait_timeout_at=expected`), REQUIRES_NEW, без ShedLock/Quartz и без миграции (импортозамещение). WaitTimeoutScheduler (@Scheduled, тонкий). Переживает рестабт. Конкурентный тест 8 потоков на реальном Postgres. leader election не нужен для корректности. 343 теста. |
 | P1-6 | Конкурентность: оптимистические блокировки, без гонок на много инстансов | sequence-engine-dev | Done | reviewer PASS. `@Version` на ExecutionInstance (колонка из V22, без новой миграции); bounded-retry (5) на ObjectOptimisticLockingFailureException с перечитыванием в REQUIRES_NEW; фан-аут event→много инстансов: per-instance REQUIRES_NEW через self-proxy (снята классовая @Transactional). Конкурентные микротесты 10-25 инстансов/потоков на реальном Postgres. 349 тестов. |
 | P1-7 | Transactional Outbox (`event_publication`) + идемпотентный приём + ADR Outbox vs прямой вызов | architect + sequence-engine-dev + db-dev | Done | reviewer PASS. ADR-0002 (Outbox через Spring Modulith Event Publication Registry vs прямой вызов; исключение ActionStepRule→MessageOutputPort синхронно). Флаги republish-on-restart + completion-mode=update (сверены с metadata 1.3.1). Идемпотентность startExecution через V23 `triggering_message_id` + dedup-индекс. 8 тестов (republish через настоящий Modulith API, dedup, atomicity). 361 тест. Follow-up: см. backlog. |
-| P1-8 | Event Log класса Tracking: завершение шага / старт-стоп последовательности | observability-agent | Pending | — |
+| P1-8 | Event Log класса Tracking: завершение шага / старт-стоп последовательности | observability-agent | Done | reviewer PASS. V24: `sequences.logging_enabled` (DEFAULT TRUE) + таблица `tracking_event_log` (+4 индекса). Запись SEQUENCE_STARTED/STEP_COMPLETED/SEQUENCE_STOPPED/SEQUENCE_ABORTED в ExecutionService, gated по флагу (через SequenceQueryPort, границы целы), в одной tx с переходом, correlationId. Идемпотентность опирается на P1-6/P1-7. 375 тестов. |
 
 ## P2 — Интеграция ACARS
 
@@ -101,8 +101,9 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 361 зелёных.
-- Последняя миграция: V23 (`execution_instances.triggering_message_id` + dedup-индекс).
+- Тестов: 375 зелёных.
+- Последняя миграция: V24 (`sequences.logging_enabled` + таблица `tracking_event_log`).
+- **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS).
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
 

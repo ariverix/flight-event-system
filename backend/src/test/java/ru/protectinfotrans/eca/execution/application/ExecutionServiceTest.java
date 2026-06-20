@@ -24,6 +24,7 @@ import ru.protectinfotrans.eca.execution.port.out.ConditionQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
+import ru.protectinfotrans.eca.execution.port.out.TrackingEventLogPort;
 import ru.protectinfotrans.eca.sequence.domain.*;
 
 import java.time.LocalDateTime;
@@ -84,6 +85,11 @@ class ExecutionServiceTest {
     // транзакций) — она покрыта интеграционным тестом single-fire на реальном Postgres.
     @Mock
     private ObjectProvider<ExecutionService> self;
+
+    // P1-8: TrackingEventLogPort.save возвращает мок-заглушку (lenient — не все тесты доходят
+    // до точки записи tracking-события, например тесты с loggingEnabled=false или ранний return).
+    @Mock
+    private TrackingEventLogPort trackingEventLogPort;
 
     @InjectMocks
     private ExecutionService service;

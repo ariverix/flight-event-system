@@ -10,6 +10,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import ru.protectinfotrans.eca.CorrelationContext;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
@@ -17,6 +18,8 @@ import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.InstanceContext;
 import ru.protectinfotrans.eca.execution.domain.StepExecution;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
+import ru.protectinfotrans.eca.execution.domain.TrackingEventLog;
+import ru.protectinfotrans.eca.execution.domain.TrackingEventType;
 import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
 import ru.protectinfotrans.eca.execution.event.ExecutionCompletedEvent;
 import ru.protectinfotrans.eca.execution.event.ExecutionStartedEvent;
@@ -26,6 +29,7 @@ import ru.protectinfotrans.eca.execution.port.out.ConditionQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
+import ru.protectinfotrans.eca.execution.port.out.TrackingEventLogPort;
 import ru.protectinfotrans.eca.sequence.domain.Sequence;
 import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;
 import ru.protectinfotrans.eca.sequence.domain.Step;
@@ -86,6 +90,7 @@ public class ExecutionService {
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final InstanceContextCodec instanceContextCodec;
+    private final TrackingEventLogPort trackingEventLogPort;
 
     /**
      * P1-5: self-инъекция через {@code ObjectProvider}, а не прямое поле {@code ExecutionService},
@@ -506,6 +511,9 @@ public class ExecutionService {
         instance = executionRepository.save(instance);
         log.info("Started execution instance {} for sequence {} and aircraft {}", instance.getId(), sequenceId, aircraftId);
 
+        writeTrackingEvent(sequence, instance, TrackingEventType.SEQUENCE_STARTED, null, null,
+                "{\"status\":\"RUNNING\"}");
+
         eventPublisher.publishEvent(new ExecutionStartedEvent(
                 instance.getId(),
                 sequenceId,
@@ -566,6 +574,15 @@ public class ExecutionService {
                 .build();
 
         instance.getStepHistory().add(stepExecution);
+
+        Sequence sequence = sequenceQuery.findById(instance.getSequenceId()).orElse(null);
+        if (sequence != null) {
+            String detailsJson = String.format(
+                    "{\"stepType\":\"%s\",\"action\":\"%s\",\"target\":%s}",
+                    step.getStepType(), action, transitionTarget == null ? "null" : transitionTarget);
+            writeTrackingEvent(sequence, instance, TrackingEventType.STEP_COMPLETED,
+                    step.getOrderIndex(), result, detailsJson);
+        }
 
         // WAIT-шаг resolved (SUCCESS/FAILURE) — его окно ожидания закрыто. Не очищать здесь
         // waitStartedAt/waitTimeoutAt означает, что при повторном визите того же или другого
@@ -693,6 +710,11 @@ public class ExecutionService {
         executionRepository.save(instance);
 
         log.info("Execution instance {} completed", instance.getId());
+
+        sequenceQuery.findById(instance.getSequenceId()).ifPresent(sequence ->
+                writeTrackingEvent(sequence, instance, TrackingEventType.SEQUENCE_STOPPED, null, null,
+                        "{\"status\":\"COMPLETED\",\"reason\":\"END\"}"));
+
         eventPublisher.publishEvent(new ExecutionCompletedEvent(instance.getId(), ExecutionStatus.COMPLETED));
     }
 
@@ -702,6 +724,11 @@ public class ExecutionService {
         executionRepository.save(instance);
 
         log.info("Execution instance {} aborted", instance.getId());
+
+        sequenceQuery.findById(instance.getSequenceId()).ifPresent(sequence ->
+                writeTrackingEvent(sequence, instance, TrackingEventType.SEQUENCE_ABORTED, null, null,
+                        "{\"status\":\"ABORTED\",\"reason\":\"ABORT\"}"));
+
         eventPublisher.publishEvent(new ExecutionCompletedEvent(instance.getId(), ExecutionStatus.ABORTED));
     }
 
@@ -823,6 +850,64 @@ public class ExecutionService {
         if (currentStep != null) {
             advanceExecution(instance, currentStep, StepResult.FAILURE);
         }
+    }
+
+    /**
+     * P1-8 (часть 2 — логика записи): пишет одну запись Event Log класса Tracking (SITA),
+     * если у последовательности включён флаг {@link Sequence#isLoggingEnabled()}. Флаг читается
+     * из {@code Sequence}, которая в каждой вызывающей точке уже получена через
+     * {@link SequenceQueryPort} — публичный выходной порт модуля {@code execution}, реализованный
+     * адаптером ({@code SequenceQueryAdapter}) поверх публичного {@code SequenceRepositoryPort}
+     * модуля {@code sequence} ({@code sequence.domain}/{@code sequence.port.out} —
+     * {@code @NamedInterface}). Это тот же канал, которым {@code ExecutionService} уже читает
+     * определение последовательности/шаги во всех остальных местах (start/stop/advance/timeout) —
+     * никакого нового межмодульного доступа не вводится, границы Modulith не нарушаются.
+     *
+     * <p><b>Транзакционность:</b> запись делается синхронно, БЕЗ {@code REQUIRES_NEW}, внутри
+     * ТОЙ ЖЕ транзакции, что и сам бизнес-переход (вызывающие методы — {@code startExecution},
+     * {@code advanceExecution}, {@code completeExecution}, {@code abortExecution} — все уже
+     * {@code @Transactional} per-instance, см. javadoc класса). Сознательный выбор: Tracking
+     * Event Log — это бизнес-журнал, отражающий факт перехода состояния инстанса, поэтому он
+     * должен быть консистентен с этим переходом — если запись в журнал не удалась (например
+     * сбой соединения с БД на flush), коммит самого перехода тоже не должен произойти: иначе
+     * получим переход состояния БЕЗ соответствующей записи в журнале — для журнала, чьё
+     * единственное назначение — быть достоверной историей переходов, это хуже, чем откат вместе
+     * с переходом (откат не теряет данных — событие будет переобработано/повторено, частичный
+     * лог с пробелом восстановить нечем). {@code TrackingEventLogPort.save} — простой INSERT без
+     * внешних побочных эффектов (не сетевой вызов, не сообщение наружу), поэтому риск этого
+     * решения ограничен тем же типом сбоев, что уже могут откатить save() самого instance.
+     *
+     * <p><b>Идемпотентность:</b> сам метод не делает дедуп-проверок — он полагается на то, что
+     * ВСЕ вызывающие точки уже идемпотентны на уровне решения "выполнять переход или нет" (P1-6/
+     * P1-7): {@code STEP_COMPLETED} пишется только из тела {@code advanceExecution}, которое
+     * вызывается ТОЛЬКО когда {@code ecaRuleEngine.executeStep} вернул не-null результат реально
+     * выполненного шага; повторная доставка события на уже терминальный/не-WAITING инстанс
+     * (см. {@code checkStopCriterionTransactional}, {@code tryResumeWaitingInstanceTransactional})
+     * возвращается до вызова {@code advanceExecution} — следовательно и до этой записи. Аналогично
+     * {@code SEQUENCE_STARTED} пишется только после прохождения дедуп-проверки по
+     * {@code triggeringMessageId} в {@code startExecution} (P1-7) — повторная доставка того же
+     * {@code NormalizedEvent} не создаёт второй {@code ExecutionInstance} и, соответственно, не
+     * пишет вторую запись {@code SEQUENCE_STARTED}.
+     */
+    private void writeTrackingEvent(Sequence sequence, ExecutionInstance instance, TrackingEventType eventType,
+                                     Integer stepIndex, StepResult stepResult, String detailsJson) {
+        if (!sequence.isLoggingEnabled()) {
+            return;
+        }
+
+        TrackingEventLog event = TrackingEventLog.builder()
+                .sequenceId(sequence.getId())
+                .instanceId(instance.getId())
+                .aircraftId(instance.getAircraftId())
+                .flightNumber(instance.getFlightNumber())
+                .eventType(eventType)
+                .stepIndex(stepIndex)
+                .stepResult(stepResult)
+                .detailsJson(detailsJson)
+                .correlationId(CorrelationContext.getCorrelationId())
+                .build();
+
+        trackingEventLogPort.save(event);
     }
 
     private ExecutionContext buildContext(NormalizedEvent event) {

@@ -51,6 +51,17 @@ public class Sequence {
     private LocalDateTime updatedAt;
     private Long createdBy;
 
+    /**
+     * P1-8 (часть 1, V24): включает запись событий этой последовательности в
+     * Tracking Event Log (старт/стоп последовательности, завершение шагов) —
+     * см. {@code ru.protectinfotrans.eca.execution.domain.TrackingEventLog}.
+     * По умолчанию {@code true} (бэкафилл V24) — обоснование дефолта см. в миграции.
+     * Сама запись событий — часть 2 (observability-agent); здесь только флаг-переключатель.
+     */
+    @Builder.Default
+    @Column(name = "logging_enabled", nullable = false)
+    private boolean loggingEnabled = true;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
