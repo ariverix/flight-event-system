@@ -357,20 +357,29 @@ public class ExecutionService {
      * через тот же {@code ecaRuleEngine.executeStep} и тот же {@code advanceExecution}, которые
      * использует штатный поток (executeTransition/startExecution) — не вводим отдельную ветку логики.
      *
-     * <p><b>Идемпотентность сейчас (обновлено P1-7/ADR-0002):</b> для EVALUATE/WAIT повторный
-     * прогон безопасен и побочных эффектов не имеет (чистая проверка критерия). Для ACTION с
-     * эффектом, видимым извне (SEND_UPLINK/SEND_GROUND), повторный прогон ПОСЛЕ рестарта может
-     * повторно отправить сообщение, если шаг успел физически уйти во внешний канал до краша, но
-     * до того, как advanceExecution передвинул currentStepIndex. ADR-0002 (docs/adr/ADR-0002-
-     * transactional-outbox-vs-direct-call.md, Decision п.2) фиксирует, что {@code ActionStepRule}
-     * → {@code MessageOutputPort} остаётся ПРЯМЫМ синхронным вызовом (не Outbox-событием) —
-     * поэтому Outbox/republish (часть 2b) НЕ закрывает этот конкретный пробел, как предполагал
-     * более ранний комментарий здесь. Цена сейчас нулевая — {@code MessageOutputPort} реализован
-     * заглушкой ({@code LogMessageAdapter}), реального внешнего эффекта нет. Дедуп-ключ
-     * {@code instance.id + stepIndex} остаётся верным дизайном для будущего реального адаптера —
-     * переоценить при замене заглушки (см. ADR-0002, "Спецификация для реализации", п.2 строка
-     * про {@code NotificationEventListener}/будущий ACARS-адаптер, и п.5 "Что НЕ входит в объём").
-     * Сейчас гарантия — "at-least-once и не потеряно", не "exactly-once".
+     * <p><b>Идемпотентность сейчас (обновлено: фикс регрессии P1-4 x P2-3):</b> для EVALUATE/WAIT
+     * повторный прогон безопасен и побочных эффектов не имеет (чистая проверка критерия). Для
+     * ACTION с эффектом, видимым извне (SEND_UPLINK/SEND_GROUND), повторный прогон ПОСЛЕ рестарта
+     * заходит в {@code ecaRuleEngine.executeStep} → {@code ActionStepRule} → {@code MessageOutputPort}
+     * ровно так же, как штатный путь — это ПРЯМОЙ синхронный вызов порта (ADR-0002, Decision п.2),
+     * не Outbox-событие, поэтому republish/Outbox сам по себе НЕ закрывает этот пробел. До P2-3
+     * цена повторного прогона была нулевой ({@code MessageOutputPort} был реализован заглушкой
+     * {@code LogMessageAdapter} без внешнего эффекта) — именно это условие, явно предсказанное
+     * ADR-0002 ("переоценить при замене заглушки на реальный адаптер"), наступило в P2-3
+     * ({@code OutboundMessageGatewayAdapter}, {@code @Primary}, реальный durable-персист с
+     * последующей асинхронной доставкой во внешний канал поллером). Идемпотентность ТЕПЕРЬ
+     * обеспечивается дедуп-ключом {@code (executionInstanceId, stepOrderIndex)} —
+     * {@code ActionStepRule} передаёт {@code instance.getId()}/{@code step.getOrderIndex()} в
+     * 6/5-арг. перегрузки {@code MessageOutputPort.sendUplink/sendGround}, а
+     * {@code OutboundMessageGatewayAdapter} делает find-before-save по этому ключу ПЕРЕД
+     * постановкой новой записи: повторный прогон этого метода после рестарта находит уже
+     * закоммиченную (до краша) запись и идемпотентно пропускает повторную постановку в очередь —
+     * повторной uplink/ground-команды во внешний канал не возникает. Partial UNIQUE индекс
+     * {@code (execution_instance_id, step_order_index)} на {@code outbound_messages} (V27) —
+     * защита на уровне БД на случай нарушения этой гарантии. Гарантия остаётся
+     * "at-least-once постановка в durable-очередь, без дублей при последовательном replay",
+     * не "exactly-once доставка во внешний канал" (сама доставка — отдельный поллер,
+     * {@code OutboundMessageDeliveryScheduler}, со своим single-fire claim'ом).
      *
      * <p><b>Транзакционная изоляция (P1-4, фикс ревью):</b> {@code REQUIRES_NEW}, а не
      * {@code REQUIRED} класса по умолчанию. {@code ExecutionResumeRunner#run} обходит ВСЕ

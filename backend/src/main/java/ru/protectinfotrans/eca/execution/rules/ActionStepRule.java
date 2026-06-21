@@ -54,8 +54,8 @@ public class ActionStepRule {
             ActionType actionType = ActionType.valueOf((String) config.get("actionType"));
 
             boolean success = switch (actionType) {
-                case SEND_UPLINK -> executeSendUplink(config, context);
-                case SEND_GROUND -> executeSendGround(config, context);
+                case SEND_UPLINK -> executeSendUplink(config, context, instance, step);
+                case SEND_GROUND -> executeSendGround(config, context, instance, step);
                 case RAISE_CONDITION -> executeRaiseCondition(config, context);
                 case CLOSE_CONDITION -> executeCloseCondition(config, context);
                 case WAIT_TIME -> executeWaitTime(config, instance, context);
@@ -78,7 +78,8 @@ public class ActionStepRule {
         this.result = null;
     }
 
-    private boolean executeSendUplink(Map<String, Object> config, ExecutionContext context) {
+    private boolean executeSendUplink(Map<String, Object> config, ExecutionContext context,
+                                       ExecutionInstance instance, Step step) {
         String templateName = (String) config.get("templateName");
         @SuppressWarnings("unchecked")
         Map<String, Object> params = (Map<String, Object>) config.getOrDefault("params", Map.of());
@@ -90,17 +91,24 @@ public class ActionStepRule {
                 ? UplinkOrigin.valueOf((String) config.get("uplinkOrigin"))
                 : UplinkOrigin.COMPUTER_GENERATED;
 
-        return messageOutputPort.sendUplink(context.aircraftId(), templateName, params, origin);
+        // instance.getId()/step.getOrderIndex() — дедуп-ключ идемпотентности durable-очереди
+        // (фикс регрессии P1-4 x P2-3, см. javadoc MessageOutputPort.sendUplink(6 arg) и
+        // ExecutionService.resumeRunningInstanceAfterRestart) — без него повторный прогон этого
+        // ACTION-шага при resume после рестарта ставил бы дубль в outbound_messages.
+        return messageOutputPort.sendUplink(context.aircraftId(), templateName, params, origin,
+                instance.getId(), step.getOrderIndex());
     }
 
-    private boolean executeSendGround(Map<String, Object> config, ExecutionContext context) {
+    private boolean executeSendGround(Map<String, Object> config, ExecutionContext context,
+                                       ExecutionInstance instance, Step step) {
         String templateName = (String) config.get("templateName");
         @SuppressWarnings("unchecked")
         List<String> recipients = (List<String>) config.get("recipients");
         @SuppressWarnings("unchecked")
         Map<String, Object> params = (Map<String, Object>) config.getOrDefault("params", Map.of());
 
-        return messageOutputPort.sendGround(recipients, templateName, params);
+        return messageOutputPort.sendGround(recipients, templateName, params,
+                instance.getId(), step.getOrderIndex());
     }
 
     private boolean executeRaiseCondition(Map<String, Object> config, ExecutionContext context) {

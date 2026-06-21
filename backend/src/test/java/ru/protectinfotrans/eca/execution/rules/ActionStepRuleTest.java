@@ -100,11 +100,14 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any())).thenReturn(true);
+        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any(), any(), any())).thenReturn(true);
 
         rule.execute(step, instance, context);
 
-        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CLEARANCE"), any(Map.class), eq(UplinkOrigin.COMPUTER_GENERATED));
+        // instance.getId()/step.getOrderIndex() — дедуп-ключ идемпотентности (фикс регрессии
+        // P1-4 x P2-3) — ActionStepRule ОБЯЗАН передавать его в 6-арг. перегрузку порта.
+        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CLEARANCE"), any(Map.class),
+                eq(UplinkOrigin.COMPUTER_GENERATED), eq(instance.getId()), eq(step.getOrderIndex()));
         assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
     }
 
@@ -120,11 +123,12 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any())).thenReturn(true);
+        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any(), any(), any())).thenReturn(true);
 
         rule.execute(step, instance, context);
 
-        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CUSTOM_CLEARANCE"), any(Map.class), eq(UplinkOrigin.EXTERNAL_USER));
+        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CUSTOM_CLEARANCE"), any(Map.class),
+                eq(UplinkOrigin.EXTERNAL_USER), eq(instance.getId()), eq(step.getOrderIndex()));
         assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
     }
 
@@ -140,11 +144,14 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.sendGround(any(), anyString(), any())).thenReturn(true);
+        when(messageOutputPort.sendGround(any(), anyString(), any(), any(), any())).thenReturn(true);
 
         rule.execute(step, instance, context);
 
-        verify(messageOutputPort).sendGround(eq(List.of("dispatcher@airline.com")), eq("NOTIFICATION"), any());
+        // instance.getId()/step.getOrderIndex() — дедуп-ключ идемпотентности (фикс регрессии
+        // P1-4 x P2-3) — ActionStepRule ОБЯЗАН передавать его в 5-арг. перегрузку порта.
+        verify(messageOutputPort).sendGround(eq(List.of("dispatcher@airline.com")), eq("NOTIFICATION"), any(),
+                eq(instance.getId()), eq(step.getOrderIndex()));
         assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
     }
 
@@ -213,7 +220,7 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any())).thenReturn(false);
+        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any(), any(), any())).thenReturn(false);
 
         rule.execute(step, instance, context);
 

@@ -38,7 +38,7 @@
 |---|---|---|---|---|
 | P2-1 | Входящий шлюз ACARS: приём → нормализация → `MessageReceived`, идемпотентность по ID сообщения | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: TOCTOU-гонка). Идемпотентность шлюза по `externalMessageId` (persist-before-process, find-before-save), V25 `messages.external_message_id` + partial UNIQUE. Гонка: saveAndFlush+catch DataIntegrityViolation+recovery-read REQUIRES_NEW (graceful, без 500); 8-поточный тест на реальном Postgres. Дополняет идемпотентность потребителя P1-7. 397 тестов. |
 | P2-2 | Парсеры ARINC 620/618 / Type B / AFTN | integration-dev | Done | reviewer PASS (правка: openapi обновлён). Парсеры ARINC 618/620/Type B/AFTN (integration.parser), raw-эндпоинт `/messages/incoming/raw` в integration (вызов eventprocessor через port-in NamedInterface — цикл границ разрешён). Извлечение tail/flight/type/payload/externalMessageId, AN/FI паритет. Тесты на реальных примерах + негатив. Без миграции. 443 теста. |
-| P2-3 | Исходящий шлюз: uplink/ground через Outbox | integration-dev | Pending | — |
+| P2-3 | Исходящий шлюз: uplink/ground через Outbox | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: дедуп outbound при replay). Durable-шлюз: ACTION send → персист OutboundMessage(PENDING) атомарно с переходом → OutboundMessageDeliveryScheduler доставляет с claim single-fire (V26). Идемпотентность при рестарт-replay: дедуп по (instance,step) + partial UNIQUE (V27), optimistic-lock предотвращает гонку. origin/recipients сохранены. 469 тестов. |
 | P2-4 | Позывные + таблица `callsign_matching` → определение FI | integration-dev + db-dev | Pending | — |
 | P2-5 | Источники позиций ACARS/ADS-B/radar, фактические vs оценочные | integration-dev | Pending | — |
 | P2-6 | DLQ + ручной reprocess + ретраи/backoff + circuit breaker | integration-dev | Pending | — |
@@ -101,15 +101,16 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 443 зелёных.
-- Последняя миграция: V25 (`messages.external_message_id` + partial UNIQUE).
+- Тестов: 469 зелёных.
+- Последняя миграция: V27 (`outbound_messages` dedup-ключ instance+step + partial UNIQUE).
 - **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
 
 - **Default-deny в SecurityConfig** (из P0-3 ревью): цепочка матчеров заканчивается `.anyRequest().permitAll()` (default-allow) — будущий контроллер без явного matcher окажется открытым. Закрыть в P4-1 (RBAC).
 - **Dedup startExecution — unique constraint / claim-механизм** (из P1-7 ревью): сейчас дедуп read-then-write без unique-constraint; безопасно при текущей последовательной at-least-once семантике Modulith (single-node, restart-republish), но при нескольких репликах backend (P6-1) или scheduled-retry с параллельным опросом потребуется unique constraint или claim (как для WAIT-таймаутов в P1-5). Пересмотреть в P6-1.
-- **CLAUDE.md канонические метрики устарели**: заявлено «119 тестов / JaCoCo 72%», фактически 361 тест / ~94%. Обновить документ (требует решения Дениса — не трогаю автономно).
+- **CLAUDE.md канонические метрики устарели**: заявлено «119 тестов / JaCoCo 72%», фактически 469 тестов / ~94%. Обновить документ (требует решения Дениса — не трогаю автономно).
+- **Гейтинг @Scheduled-поллеров по ApplicationReadyEvent** (из P2-3 ревью): OutboundMessageDeliveryScheduler (и др. @Scheduled) тикают независимо от готовности схемы — в тестах логируют ERROR в межтестовом flyway-clean окне (безвредно, есть try/catch). Гигиена логов: гейтить старт поллеров по готовности. Не дефект прода (Flyway мигрирует до старта пула). Backlog.
 - JaCoCo gate baseline: LINE ≥ 0.88, INSTR ≥ 0.90 (цель проекта — 85% по
   изменённому коду на гейте ревью, см. CLAUDE.md, п.5 рабочего протокола).
 - `ApplicationModules.verify()`: зелёный, нарушений границ не найдено.
