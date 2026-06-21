@@ -477,6 +477,79 @@ class CriterionEvaluatorTest {
         }
 
         @Test
+        @DisplayName("P2-5: not reported должен ограничить нижнюю границу окна Off-таймстампом, " +
+                "если запрошенное окно длиннее времени с момента Off")
+        void notReportedShouldClampWindowToOffTimestamp() {
+            // context: currentTime=10:35, offTime=10:30 (5 минут с момента Off).
+            // Запрошено minutesAgo=30 -> naive sinceTime было бы 10:05, ДО взлёта;
+            // эффективная нижняя граница должна быть max(10:05, 10:30) = 10:30 (момент Off), не 10:05.
+            String criteria = """
+                {
+                    "type": "POSITION_REPORTED",
+                    "reported": false,
+                    "minutesAgo": 30
+                }
+                """;
+
+            when(messageRepository.existsActualPositionReportSince(
+                    eq("VP-BQR"), eq(LocalDateTime.of(2024, 1, 10, 10, 30)), isNull(), isNull()
+            )).thenReturn(false);
+
+            assertThat(evaluator.evaluate(criteria, context, null)).isTrue();
+        }
+
+        @Test
+        @DisplayName("P2-5: not reported должен использовать запрошенное окно as-is, если оно короче времени с Off")
+        void notReportedShouldUseRequestedWindowWhenShorterThanTimeSinceOff() {
+            // offTime=10:30, currentTime=11:00 (контекст с currentTime позже стандартного,
+            // конструируем явно) -> 30 минут с момента Off. minutesAgo=10 -> sinceTime=10:50,
+            // ПОЗЖЕ offTime -> используется запрошенное окно (10:50), не Off (10:30).
+            ExecutionContext laterContext = new ExecutionContext(
+                    context.aircraftId(), context.flightNumber(), context.currentFlightStage(),
+                    LocalDateTime.of(2024, 1, 10, 11, 0), context.additionalData()
+            );
+
+            String criteria = """
+                {
+                    "type": "POSITION_REPORTED",
+                    "reported": false,
+                    "minutesAgo": 10
+                }
+                """;
+
+            when(messageRepository.existsActualPositionReportSince(
+                    eq("VP-BQR"), eq(LocalDateTime.of(2024, 1, 10, 10, 50)), isNull(), isNull()
+            )).thenReturn(false);
+
+            assertThat(evaluator.evaluate(criteria, laterContext, null)).isTrue();
+        }
+
+        @Test
+        @DisplayName("P2-5: not reported должен вернуть false (не применимо), если Off-таймстамп неизвестен")
+        void notReportedShouldReturnFalseWhenOffTimeUnknown() {
+            Map<String, Object> noOffData = new HashMap<>(context.additionalData());
+            noOffData.remove("offTime");
+            ExecutionContext noOffContext = new ExecutionContext(
+                    context.aircraftId(), context.flightNumber(), context.currentFlightStage(),
+                    context.currentTime(), noOffData
+            );
+
+            String criteria = """
+                {
+                    "type": "POSITION_REPORTED",
+                    "reported": false,
+                    "minutesAgo": 30
+                }
+                """;
+
+            boolean result = evaluator.evaluate(criteria, noOffContext, null);
+
+            assertThat(result).isFalse();
+            // не должен даже обращаться к репозиторию — проверка неприменима без Off-таймстампа
+            org.mockito.Mockito.verifyNoInteractions(messageRepository);
+        }
+
+        @Test
         @DisplayName("оценочные (estimated) позиции игнорируются — делегируется в репозиторий, " +
                 "который сам исключает estimated=true из выборки")
         void shouldDelegateEstimatedExclusionToRepository() {

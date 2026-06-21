@@ -40,7 +40,7 @@
 | P2-2 | Парсеры ARINC 620/618 / Type B / AFTN | integration-dev | Done | reviewer PASS (правка: openapi обновлён). Парсеры ARINC 618/620/Type B/AFTN (integration.parser), raw-эндпоинт `/messages/incoming/raw` в integration (вызов eventprocessor через port-in NamedInterface — цикл границ разрешён). Извлечение tail/flight/type/payload/externalMessageId, AN/FI паритет. Тесты на реальных примерах + негатив. Без миграции. 443 теста. |
 | P2-3 | Исходящий шлюз: uplink/ground через Outbox | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: дедуп outbound при replay). Durable-шлюз: ACTION send → персист OutboundMessage(PENDING) атомарно с переходом → OutboundMessageDeliveryScheduler доставляет с claim single-fire (V26). Идемпотентность при рестарт-replay: дедуп по (instance,step) + partial UNIQUE (V27), optimistic-lock предотвращает гонку. origin/recipients сохранены. 469 тестов. |
 | P2-4 | Позывные + таблица `callsign_matching` → определение FI | integration-dev + db-dev | Done | reviewer PASS (правка: openapi обновлён). V28 callsign_matching (icao_carrier_code, flight_number, valid_from/to, days_of_week битмаска ISO, dep/arr airport, specificity). CallsignParser (ICAO/IATA) + CallsignMatchingService (findCandidates+дофильтр день/номер/аэропорт → max specificity, tie-break createdAt). Интеграция в raw-приём: FI заменяется только при матче, AN/явный FI не ломаются. 511 тестов. |
-| P2-5 | Источники позиций ACARS/ADS-B/radar, фактические vs оценочные | integration-dev | Pending | — |
+| P2-5 | Источники позиций ACARS/ADS-B/radar, фактические vs оценочные | integration-dev | Done | reviewer PASS. Источники/estimated-исключение/in-last-{x}-min уже были из P1-1 (V21). Добавлен главный пробел — «not reported через Off-таймстамп»: V29 `flight_stage_events` (durable времена OOOI), offTime в контексте, evaluatePosition reported=false → окно max(now-{x}, offTime), Off неизвестен → false (не тривиально true до взлёта). 531 тест. NB: V29 написал integration-dev (не db-dev) — ревью качества пройдено. |
 | P2-6 | DLQ + ручной reprocess + ретраи/backoff + circuit breaker | integration-dev | Pending | — |
 | P2-7 | Нагрузочный замер входящего потока (k6/Gatling), отчёт `docs/perf/` | test-engineer | Pending | — |
 
@@ -101,8 +101,8 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 511 зелёных.
-- Последняя миграция: V28 (таблица `callsign_matching`).
+- Тестов: 531 зелёных.
+- Последняя миграция: V29 (таблица `flight_stage_events`).
 - **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
@@ -111,6 +111,8 @@
 - **Dedup startExecution — unique constraint / claim-механизм** (из P1-7 ревью): сейчас дедуп read-then-write без unique-constraint; безопасно при текущей последовательной at-least-once семантике Modulith (single-node, restart-republish), но при нескольких репликах backend (P6-1) или scheduled-retry с параллельным опросом потребуется unique constraint или claim (как для WAIT-таймаутов в P1-5). Пересмотреть в P6-1.
 - **CLAUDE.md канонические метрики устарели**: заявлено «119 тестов / JaCoCo 72%», фактически 469 тестов / ~94%. Обновить документ (требует решения Дениса — не трогаю автономно).
 - **Гейтинг @Scheduled-поллеров по ApplicationReadyEvent** (из P2-3 ревью): OutboundMessageDeliveryScheduler (и др. @Scheduled) тикают независимо от готовности схемы — в тестах логируют ERROR в межтестовом flyway-clean окне (безвредно, есть try/catch). Гигиена логов: гейтить старт поллеров по готовности. Не дефект прода (Flyway мигрирует до старта пула). Backlog.
+- **Процесс: миграции пишет db-dev** (из P2-5): V29 написал integration-dev сам (ревью качества пройдено, дефектов нет), но по TEAM.md/CLAUDE.md схему ведёт db-dev. Впредь миграции — через db-dev (как V25/V26/V27/V28). Замечание процессное, не технический долг.
+- **Посторонний git worktree** `.claude/worktrees/strange-jang-f38717` (ветка claude/strange-jang-f38717, commit 2304c2e) — остаток изоляции суб-агента, не влияет на main. Проверить/почистить при удобном случае (не трогаю автономно — содержимое неизвестно).
 - JaCoCo gate baseline: LINE ≥ 0.88, INSTR ≥ 0.90 (цель проекта — 85% по
   изменённому коду на гейте ревью, см. CLAUDE.md, п.5 рабочего протокола).
 - `ApplicationModules.verify()`: зелёный, нарушений границ не найдено.

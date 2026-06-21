@@ -15,6 +15,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
+import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
@@ -91,6 +92,11 @@ class ExecutionServiceTest {
     @Mock
     private TrackingEventLogPort trackingEventLogPort;
 
+    // P2-5: источник Off-таймстампа для POSITION "not reported" (см. ExecutionService#buildContext/
+    // buildDefaultContext putOffTimeIfKnown) — lenient, т.к. не все тесты строят ExecutionContext.
+    @Mock
+    private FlightStageEventRepositoryPort flightStageEventRepository;
+
     @InjectMocks
     private ExecutionService service;
 
@@ -102,6 +108,8 @@ class ExecutionServiceTest {
         // Mock ConditionQueryPort to return empty conditions by default (lenient for tests that don't use it)
         lenient().when(conditionQueryPort.getActiveConditions(anyString())).thenReturn(Set.of());
         lenient().when(self.getObject()).thenReturn(service);
+        lenient().when(flightStageEventRepository.findLastStageTimestamp(anyString(), any()))
+                .thenReturn(Optional.empty());
 
         sequence = Sequence.builder()
                 .id(100L)

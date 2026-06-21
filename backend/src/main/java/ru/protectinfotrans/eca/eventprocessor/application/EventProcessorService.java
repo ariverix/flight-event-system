@@ -7,10 +7,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.in.MessageInputPort;
 import ru.protectinfotrans.eca.eventprocessor.port.out.EventPublisherPort;
+import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
 import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
 
 import java.time.LocalDateTime;
@@ -28,6 +30,7 @@ public class EventProcessorService implements MessageInputPort {
     private final MessageRepositoryPort messageRepository;
     private final EventPublisherPort eventPublisher;
     private final MessagePersistenceTransaction messagePersistenceTransaction;
+    private final FlightStageEventRepositoryPort flightStageEventRepository;
 
     /**
      * <b>Транзакционность (фикс ревью, TOCTOU-гонка P2-1):</b> этот метод сам НЕ {@code @Transactional} —
@@ -103,7 +106,17 @@ public class EventProcessorService implements MessageInputPort {
     public void notifyFlightStageChange(String aircraftId, String flightNumber, FlightStage stage) {
         log.info("Flight stage change: aircraft={}, flight={}, stage={}", aircraftId, flightNumber, stage);
 
-        // смена стадии — системное событие, в таблицу messages не пишем
+        // смена стадии — системное событие, в таблицу messages не пишем; но факт смены стадии
+        // (момент Off в частности) ДОЛЖЕН быть durable — паритет с SITA Sequencer: POSITION-критерий
+        // "not reported" использует Off-таймстамп как точку отсчёта окна (P2-5, V29).
+        LocalDateTime occurredAt = LocalDateTime.now();
+        flightStageEventRepository.save(FlightStageEvent.builder()
+                .aircraftId(aircraftId)
+                .flightNumber(flightNumber)
+                .stage(stage)
+                .occurredAt(occurredAt)
+                .build());
+
         NormalizedEvent event = new NormalizedEvent(
                 null,
                 null,
@@ -111,7 +124,7 @@ public class EventProcessorService implements MessageInputPort {
                 aircraftId,
                 flightNumber,
                 stage,
-                LocalDateTime.now()
+                occurredAt
         );
 
         eventPublisher.publish(event);

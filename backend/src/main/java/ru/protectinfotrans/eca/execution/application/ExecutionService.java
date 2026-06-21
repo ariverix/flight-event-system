@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.CorrelationContext;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
+import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.InstanceContext;
@@ -91,6 +92,7 @@ public class ExecutionService {
     private final ObjectMapper objectMapper;
     private final InstanceContextCodec instanceContextCodec;
     private final TrackingEventLogPort trackingEventLogPort;
+    private final FlightStageEventRepositoryPort flightStageEventRepository;
 
     /**
      * P1-5: self-инъекция через {@code ObjectProvider}, а не прямое поле {@code ExecutionService},
@@ -929,6 +931,8 @@ public class ExecutionService {
                 conditionsMap.put(conditionName, true);
             }
             additionalData.put("activeConditions", conditionsMap);
+
+            putOffTimeIfKnown(additionalData, event.aircraftId());
         }
 
         return new ExecutionContext(
@@ -949,6 +953,8 @@ public class ExecutionService {
                 conditions.forEach(c -> conditionsMap.put(c, true));
                 additionalData.put("activeConditions", conditionsMap);
             }
+
+            putOffTimeIfKnown(additionalData, aircraftId);
         }
         // INIT как нейтральная стадия при запуске первого шага —
         // реальная стадия придёт с первым NormalizedEvent для этого ВС
@@ -959,6 +965,20 @@ public class ExecutionService {
                 LocalDateTime.now(),
                 additionalData
         );
+    }
+
+    /**
+     * Кладёт момент последнего Off (взлёта) ВС в {@code additionalData} под ключом {@code "offTime"} —
+     * паритет с SITA Sequencer: POSITION-критерий "not reported" использует Off-таймстамп как точку
+     * отсчёта окна (P2-5, V29), читает его {@code CriterionEvaluator#evaluatePosition} тем же ключом,
+     * каким уже пользуется TIME-критерий для опорных точек ETD/ETA/Init/Out/Off/On/In
+     * ({@code CriterionEvaluator#getReferenceTime}: {@code "<точка>Time"}). Если борт ещё не взлетал
+     * (Off не зафиксирован), ключ не кладётся вовсе — {@code additionalData.get("offTime")} вернёт
+     * {@code null}, и POSITION-критерий корректно не считает "not reported" истинным до взлёта.
+     */
+    private void putOffTimeIfKnown(Map<String, Object> additionalData, String aircraftId) {
+        flightStageEventRepository.findLastStageTimestamp(aircraftId, FlightStage.OFF)
+                .ifPresent(offTime -> additionalData.put("offTime", offTime));
     }
 
     /**

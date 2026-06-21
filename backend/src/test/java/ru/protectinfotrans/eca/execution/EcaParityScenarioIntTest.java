@@ -377,6 +377,120 @@ class EcaParityScenarioIntTest extends BaseIntegrationTest {
         }
 
         @Test
+        @DisplayName("должен найти фактический позиционный отчёт ADS-B в окне (P2-5: источник ADS_B)")
+        void findsActualAdsbPositionReport() {
+            String aircraftId = AIRCRAFT_ID + "_ADSB";
+            jdbcTemplate.update(
+                    "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, "
+                            + "received_at, position_source, is_estimated_position) "
+                            + "VALUES (?, ?, ?, ?, ?, NOW(), ?, FALSE)",
+                    "DOWNLINK", "POSITION_REPORT", aircraftId, FLIGHT_NUMBER, "{}", "ADS_B"
+            );
+
+            Long sequenceId = createSequenceWithSteps("POSITION reported ADS_B", List.of(
+                    new StepCreateRequest(
+                            "Позиция за 30 мин (ADS_B)",
+                            StepType.EVALUATE,
+                            "{\"type\":\"POSITION_REPORTED\",\"minutesAgo\":30,\"source\":\"ADS_B\"}",
+                            null,
+                            TransitionAction.END, null, false,
+                            TransitionAction.ABORT, null, false
+                    )
+            ));
+
+            executionService.startExecution(sequenceId, aircraftId, FLIGHT_NUMBER);
+
+            ExecutionInstance instance = findInstance(sequenceId, aircraftId);
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.COMPLETED);
+        }
+
+        @Test
+        @DisplayName("должен найти фактический позиционный отчёт RADAR в окне (P2-5: источник RADAR)")
+        void findsActualRadarPositionReport() {
+            String aircraftId = AIRCRAFT_ID + "_RADAR";
+            jdbcTemplate.update(
+                    "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, "
+                            + "received_at, position_source, is_estimated_position) "
+                            + "VALUES (?, ?, ?, ?, ?, NOW(), ?, FALSE)",
+                    "DOWNLINK", "POSITION_REPORT", aircraftId, FLIGHT_NUMBER, "{}", "RADAR"
+            );
+
+            Long sequenceId = createSequenceWithSteps("POSITION reported RADAR", List.of(
+                    new StepCreateRequest(
+                            "Позиция за 30 мин (RADAR)",
+                            StepType.EVALUATE,
+                            "{\"type\":\"POSITION_REPORTED\",\"minutesAgo\":30,\"source\":\"RADAR\"}",
+                            null,
+                            TransitionAction.END, null, false,
+                            TransitionAction.ABORT, null, false
+                    )
+            ));
+
+            executionService.startExecution(sequenceId, aircraftId, FLIGHT_NUMBER);
+
+            ExecutionInstance instance = findInstance(sequenceId, aircraftId);
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.COMPLETED);
+        }
+
+        @Test
+        @DisplayName("источник-фильтр: критерий ждёт RADAR, пришла ACARS — не матчит (P2-5)")
+        void sourceFilterDoesNotMatchDifferentSource() {
+            String aircraftId = AIRCRAFT_ID + "_SRC_MISMATCH";
+            jdbcTemplate.update(
+                    "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, "
+                            + "received_at, position_source, is_estimated_position) "
+                            + "VALUES (?, ?, ?, ?, ?, NOW(), ?, FALSE)",
+                    "DOWNLINK", "POSITION_REPORT", aircraftId, FLIGHT_NUMBER, "{}", "ACARS"
+            );
+
+            Long sequenceId = createSequenceWithSteps("POSITION source mismatch", List.of(
+                    new StepCreateRequest(
+                            "Позиция за 30 мин (ждём RADAR)",
+                            StepType.EVALUATE,
+                            "{\"type\":\"POSITION_REPORTED\",\"minutesAgo\":30,\"source\":\"RADAR\"}",
+                            null,
+                            TransitionAction.END, null, false,
+                            TransitionAction.ABORT, null, false
+                    )
+            ));
+
+            executionService.startExecution(sequenceId, aircraftId, FLIGHT_NUMBER);
+
+            ExecutionInstance instance = findInstance(sequenceId, aircraftId);
+            // пришёл ACARS, критерий ждёт RADAR -> не матчит -> FAILURE -> ABORT
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+
+        @Test
+        @DisplayName("оценочная (estimated) позиция RADAR должна игнорироваться так же, как и любой другой источник (P2-5)")
+        void ignoresEstimatedPositionFromRadar() {
+            String aircraftId = AIRCRAFT_ID + "_RADAR_ESTIMATED";
+            jdbcTemplate.update(
+                    "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, "
+                            + "received_at, position_source, is_estimated_position) "
+                            + "VALUES (?, ?, ?, ?, ?, NOW(), ?, TRUE)",
+                    "DOWNLINK", "POSITION_REPORT", aircraftId, FLIGHT_NUMBER, "{}", "RADAR"
+            );
+
+            Long sequenceId = createSequenceWithSteps("POSITION ignores estimated radar", List.of(
+                    new StepCreateRequest(
+                            "Позиция за 30 мин (RADAR)",
+                            StepType.EVALUATE,
+                            "{\"type\":\"POSITION_REPORTED\",\"minutesAgo\":30,\"source\":\"RADAR\"}",
+                            null,
+                            TransitionAction.END, null, false,
+                            TransitionAction.ABORT, null, false
+                    )
+            ));
+
+            executionService.startExecution(sequenceId, aircraftId, FLIGHT_NUMBER);
+
+            ExecutionInstance instance = findInstance(sequenceId, aircraftId);
+            // единственный RADAR-отчёт — estimated -> игнорируется -> FAILURE -> ABORT
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+
+        @Test
         @DisplayName("оценочная (estimated) позиция должна игнорироваться — критерий не находит отчёт")
         void ignoresEstimatedPosition() {
             jdbcTemplate.update(
@@ -405,9 +519,12 @@ class EcaParityScenarioIntTest extends BaseIntegrationTest {
         }
 
         @Test
-        @DisplayName("not reported=true должен пройти, если фактических отчётов не было вовсе")
-        void notReportedPassesWhenNoActualReportExists() {
-            Long sequenceId = createSequenceWithSteps("POSITION not reported", List.of(
+        @DisplayName("not reported=true должен НЕ срабатывать (FAILURE), если ВС ещё не взлетало (нет Off-таймстампа) — P2-5")
+        void notReportedFailsWhenOffTimestampUnknown() {
+            // НИКАКОГО Off-события не зафиксировано для этого борта — окно "not reported" ещё
+            // не началось (паритет SITA: until взлёта нет ожидаемого потока позиций), поэтому
+            // критерий должен вернуть false, а не тривиально true.
+            Long sequenceId = createSequenceWithSteps("POSITION not reported no off", List.of(
                     new StepCreateRequest(
                             "Нет позиции за 30 мин",
                             StepType.EVALUATE,
@@ -421,6 +538,111 @@ class EcaParityScenarioIntTest extends BaseIntegrationTest {
             executionService.startExecution(sequenceId, AIRCRAFT_ID + "_NOPOS", FLIGHT_NUMBER);
 
             ExecutionInstance instance = findInstance(sequenceId, AIRCRAFT_ID + "_NOPOS");
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+
+        @Test
+        @DisplayName("not reported=true должен пройти (Off зафиксирован, ни одного фактического отчёта после Off) — P2-5")
+        void notReportedPassesAfterOffWithNoActualReportSince() {
+            String aircraftId = AIRCRAFT_ID + "_NOPOS_OFF";
+
+            // Off зафиксирован 10 минут назад — борт взлетел, окно "not reported" уже активно
+            jdbcTemplate.update(
+                    "INSERT INTO flight_stage_events (aircraft_id, flight_number, stage, occurred_at) "
+                            + "VALUES (?, ?, 'OFF', ?)",
+                    aircraftId, FLIGHT_NUMBER, java.sql.Timestamp.valueOf(LocalDateTime.now().minusMinutes(10))
+            );
+
+            Long sequenceId = createSequenceWithSteps("POSITION not reported since off", List.of(
+                    new StepCreateRequest(
+                            "Нет позиции за 30 мин",
+                            StepType.EVALUATE,
+                            "{\"type\":\"POSITION_REPORTED\",\"reported\":false,\"minutesAgo\":30}",
+                            null,
+                            TransitionAction.END, null, false,
+                            TransitionAction.ABORT, null, false
+                    )
+            ));
+
+            executionService.startExecution(sequenceId, aircraftId, FLIGHT_NUMBER);
+
+            ExecutionInstance instance = findInstance(sequenceId, aircraftId);
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.COMPLETED);
+        }
+
+        @Test
+        @DisplayName("not reported=true должен НЕ срабатывать, если фактический отчёт пришёл после Off в пределах окна — P2-5")
+        void notReportedFailsWhenActualReportExistsAfterOff() {
+            String aircraftId = AIRCRAFT_ID + "_NOPOS_OFF_HASPOS";
+            LocalDateTime offTime = LocalDateTime.now().minusMinutes(10);
+
+            jdbcTemplate.update(
+                    "INSERT INTO flight_stage_events (aircraft_id, flight_number, stage, occurred_at) "
+                            + "VALUES (?, ?, 'OFF', ?)",
+                    aircraftId, FLIGHT_NUMBER, java.sql.Timestamp.valueOf(offTime)
+            );
+            // фактический позиционный отчёт ПОСЛЕ Off, внутри окна 30 мин
+            jdbcTemplate.update(
+                    "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, "
+                            + "received_at, position_source, is_estimated_position) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, FALSE)",
+                    "DOWNLINK", "POSITION_REPORT", aircraftId, FLIGHT_NUMBER, "{}",
+                    java.sql.Timestamp.valueOf(offTime.plusMinutes(5)), "ACARS"
+            );
+
+            Long sequenceId = createSequenceWithSteps("POSITION not reported but has report", List.of(
+                    new StepCreateRequest(
+                            "Нет позиции за 30 мин",
+                            StepType.EVALUATE,
+                            "{\"type\":\"POSITION_REPORTED\",\"reported\":false,\"minutesAgo\":30}",
+                            null,
+                            TransitionAction.END, null, false,
+                            TransitionAction.ABORT, null, false
+                    )
+            ));
+
+            executionService.startExecution(sequenceId, aircraftId, FLIGHT_NUMBER);
+
+            ExecutionInstance instance = findInstance(sequenceId, aircraftId);
+            // фактический отчёт после Off в пределах окна -> "not reported" = false -> onFailure = ABORT
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+
+        @Test
+        @DisplayName("not reported=true с окном короче времени с Off должен НЕ заглядывать раньше запрошенного окна — P2-5")
+        void notReportedWindowDoesNotExceedRequestedMinutesEvenAfterOff() {
+            String aircraftId = AIRCRAFT_ID + "_NOPOS_OFF_OLD_REPORT";
+            LocalDateTime offTime = LocalDateTime.now().minusHours(2);
+
+            jdbcTemplate.update(
+                    "INSERT INTO flight_stage_events (aircraft_id, flight_number, stage, occurred_at) "
+                            + "VALUES (?, ?, 'OFF', ?)",
+                    aircraftId, FLIGHT_NUMBER, java.sql.Timestamp.valueOf(offTime)
+            );
+            // отчёт сразу после Off (2 часа назад) — ВНЕ запрошенного окна 30 мин, хотя ПОСЛЕ Off
+            jdbcTemplate.update(
+                    "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, "
+                            + "received_at, position_source, is_estimated_position) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, FALSE)",
+                    "DOWNLINK", "POSITION_REPORT", aircraftId, FLIGHT_NUMBER, "{}",
+                    java.sql.Timestamp.valueOf(offTime.plusMinutes(2)), "ACARS"
+            );
+
+            Long sequenceId = createSequenceWithSteps("POSITION not reported window capped", List.of(
+                    new StepCreateRequest(
+                            "Нет позиции за 30 мин",
+                            StepType.EVALUATE,
+                            "{\"type\":\"POSITION_REPORTED\",\"reported\":false,\"minutesAgo\":30}",
+                            null,
+                            TransitionAction.END, null, false,
+                            TransitionAction.ABORT, null, false
+                    )
+            ));
+
+            executionService.startExecution(sequenceId, aircraftId, FLIGHT_NUMBER);
+
+            ExecutionInstance instance = findInstance(sequenceId, aircraftId);
+            // старый отчёт (2ч назад) вне окна 30 мин, в пределах окна после Off отчётов нет -> "not reported" = true
             assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.COMPLETED);
         }
     }

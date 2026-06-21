@@ -8,9 +8,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.out.EventPublisherPort;
+import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
 import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
 import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
@@ -43,6 +45,7 @@ class MessagePersistenceTransaction {
 
     private final MessageRepositoryPort messageRepository;
     private final EventPublisherPort eventPublisher;
+    private final FlightStageEventRepositoryPort flightStageEventRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -104,6 +107,7 @@ class MessagePersistenceTransaction {
         log.debug("Message saved with ID: {}", message.getId());
 
         FlightStage flightStage = extractFlightStage(metadata);
+        recordFlightStageEvent(aircraftId, flightNumber, flightStage, message.getReceivedAt());
 
         NormalizedEvent event = new NormalizedEvent(
                 message.getId(),
@@ -119,6 +123,29 @@ class MessagePersistenceTransaction {
         log.info("NormalizedEvent published for message ID: {}", message.getId());
 
         return message.getId();
+    }
+
+    /**
+     * Записать факт смены стадии полёта в durable журнал (V29) — паритет с SITA Sequencer:
+     * POSITION-критерий "not reported" использует Off-таймстамп как точку отсчёта окна
+     * (см. {@code CriterionEvaluator#evaluatePosition}/{@code ExecutionService#buildContext}),
+     * а до этой миграции момент Off нигде не сохранялся при доставке OOOI-метки ВНУТРИ обычного
+     * входящего сообщения (например ARINC 618 с OUT/OFF/ON/IN-метками, см. {@code Arinc618Parser}) —
+     * только при отдельном явном вызове {@code notifyFlightStageChange} (см. там же).
+     * Не пишет ничего, если сообщение не несёт стадию (обычное большинство сообщений).
+     */
+    private void recordFlightStageEvent(String aircraftId, String flightNumber,
+                                         FlightStage flightStage, LocalDateTime occurredAt) {
+        if (flightStage == null || aircraftId == null) {
+            return;
+        }
+
+        flightStageEventRepository.save(FlightStageEvent.builder()
+                .aircraftId(aircraftId)
+                .flightNumber(flightNumber)
+                .stage(flightStage)
+                .occurredAt(occurredAt)
+                .build());
     }
 
     private FlightStage extractFlightStage(Map<String, Object> metadata) {

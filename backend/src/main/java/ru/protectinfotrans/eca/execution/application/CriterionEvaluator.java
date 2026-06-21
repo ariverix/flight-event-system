@@ -107,6 +107,23 @@ public class CriterionEvaluator {
      * POSITION-критерий — паритет с SITA Sequencer:
      * reported|not reported + in the last {x} min, источник ACARS/radar/ADS-B (опционально),
      * оценочные (estimated) позиции игнорируются, опционально fromThisPointOnly.
+     *
+     * <p><b>"not reported" использует Off-таймстамп (P2-5):</b> до взлёта (Off) у ВС физически нет
+     * ожидаемого потока позиционных отчётов — проверка "нет позиции за последние {x} мин" не должна
+     * заглядывать в эпоху ДО взлёта и не должна тривиально срабатывать истинно, пока борт ещё не
+     * взлетел вовсе. {@code context.additionalData().get("offTime")} — момент последнего Off этого
+     * ВС (см. {@code ExecutionService#buildContext}/{@code buildDefaultContext}, источник истины —
+     * durable журнал смен стадии {@code flight_stage_events}, V29). Семантика только для
+     * {@code reported=false}:
+     * <ul>
+     *   <li>Off неизвестен (ВС ещё не взлетало) → "not reported" = {@code false} (окно отсчёта
+     *       ещё не началось — проверка неприменима, а НЕ тривиально истинна);</li>
+     *   <li>Off известен → эффективная нижняя граница окна = {@code max(now - x мин, offTime)} —
+     *       окно не может начинаться раньше взлёта, даже если запрошено больше минут, чем прошло
+     *       с момента Off.</li>
+     * </ul>
+     * Для {@code reported=true} ("position reported") Off-привязка не нужна и не применяется —
+     * фактический отчёт в окне либо есть, либо нет, независимо от стадии полёта.
      */
     private boolean evaluatePosition(Map<String, Object> criteria, ExecutionContext context, LocalDateTime waitStartedAt) {
         // reported=true (по умолчанию) — "position reported"; reported=false — "position not reported"
@@ -125,19 +142,38 @@ public class CriterionEvaluator {
         LocalDateTime afterTime = (fromThisPointOnly && waitStartedAt != null) ? waitStartedAt : null;
 
         LocalDateTime now = context.currentTime() != null ? context.currentTime() : LocalDateTime.now();
+
+        // "not reported" (P2-5) использует Off-таймстамп как точку отсчёта окна — паритет с SITA
+        // Sequencer: до взлёта у ВС физически нет ожидаемого потока позиционных отчётов, поэтому
+        // окно "нет позиции за {x} мин" не должно ни заглядывать раньше Off, ни срабатывать истинно
+        // до того как борт взлетел вовсе. См. подробности в javadoc метода.
+        if (!reported) {
+            LocalDateTime offTime = (LocalDateTime) context.additionalData().get("offTime");
+            if (offTime == null) {
+                // борт ещё не взлетал — окно "not reported" не началось, проверка неприменима
+                return false;
+            }
+            LocalDateTime requestedSince = now.minusMinutes(minutesAgo);
+            // окно не может начинаться раньше Off, даже если запрошенное {x} мин длиннее времени с Off
+            LocalDateTime sinceTime = requestedSince.isAfter(offTime) ? requestedSince : offTime;
+
+            boolean actuallyReportedSinceOff = messageRepository.existsActualPositionReportSince(
+                    context.aircraftId(),
+                    sinceTime,
+                    source,
+                    afterTime
+            );
+            return !actuallyReportedSinceOff;
+        }
+
         LocalDateTime sinceTime = now.minusMinutes(minutesAgo);
 
-        boolean actuallyReported = messageRepository.existsActualPositionReportSince(
+        return messageRepository.existsActualPositionReportSince(
                 context.aircraftId(),
                 sinceTime,
                 source,
                 afterTime
         );
-
-        // "not reported" — это инверсия: окно {x} мин не содержит ни одного фактического отчёта.
-        // "Off"-таймстамп как точка отсчёта для not-reported учитывается через afterTime/waitStartedAt
-        // самого WAIT-шага (вызывающая сторона передаёт сюда момент Off как waitStartedAt при необходимости).
-        return reported ? actuallyReported : !actuallyReported;
     }
 
     /**

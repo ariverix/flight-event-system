@@ -11,9 +11,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.out.EventPublisherPort;
+import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
 import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
 import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
@@ -40,11 +42,15 @@ class MessagePersistenceTransactionTest {
     @Mock
     private EventPublisherPort eventPublisher;
 
+    @Mock
+    private FlightStageEventRepositoryPort flightStageEventRepository;
+
     private MessagePersistenceTransaction persistenceTransaction;
 
     @BeforeEach
     void setUp() {
-        persistenceTransaction = new MessagePersistenceTransaction(messageRepository, eventPublisher, new ObjectMapper());
+        persistenceTransaction = new MessagePersistenceTransaction(
+                messageRepository, eventPublisher, flightStageEventRepository, new ObjectMapper());
     }
 
     @Nested
@@ -133,6 +139,53 @@ class MessagePersistenceTransactionTest {
             ArgumentCaptor<NormalizedEvent> eventCaptor = ArgumentCaptor.forClass(NormalizedEvent.class);
             verify(eventPublisher).publish(eventCaptor.capture());
             assertThat(eventCaptor.getValue().flightStage()).isEqualTo(FlightStage.ON);
+        }
+
+        @Test
+        @DisplayName("P2-5: OOOI-метка OFF, разобранная ИЗ входящего сообщения (ARINC 618), должна "
+                + "попасть в durable журнал flight_stage_events — не только через notifyFlightStageChange")
+        void shouldRecordFlightStageEventWhenStageEmbeddedInMessageMetadata() {
+            IncomingMessage savedMessage = IncomingMessage.builder()
+                    .id(20L)
+                    .messageType(MessageType.DOWNLINK)
+                    .templateName("OOOI")
+                    .aircraftId("VP-BZZ")
+                    .flightNumber("SU200")
+                    .receivedAt(LocalDateTime.of(2026, 6, 19, 10, 0))
+                    .build();
+
+            when(messageRepository.saveAndFlush(any(IncomingMessage.class))).thenReturn(savedMessage);
+
+            persistenceTransaction.persistAndPublish(
+                    MessageType.DOWNLINK, "OOOI", "VP-BZZ", "SU200", "OFF UUEE",
+                    Map.of("flightStage", "OFF"), null);
+
+            ArgumentCaptor<FlightStageEvent> captor = ArgumentCaptor.forClass(FlightStageEvent.class);
+            verify(flightStageEventRepository).save(captor.capture());
+            FlightStageEvent saved = captor.getValue();
+            assertThat(saved.getAircraftId()).isEqualTo("VP-BZZ");
+            assertThat(saved.getFlightNumber()).isEqualTo("SU200");
+            assertThat(saved.getStage()).isEqualTo(FlightStage.OFF);
+            assertThat(saved.getOccurredAt()).isEqualTo(savedMessage.getReceivedAt());
+        }
+
+        @Test
+        @DisplayName("P2-5: сообщение без flightStage в метаданных НЕ должно писать в flight_stage_events")
+        void shouldNotRecordFlightStageEventWhenStageAbsent() {
+            IncomingMessage savedMessage = IncomingMessage.builder()
+                    .id(21L)
+                    .messageType(MessageType.DOWNLINK)
+                    .templateName("STATUS")
+                    .aircraftId("VP-BQR")
+                    .receivedAt(LocalDateTime.now())
+                    .build();
+
+            when(messageRepository.saveAndFlush(any(IncomingMessage.class))).thenReturn(savedMessage);
+
+            persistenceTransaction.persistAndPublish(
+                    MessageType.DOWNLINK, "STATUS", "VP-BQR", "SU1234", "OK", Map.of(), null);
+
+            verifyNoInteractions(flightStageEventRepository);
         }
 
         @Test

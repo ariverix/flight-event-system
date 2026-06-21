@@ -11,9 +11,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.out.EventPublisherPort;
+import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
 import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
 
 import java.time.LocalDateTime;
@@ -51,11 +53,15 @@ class EventProcessorServiceTest {
     @Mock
     private MessagePersistenceTransaction messagePersistenceTransaction;
 
+    @Mock
+    private FlightStageEventRepositoryPort flightStageEventRepository;
+
     private EventProcessorService service;
 
     @BeforeEach
     void setUp() {
-        service = new EventProcessorService(messageRepository, eventPublisher, messagePersistenceTransaction);
+        service = new EventProcessorService(
+                messageRepository, eventPublisher, messagePersistenceTransaction, flightStageEventRepository);
     }
 
     @Nested
@@ -202,12 +208,13 @@ class EventProcessorServiceTest {
     class FlightStageChangeTests {
 
         @Test
-        @DisplayName("должен опубликовать событие изменения стадии полёта без сохранения в БД")
-        void shouldPublishStageChangeEventWithoutSaving() {
+        @DisplayName("должен опубликовать событие изменения стадии полёта без сохранения в messages")
+        void shouldPublishStageChangeEventWithoutSavingToMessages() {
             // Act
             service.notifyFlightStageChange("VP-BXX", "SU100", FlightStage.OFF);
 
-            // Assert
+            // Assert: смена стадии — системное событие, в messages не пишем (НО durable журнал
+            // flight_stage_events — отдельная таблица, V29, см. тест ниже).
             verifyNoInteractions(messageRepository);
             verifyNoInteractions(messagePersistenceTransaction);
 
@@ -232,6 +239,38 @@ class EventProcessorServiceTest {
             }
 
             verify(eventPublisher, times(FlightStage.values().length)).publish(any(NormalizedEvent.class));
+        }
+
+        @Test
+        @DisplayName("P2-5: должен записать факт смены стадии в durable журнал flight_stage_events "
+                + "(источник Off-таймстампа для POSITION-критерия \"not reported\")")
+        void shouldRecordFlightStageEventForDurableOffTimestamp() {
+            service.notifyFlightStageChange("VP-BXX", "SU100", FlightStage.OFF);
+
+            ArgumentCaptor<FlightStageEvent> captor = ArgumentCaptor.forClass(FlightStageEvent.class);
+            verify(flightStageEventRepository).save(captor.capture());
+
+            FlightStageEvent saved = captor.getValue();
+            assertThat(saved.getAircraftId()).isEqualTo("VP-BXX");
+            assertThat(saved.getFlightNumber()).isEqualTo("SU100");
+            assertThat(saved.getStage()).isEqualTo(FlightStage.OFF);
+            assertThat(saved.getOccurredAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("P2-5: occurredAt записи в flight_stage_events должен совпадать с timestamp "
+                + "опубликованного NormalizedEvent (один и тот же момент, не два отдельных now())")
+        void shouldUseSameTimestampForStageEventAndNormalizedEvent() {
+            service.notifyFlightStageChange("VP-BXX", "SU100", FlightStage.OFF);
+
+            ArgumentCaptor<FlightStageEvent> stageEventCaptor = ArgumentCaptor.forClass(FlightStageEvent.class);
+            verify(flightStageEventRepository).save(stageEventCaptor.capture());
+
+            ArgumentCaptor<NormalizedEvent> normalizedEventCaptor = ArgumentCaptor.forClass(NormalizedEvent.class);
+            verify(eventPublisher).publish(normalizedEventCaptor.capture());
+
+            assertThat(stageEventCaptor.getValue().getOccurredAt())
+                    .isEqualTo(normalizedEventCaptor.getValue().timestamp());
         }
     }
 }
