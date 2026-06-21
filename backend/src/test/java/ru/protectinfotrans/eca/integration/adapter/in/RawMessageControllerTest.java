@@ -12,27 +12,36 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.port.in.MessageInputPort;
-import ru.protectinfotrans.eca.integration.callsign.CallsignMatchingService;
+import ru.protectinfotrans.eca.integration.application.DeadLetterQueueService;
+import ru.protectinfotrans.eca.integration.application.DeadLetterRequestContext;
+import ru.protectinfotrans.eca.integration.domain.DeadLetterMessage;
 import ru.protectinfotrans.eca.integration.parser.MessageParsingException;
 import ru.protectinfotrans.eca.integration.parser.ParsedMessage;
 import ru.protectinfotrans.eca.integration.parser.RawMessageFormat;
+import ru.protectinfotrans.eca.integration.parser.RawMessageIngestSupport;
 import ru.protectinfotrans.eca.integration.parser.RawMessageParserService;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit-тесты для {@link RawMessageController} (P2-2: приём сырых сообщений «борт-земля»).
+ * Unit-тесты для {@link RawMessageController} (P2-2: приём сырых сообщений «борт-земля»,
+ * P2-4: callsign matching через {@link RawMessageIngestSupport}, P2-6: DLQ при сбое).
  *
  * <p>Контроллер живёт в модуле {@code integration} (не {@code eventprocessor}) и вызывает
  * {@link MessageInputPort} (входной порт {@code eventprocessor}, named interface {@code port-in})
  * напрямую — без этого возник бы цикл границ модулей, см. javadoc {@link RawMessageController}.
+ *
+ * <p>P2-6: callsign matching (P2-4) теперь инкапсулирован в {@link RawMessageIngestSupport}
+ * (общий шаг конвейера, переиспользуемый ручным reprocess DLQ-записи) — мокается напрямую,
+ * без {@code CallsignMatchingService} на уровне контроллера.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RawMessageController")
@@ -45,13 +54,17 @@ class RawMessageControllerTest {
     private MessageInputPort messageInputPort;
 
     @Mock
-    private CallsignMatchingService callsignMatchingService;
+    private RawMessageIngestSupport ingestSupport;
+
+    @Mock
+    private DeadLetterQueueService deadLetterQueueService;
 
     private RawMessageController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new RawMessageController(rawMessageParserService, messageInputPort, callsignMatchingService);
+        controller = new RawMessageController(rawMessageParserService, messageInputPort, ingestSupport,
+                deadLetterQueueService);
     }
 
     @Nested
@@ -69,6 +82,9 @@ class RawMessageControllerTest {
                     Map.of("foo", "bar"));
             when(rawMessageParserService.parse(RawMessageFormat.ARINC_618, request.rawMessage()))
                     .thenReturn(parsed);
+            Map<String, Object> metadata = new HashMap<>(Map.of("foo", "bar", "externalMessageId", "618-REF-1"));
+            when(ingestSupport.buildMetadata(parsed)).thenReturn(metadata);
+            when(ingestSupport.resolveFlightId(parsed, null, null, null)).thenReturn("SU1234");
             when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), anyMap()))
                     .thenReturn(99L);
 
@@ -84,6 +100,7 @@ class RawMessageControllerTest {
             assertThat(captor.getValue())
                     .containsEntry("foo", "bar")
                     .containsEntry("externalMessageId", "618-REF-1");
+            verify(deadLetterQueueService, never()).captureFailure(any(), any(), any(), any());
         }
 
         @Test
@@ -96,6 +113,8 @@ class RawMessageControllerTest {
                     MessageType.GROUND, "MVT", "VP-BQR", "SU1234", "TEXT", null, null);
             when(rawMessageParserService.parse(RawMessageFormat.TYPE_B, request.rawMessage()))
                     .thenReturn(parsed);
+            when(ingestSupport.buildMetadata(parsed)).thenReturn(null);
+            when(ingestSupport.resolveFlightId(parsed, null, null, null)).thenReturn("SU1234");
             when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), isNull()))
                     .thenReturn(7L);
 
@@ -111,43 +130,48 @@ class RawMessageControllerTest {
             RawIncomingMessageRequest request = new RawIncomingMessageRequest(
                     RawMessageFormat.AFTN, "GARBAGE");
 
+            MessageParsingException parsingException =
+                    new MessageParsingException(RawMessageFormat.AFTN, "AFTN: не найдена строка priority");
             when(rawMessageParserService.parse(RawMessageFormat.AFTN, "GARBAGE"))
-                    .thenThrow(new MessageParsingException(RawMessageFormat.AFTN, "AFTN: не найдена строка priority"));
+                    .thenThrow(parsingException);
 
             assertThatThrownBy(() -> controller.receiveRawMessage(request))
                     .isInstanceOf(MessageParsingException.class)
                     .isInstanceOf(IllegalArgumentException.class);
+
+            verify(messageInputPort, never()).receiveMessage(any(), any(), any(), any(), any(), any());
         }
     }
 
     @Nested
-    @DisplayName("P2-4: callsign matching -> FI перед передачей в MessageInputPort")
+    @DisplayName("P2-4: callsign matching -> FI перед передачей в MessageInputPort (делегировано в RawMessageIngestSupport)")
     class CallsignMatchingIntegration {
 
         @Test
-        @DisplayName("найдено правило для позывного -> flightNumber заменяется на FI правила")
-        void shouldReplaceFlightNumberWithMatchedFlightId() {
+        @DisplayName("departureAirport/arrivalAirport/flightDate из запроса передаются в ingestSupport.resolveFlightId")
+        void shouldForwardRequestContextToIngestSupport() {
             RawIncomingMessageRequest request = new RawIncomingMessageRequest(
-                    RawMessageFormat.ARINC_618, "AN/VP-BQR FI/AFL1234 LABEL/H1 TEXT");
+                    RawMessageFormat.ARINC_618, "AN/VP-BQR FI/AFL1234 LABEL/H1 TEXT", "UUEE", "ULLI");
 
             ParsedMessage parsed = new ParsedMessage(
                     MessageType.DOWNLINK, "H1", "VP-BQR", "AFL1234", "TEXT", null, null);
             when(rawMessageParserService.parse(RawMessageFormat.ARINC_618, request.rawMessage()))
                     .thenReturn(parsed);
-            when(callsignMatchingService.resolveFlightId(eq("AFL1234"), any(), isNull(), isNull()))
-                    .thenReturn(Optional.of("SU1234"));
+            when(ingestSupport.buildMetadata(parsed)).thenReturn(null);
+            when(ingestSupport.resolveFlightId(parsed, "UUEE", "ULLI", null)).thenReturn("SU1234");
             when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any()))
-                    .thenReturn(1L);
+                    .thenReturn(4L);
 
             controller.receiveRawMessage(request);
 
+            verify(ingestSupport).resolveFlightId(parsed, "UUEE", "ULLI", null);
             verify(messageInputPort).receiveMessage(
                     eq(MessageType.DOWNLINK), eq("H1"), eq("VP-BQR"), eq("SU1234"), eq("TEXT"), isNull());
         }
 
         @Test
-        @DisplayName("нет совпавшего правила -> flightNumber передаётся без изменений (привязка по AN не ломается)")
-        void shouldKeepOriginalFlightNumberWhenNoRuleMatches() {
+        @DisplayName("ingestSupport не находит правило -> flightNumber из ParsedMessage передаётся как есть")
+        void shouldKeepWhateverIngestSupportReturns() {
             RawIncomingMessageRequest request = new RawIncomingMessageRequest(
                     RawMessageFormat.ARINC_618, "AN/VP-BQR FI/SU1234 LABEL/H1 TEXT");
 
@@ -155,8 +179,8 @@ class RawMessageControllerTest {
                     MessageType.DOWNLINK, "H1", "VP-BQR", "SU1234", "TEXT", null, null);
             when(rawMessageParserService.parse(RawMessageFormat.ARINC_618, request.rawMessage()))
                     .thenReturn(parsed);
-            when(callsignMatchingService.resolveFlightId(eq("SU1234"), any(), isNull(), isNull()))
-                    .thenReturn(Optional.empty());
+            when(ingestSupport.buildMetadata(parsed)).thenReturn(null);
+            when(ingestSupport.resolveFlightId(parsed, null, null, null)).thenReturn("SU1234");
             when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any()))
                     .thenReturn(2L);
 
@@ -165,46 +189,78 @@ class RawMessageControllerTest {
             verify(messageInputPort).receiveMessage(
                     eq(MessageType.DOWNLINK), eq("H1"), eq("VP-BQR"), eq("SU1234"), eq("TEXT"), isNull());
         }
+    }
+
+    @Nested
+    @DisplayName("P2-6: DLQ при сбое приёма")
+    class DeadLetterQueueIntegration {
 
         @Test
-        @DisplayName("flightNumber отсутствует в распарсенном сообщении -> matching не вызывается")
-        void shouldSkipMatchingWhenFlightNumberAbsent() {
+        @DisplayName("ошибка парсинга -> captureFailure вызван с заявленным форматом/сырым телом ДО переброса исключения")
+        void parsingFailureCapturedInDlqBeforeRethrow() {
             RawIncomingMessageRequest request = new RawIncomingMessageRequest(
-                    RawMessageFormat.TYPE_B, "RAW TYPE B TEXT");
+                    RawMessageFormat.AFTN, "GARBAGE", "UUEE", "ULLI");
 
-            ParsedMessage parsed = new ParsedMessage(
-                    MessageType.GROUND, "MVT", "VP-BQR", null, "TEXT", null, null);
-            when(rawMessageParserService.parse(RawMessageFormat.TYPE_B, request.rawMessage()))
-                    .thenReturn(parsed);
-            when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any()))
-                    .thenReturn(3L);
+            MessageParsingException parsingException =
+                    new MessageParsingException(RawMessageFormat.AFTN, "AFTN: не найдена строка priority");
+            when(rawMessageParserService.parse(RawMessageFormat.AFTN, "GARBAGE"))
+                    .thenThrow(parsingException);
+            when(deadLetterQueueService.captureFailure(any(), any(), any(), any()))
+                    .thenReturn(DeadLetterMessage.builder().id(1L).build());
 
-            controller.receiveRawMessage(request);
+            assertThatThrownBy(() -> controller.receiveRawMessage(request))
+                    .isSameAs(parsingException);
 
-            verify(callsignMatchingService, org.mockito.Mockito.never())
-                    .resolveFlightId(any(), any(), any(), any());
-            verify(messageInputPort).receiveMessage(
-                    eq(MessageType.GROUND), eq("MVT"), eq("VP-BQR"), isNull(), eq("TEXT"), isNull());
+            ArgumentCaptor<DeadLetterRequestContext> contextCaptor = ArgumentCaptor.forClass(DeadLetterRequestContext.class);
+            verify(deadLetterQueueService).captureFailure(eq(RawMessageFormat.AFTN), eq("GARBAGE"),
+                    contextCaptor.capture(), eq(parsingException));
+            assertThat(contextCaptor.getValue().departureAirport()).isEqualTo("UUEE");
+            assertThat(contextCaptor.getValue().arrivalAirport()).isEqualTo("ULLI");
         }
 
         @Test
-        @DisplayName("departureAirport/arrivalAirport из запроса передаются в callsign matching")
-        void shouldForwardAirportsFromRequestToMatching() {
+        @DisplayName("непредвиденный сбой messageInputPort.receiveMessage -> тоже captureFailure + переброс")
+        void receiveMessageFailureCapturedInDlq() {
             RawIncomingMessageRequest request = new RawIncomingMessageRequest(
-                    RawMessageFormat.ARINC_618, "AN/VP-BQR FI/AFL1234 LABEL/H1 TEXT", "UUEE", "ULLI");
+                    RawMessageFormat.ARINC_618, "AN/VP-BQR FI/SU1234 LABEL/H1 TEXT");
 
             ParsedMessage parsed = new ParsedMessage(
-                    MessageType.DOWNLINK, "H1", "VP-BQR", "AFL1234", "TEXT", null, null);
+                    MessageType.DOWNLINK, "H1", "VP-BQR", "SU1234", "TEXT", null, null);
             when(rawMessageParserService.parse(RawMessageFormat.ARINC_618, request.rawMessage()))
                     .thenReturn(parsed);
-            when(callsignMatchingService.resolveFlightId(eq("AFL1234"), any(), eq("UUEE"), eq("ULLI")))
-                    .thenReturn(Optional.of("SU1234"));
+            when(ingestSupport.buildMetadata(parsed)).thenReturn(null);
+            when(ingestSupport.resolveFlightId(parsed, null, null, null)).thenReturn("SU1234");
+
+            RuntimeException dbFailure = new IllegalStateException("eventprocessor unavailable");
             when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any()))
-                    .thenReturn(4L);
+                    .thenThrow(dbFailure);
+            when(deadLetterQueueService.captureFailure(any(), any(), any(), any()))
+                    .thenReturn(DeadLetterMessage.builder().id(2L).build());
+
+            assertThatThrownBy(() -> controller.receiveRawMessage(request))
+                    .isSameAs(dbFailure);
+
+            verify(deadLetterQueueService).captureFailure(eq(RawMessageFormat.ARINC_618),
+                    eq(request.rawMessage()), any(DeadLetterRequestContext.class), eq(dbFailure));
+        }
+
+        @Test
+        @DisplayName("успешный приём -> captureFailure НЕ вызывается")
+        void successfulReceiveNeverTouchesDlq() {
+            RawIncomingMessageRequest request = new RawIncomingMessageRequest(
+                    RawMessageFormat.ARINC_618, "AN/VP-BQR FI/SU1234 LABEL/H1 TEXT");
+
+            ParsedMessage parsed = new ParsedMessage(
+                    MessageType.DOWNLINK, "H1", "VP-BQR", "SU1234", "TEXT", null, null);
+            when(rawMessageParserService.parse(RawMessageFormat.ARINC_618, request.rawMessage()))
+                    .thenReturn(parsed);
+            when(ingestSupport.buildMetadata(parsed)).thenReturn(null);
+            when(ingestSupport.resolveFlightId(parsed, null, null, null)).thenReturn("SU1234");
+            when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any())).thenReturn(1L);
 
             controller.receiveRawMessage(request);
 
-            verify(callsignMatchingService).resolveFlightId(eq("AFL1234"), any(), eq("UUEE"), eq("ULLI"));
+            verify(deadLetterQueueService, never()).captureFailure(any(), any(), any(), any());
         }
     }
 }

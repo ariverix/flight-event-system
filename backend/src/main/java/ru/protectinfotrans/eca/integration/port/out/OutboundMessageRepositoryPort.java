@@ -31,7 +31,9 @@ public interface OutboundMessageRepositoryPort {
     Optional<OutboundMessage> findByExecutionInstanceIdAndStepOrderIndex(Long executionInstanceId, Integer stepOrderIndex);
 
     /**
-     * Кандидаты на доставку — сама выборка не захватывает строки, конкурентные поллеры
+     * Кандидаты на доставку — {@code status = PENDING AND nextAttemptAt <= now} (P2-6: backoff —
+     * запись со сбоем не подхватывается СНОВА до истечения вычисленной задержки, см.
+     * {@code OutboundBackoffPolicy}). Сама выборка не захватывает строки, конкурентные поллеры
      * могут увидеть одну и ту же запись. Реальный single-fire даёт {@link #claimPending}.
      */
     List<OutboundMessage> findPendingCandidates(LocalDateTime now, int limit);
@@ -49,9 +51,23 @@ public interface OutboundMessageRepositoryPort {
     void markSent(Long id, LocalDateTime sentAt);
 
     /**
-     * Базовый повтор без backoff: переводит запись обратно в {@code PENDING}, если попыток
-     * ещё не исчерпано ({@code attempts + 1 < maxAttempts}), иначе в терминальный
-     * {@code FAILED}. Полноценные backoff/circuit breaker/DLQ-реинъекция — P2-6.
+     * P2-6: повтор С экспоненциальным backoff — переводит запись обратно в {@code PENDING} с
+     * {@code nextAttemptAt = nextAttemptTime}, если попыток ещё не исчерпано
+     * ({@code attempts + 1 < maxAttempts}), иначе в терминальный {@code FAILED}. Инкрементирует
+     * {@code attempts} — вызывать ТОЛЬКО при реальном сбое попытки доставки данного сообщения
+     * (НЕ при блокировке circuit breaker'ом, см. {@link #releaseClaim}).
+     *
+     * @param nextAttemptTime момент следующей попытки, вычисленный вызывающей стороной через
+     *                        {@code OutboundBackoffPolicy} (чистая арифметика вне репозитория)
      */
-    void markFailed(Long id, String error, int maxAttempts);
+    void markFailed(Long id, String error, int maxAttempts, LocalDateTime nextAttemptTime);
+
+    /**
+     * P2-6: вернуть claim'нутую (SENDING) запись обратно в {@code PENDING} БЕЗ инкремента
+     * {@code attempts} и без изменения {@code lastError} — используется, когда сама попытка
+     * доставки даже НЕ НАЧИНАЛАСЬ (circuit breaker заблокировал канал fail-fast, либо пробная
+     * HALF_OPEN попытка уже занята другим кандидатом того же тика) — это не сбой ЭТОГО
+     * сообщения, отдельный путь от {@link #markFailed}.
+     */
+    void releaseClaim(Long id, LocalDateTime nextAttemptTime);
 }

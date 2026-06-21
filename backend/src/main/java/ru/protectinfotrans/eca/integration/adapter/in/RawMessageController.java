@@ -12,14 +12,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.protectinfotrans.eca.eventprocessor.port.in.MessageInputPort;
-import ru.protectinfotrans.eca.integration.callsign.CallsignMatchingService;
+import ru.protectinfotrans.eca.integration.application.DeadLetterQueueService;
+import ru.protectinfotrans.eca.integration.application.DeadLetterRequestContext;
 import ru.protectinfotrans.eca.integration.parser.ParsedMessage;
+import ru.protectinfotrans.eca.integration.parser.RawMessageIngestSupport;
 import ru.protectinfotrans.eca.integration.parser.RawMessageParserService;
 
-import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * REST-адаптер приёма СЫРОГО (нераспарсенного) сообщения «борт-земля» (P2-2): ARINC 618/620,
@@ -45,21 +44,29 @@ import java.util.Optional;
  * запрос 500-кой и не теряет сообщение молча: {@code MessageParsingException} — подтип
  * {@link IllegalArgumentException}, перехватывается общим {@code GlobalExceptionHandler.handleBadRequest}
  * и возвращается как структурированный {@code ProblemDetail} 400 (детали — в логе ERROR на стороне
- * {@code RawMessageParserService}, задел под DLQ — P2-6).
+ * {@code RawMessageParserService}). <b>P2-6:</b> ДО переброса исходного исключения сообщение
+ * сохраняется в DLQ ({@link DeadLetterQueueService#captureFailure}) — то же самое верно и для
+ * непредвиденных ошибок самого приёма ({@code messageInputPort.receiveMessage} может бросить).
+ * Внешняя система всё равно получает тот же явный 400/500, что и раньше (контракт не меняется),
+ * но сообщение больше не теряется — оператор видит его в списке DLQ и может выполнить ручной
+ * reprocess после устранения причины сбоя.
  *
  * <p><b>Callsign matching -> FI (P2-4, часть 2).</b> {@link ParsedMessage#flightNumber()} несёт
  * то, что разобрал форматный парсер (P2-2) из поля {@code FI/} тела телеграммы — на практике это
  * МОЖЕТ быть уже готовый внутренний flight id (IATA-style, напр. {@code "SU1234"}) ИЛИ сырой
  * ICAO-позывной (напр. {@code "AFL1234"}), который сама внешняя система ещё не привела к FI —
  * оба варианта реально встречаются (ТЗ: «бывает и IATA... но SITA callsign matching обычно по
- * ICAO carrier code»). После парсинга контроллер пробует {@link CallsignMatchingService}: если
- * значение распознаётся как позывной (код перевозчика+номер) И находится действующее правило —
- * {@code flightNumber} ЗАМЕНЯЕТСЯ на найденный FI перед передачей в
- * {@link MessageInputPort#receiveMessage} (тот FI и есть привязка последовательности по
- * паритету SITA). Если правило не найдено (либо значение не похоже на позывной, либо ни одно
- * правило не подошло по периоду/дню/аэропортам) — {@code flightNumber} передаётся БЕЗ ИЗМЕНЕНИЙ,
- * как и до P2-4: привязка по AN (tail number) либо по уже-валидному FI продолжает работать как
- * раньше, матчинг здесь НИЧЕГО не ломает и не выдумывает FI при отсутствии правил.
+ * ICAO carrier code»). После парсинга контроллер пробует callsign matching через
+ * {@link RawMessageIngestSupport#resolveFlightId} (P2-6: вынесено из этого класса в общий шаг
+ * конвейера, переиспользуемый ручным reprocess DLQ-записи — см. javadoc
+ * {@link RawMessageIngestSupport}): если значение распознаётся как позывной (код
+ * перевозчика+номер) И находится действующее правило — {@code flightNumber} ЗАМЕНЯЕТСЯ на
+ * найденный FI перед передачей в {@link MessageInputPort#receiveMessage} (тот FI и есть привязка
+ * последовательности по паритету SITA). Если правило не найдено (либо значение не похоже на
+ * позывной, либо ни одно правило не подошло по периоду/дню/аэропортам) — {@code flightNumber}
+ * передаётся БЕЗ ИЗМЕНЕНИЙ, как и до P2-4: привязка по AN (tail number) либо по уже-валидному FI
+ * продолжает работать как раньше, матчинг здесь НИЧЕГО не ломает и не выдумывает FI при
+ * отсутствии правил.
  */
 @Tag(name = "Messages", description = "Приём сырых сообщений «борт-земля» (P2-2: ARINC 618/620, Type B, AFTN)")
 @RestController
@@ -70,7 +77,8 @@ public class RawMessageController {
 
     private final RawMessageParserService rawMessageParserService;
     private final MessageInputPort messageInputPort;
-    private final CallsignMatchingService callsignMatchingService;
+    private final RawMessageIngestSupport ingestSupport;
+    private final DeadLetterQueueService deadLetterQueueService;
 
     /**
      * Принять сырое (нераспарсенное) сообщение в одном из промышленных форматов «борт-земля».
@@ -90,45 +98,32 @@ public class RawMessageController {
             @Valid @RequestBody RawIncomingMessageRequest request) {
         log.debug("POST /api/v1/messages/incoming/raw: format={}", request.format());
 
-        ParsedMessage parsed = rawMessageParserService.parse(request.format(), request.rawMessage());
+        try {
+            ParsedMessage parsed = rawMessageParserService.parse(request.format(), request.rawMessage());
 
-        Map<String, Object> metadata = parsed.metadata() == null ? null : new HashMap<>(parsed.metadata());
-        if (parsed.externalMessageId() != null && !parsed.externalMessageId().isBlank()) {
-            metadata = metadata == null ? new HashMap<>() : metadata;
-            metadata.put("externalMessageId", parsed.externalMessageId());
+            Map<String, Object> metadata = ingestSupport.buildMetadata(parsed);
+            String flightId = ingestSupport.resolveFlightId(parsed, request.departureAirport(),
+                    request.arrivalAirport(), request.flightDate());
+
+            Long messageId = messageInputPort.receiveMessage(
+                    parsed.messageType(),
+                    parsed.templateName(),
+                    parsed.aircraftId(),
+                    flightId,
+                    parsed.payload(),
+                    metadata
+            );
+
+            return ResponseEntity.ok(new RawMessageReceivedResponse(messageId, "Raw message parsed, received and processed"));
+        } catch (RuntimeException failure) {
+            // P2-6: НЕ теряем сырое сообщение — persist в DLQ ДО переброса исходного исключения
+            // (контракт ответа клиенту не меняется, см. javadoc класса).
+            deadLetterQueueService.captureFailure(request.format(), request.rawMessage(),
+                    new DeadLetterRequestContext(request.departureAirport(), request.arrivalAirport(),
+                            request.flightDate()),
+                    failure);
+            throw failure;
         }
-
-        String flightId = resolveFlightIdByCallsign(parsed, request);
-
-        Long messageId = messageInputPort.receiveMessage(
-                parsed.messageType(),
-                parsed.templateName(),
-                parsed.aircraftId(),
-                flightId,
-                parsed.payload(),
-                metadata
-        );
-
-        return ResponseEntity.ok(new RawMessageReceivedResponse(messageId, "Raw message parsed, received and processed"));
-    }
-
-    /**
-     * Попытаться сопоставить {@code parsed.flightNumber()} как позывной с FI через
-     * {@link CallsignMatchingService}. Возвращает найденный FI, либо исходный
-     * {@code parsed.flightNumber()} без изменений, если матчинг не дал результата (нет правила,
-     * значение не похоже на позывной, или сам {@code flightNumber} отсутствует) — НЕ ломает
-     * существующую привязку по AN/уже-валидному FI (P2-4, часть 2).
-     */
-    private String resolveFlightIdByCallsign(ParsedMessage parsed, RawIncomingMessageRequest request) {
-        if (parsed.flightNumber() == null || parsed.flightNumber().isBlank()) {
-            return parsed.flightNumber();
-        }
-
-        LocalDate onDate = request.flightDate() != null ? request.flightDate() : LocalDate.now();
-        Optional<String> matchedFlightId = callsignMatchingService.resolveFlightId(
-                parsed.flightNumber(), onDate, request.departureAirport(), request.arrivalAirport());
-
-        return matchedFlightId.orElse(parsed.flightNumber());
     }
 
     /**

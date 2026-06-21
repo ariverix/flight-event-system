@@ -64,7 +64,12 @@ public class OutboundMessageJpaAdapter implements OutboundMessageRepositoryPort 
     }
 
     @Override
-    public void markFailed(Long id, String error, int maxAttempts) {
-        jpaRepository.markFailed(id, error, maxAttempts);
+    public void markFailed(Long id, String error, int maxAttempts, LocalDateTime nextAttemptTime) {
+        jpaRepository.markFailed(id, error, maxAttempts, nextAttemptTime);
+    }
+
+    @Override
+    public void releaseClaim(Long id, LocalDateTime nextAttemptTime) {
+        jpaRepository.releaseClaim(id, nextAttemptTime);
     }
 }

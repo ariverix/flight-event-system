@@ -50,6 +50,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/sequences/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/executions/**").hasAnyRole("OPERATOR", "ADMIN")
+                        // P2-6: DLQ — админская операция оператора над сбойными входящими (ручной
+                        // reprocess/discard), НЕ открытый ingestion-путь (тот остаётся /messages/**)
+                        .requestMatchers("/api/v1/dlq/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/auth/me").authenticated()
                         // статика и SPA — без защиты, закрываем только /api/**
                         .anyRequest().permitAll()

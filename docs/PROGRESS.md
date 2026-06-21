@@ -41,7 +41,7 @@
 | P2-3 | Исходящий шлюз: uplink/ground через Outbox | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: дедуп outbound при replay). Durable-шлюз: ACTION send → персист OutboundMessage(PENDING) атомарно с переходом → OutboundMessageDeliveryScheduler доставляет с claim single-fire (V26). Идемпотентность при рестарт-replay: дедуп по (instance,step) + partial UNIQUE (V27), optimistic-lock предотвращает гонку. origin/recipients сохранены. 469 тестов. |
 | P2-4 | Позывные + таблица `callsign_matching` → определение FI | integration-dev + db-dev | Done | reviewer PASS (правка: openapi обновлён). V28 callsign_matching (icao_carrier_code, flight_number, valid_from/to, days_of_week битмаска ISO, dep/arr airport, specificity). CallsignParser (ICAO/IATA) + CallsignMatchingService (findCandidates+дофильтр день/номер/аэропорт → max specificity, tie-break createdAt). Интеграция в raw-приём: FI заменяется только при матче, AN/явный FI не ломаются. 511 тестов. |
 | P2-5 | Источники позиций ACARS/ADS-B/radar, фактические vs оценочные | integration-dev | Done | reviewer PASS. Источники/estimated-исключение/in-last-{x}-min уже были из P1-1 (V21). Добавлен главный пробел — «not reported через Off-таймстамп»: V29 `flight_stage_events` (durable времена OOOI), offTime в контексте, evaluatePosition reported=false → окно max(now-{x}, offTime), Off неизвестен → false (не тривиально true до взлёта). 531 тест. NB: V29 написал integration-dev (не db-dev) — ревью качества пройдено. |
-| P2-6 | DLQ + ручной reprocess + ретраи/backoff + circuit breaker | integration-dev | Pending | — |
+| P2-6 | DLQ + ручной reprocess + ретраи/backoff + circuit breaker | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: транзакции адаптеров + simulate-failure jsonb; +доводка openapi/метрики). DLQ dead_letter_messages + reprocess/discard (/dlq/** за RBAC OPERATOR/ADMIN); exp-backoff (next_attempt_at); durable circuit breaker (CLOSED/OPEN/HALF_OPEN, своя реализация без resilience4j). V30. DLQ-метрики Micrometer. 596 тестов. |
 | P2-7 | Нагрузочный замер входящего потока (k6/Gatling), отчёт `docs/perf/` | test-engineer | Pending | — |
 
 ## P3 — Шаблоны / поля / алерты / уведомления
@@ -101,8 +101,8 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 531 зелёных.
-- Последняя миграция: V29 (таблица `flight_stage_events`).
+- Тестов: 596 зелёных.
+- Последняя миграция: V30 (`dead_letter_messages` + `channel_circuit_breakers` + `outbound_messages.next_attempt_at`).
 - **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)

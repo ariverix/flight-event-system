@@ -108,6 +108,15 @@ public class OutboundMessage {
     private String lastError;
 
     /**
+     * P2-6: не раньше какого момента поллер может забрать запись на следующую попытку —
+     * экспоненциальный backoff после сбоя ({@code OutboundBackoffPolicy}), вместо немедленного
+     * возврата в {@code PENDING} (как было в P2-3, без backoff). Дефолт = {@code createdAt}
+     * (доступна немедленно при первой постановке) — см. {@link #onCreate}.
+     */
+    @Column(name = "next_attempt_at")
+    private LocalDateTime nextAttemptAt;
+
+    /**
      * Активная оптимистическая блокировка не вводится здесь намеренно — single-fire доставки
      * обеспечивается атомарным условным UPDATE (claim, см. {@code OutboundMessageJpaRepository#claimPending})
      * по аналогии с {@code ExecutionJpaRepository#claimExpiredTimeout} (P1-5), а не через
@@ -124,6 +133,9 @@ public class OutboundMessage {
         }
         if (attempts == null) {
             attempts = 0;
+        }
+        if (nextAttemptAt == null) {
+            nextAttemptAt = createdAt;
         }
     }
 }
