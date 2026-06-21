@@ -12,12 +12,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.port.in.MessageInputPort;
+import ru.protectinfotrans.eca.integration.callsign.CallsignMatchingService;
 import ru.protectinfotrans.eca.integration.parser.MessageParsingException;
 import ru.protectinfotrans.eca.integration.parser.ParsedMessage;
 import ru.protectinfotrans.eca.integration.parser.RawMessageFormat;
 import ru.protectinfotrans.eca.integration.parser.RawMessageParserService;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,11 +44,14 @@ class RawMessageControllerTest {
     @Mock
     private MessageInputPort messageInputPort;
 
+    @Mock
+    private CallsignMatchingService callsignMatchingService;
+
     private RawMessageController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new RawMessageController(rawMessageParserService, messageInputPort);
+        controller = new RawMessageController(rawMessageParserService, messageInputPort, callsignMatchingService);
     }
 
     @Nested
@@ -112,6 +117,94 @@ class RawMessageControllerTest {
             assertThatThrownBy(() -> controller.receiveRawMessage(request))
                     .isInstanceOf(MessageParsingException.class)
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("P2-4: callsign matching -> FI перед передачей в MessageInputPort")
+    class CallsignMatchingIntegration {
+
+        @Test
+        @DisplayName("найдено правило для позывного -> flightNumber заменяется на FI правила")
+        void shouldReplaceFlightNumberWithMatchedFlightId() {
+            RawIncomingMessageRequest request = new RawIncomingMessageRequest(
+                    RawMessageFormat.ARINC_618, "AN/VP-BQR FI/AFL1234 LABEL/H1 TEXT");
+
+            ParsedMessage parsed = new ParsedMessage(
+                    MessageType.DOWNLINK, "H1", "VP-BQR", "AFL1234", "TEXT", null, null);
+            when(rawMessageParserService.parse(RawMessageFormat.ARINC_618, request.rawMessage()))
+                    .thenReturn(parsed);
+            when(callsignMatchingService.resolveFlightId(eq("AFL1234"), any(), isNull(), isNull()))
+                    .thenReturn(Optional.of("SU1234"));
+            when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any()))
+                    .thenReturn(1L);
+
+            controller.receiveRawMessage(request);
+
+            verify(messageInputPort).receiveMessage(
+                    eq(MessageType.DOWNLINK), eq("H1"), eq("VP-BQR"), eq("SU1234"), eq("TEXT"), isNull());
+        }
+
+        @Test
+        @DisplayName("нет совпавшего правила -> flightNumber передаётся без изменений (привязка по AN не ломается)")
+        void shouldKeepOriginalFlightNumberWhenNoRuleMatches() {
+            RawIncomingMessageRequest request = new RawIncomingMessageRequest(
+                    RawMessageFormat.ARINC_618, "AN/VP-BQR FI/SU1234 LABEL/H1 TEXT");
+
+            ParsedMessage parsed = new ParsedMessage(
+                    MessageType.DOWNLINK, "H1", "VP-BQR", "SU1234", "TEXT", null, null);
+            when(rawMessageParserService.parse(RawMessageFormat.ARINC_618, request.rawMessage()))
+                    .thenReturn(parsed);
+            when(callsignMatchingService.resolveFlightId(eq("SU1234"), any(), isNull(), isNull()))
+                    .thenReturn(Optional.empty());
+            when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any()))
+                    .thenReturn(2L);
+
+            controller.receiveRawMessage(request);
+
+            verify(messageInputPort).receiveMessage(
+                    eq(MessageType.DOWNLINK), eq("H1"), eq("VP-BQR"), eq("SU1234"), eq("TEXT"), isNull());
+        }
+
+        @Test
+        @DisplayName("flightNumber отсутствует в распарсенном сообщении -> matching не вызывается")
+        void shouldSkipMatchingWhenFlightNumberAbsent() {
+            RawIncomingMessageRequest request = new RawIncomingMessageRequest(
+                    RawMessageFormat.TYPE_B, "RAW TYPE B TEXT");
+
+            ParsedMessage parsed = new ParsedMessage(
+                    MessageType.GROUND, "MVT", "VP-BQR", null, "TEXT", null, null);
+            when(rawMessageParserService.parse(RawMessageFormat.TYPE_B, request.rawMessage()))
+                    .thenReturn(parsed);
+            when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any()))
+                    .thenReturn(3L);
+
+            controller.receiveRawMessage(request);
+
+            verify(callsignMatchingService, org.mockito.Mockito.never())
+                    .resolveFlightId(any(), any(), any(), any());
+            verify(messageInputPort).receiveMessage(
+                    eq(MessageType.GROUND), eq("MVT"), eq("VP-BQR"), isNull(), eq("TEXT"), isNull());
+        }
+
+        @Test
+        @DisplayName("departureAirport/arrivalAirport из запроса передаются в callsign matching")
+        void shouldForwardAirportsFromRequestToMatching() {
+            RawIncomingMessageRequest request = new RawIncomingMessageRequest(
+                    RawMessageFormat.ARINC_618, "AN/VP-BQR FI/AFL1234 LABEL/H1 TEXT", "UUEE", "ULLI");
+
+            ParsedMessage parsed = new ParsedMessage(
+                    MessageType.DOWNLINK, "H1", "VP-BQR", "AFL1234", "TEXT", null, null);
+            when(rawMessageParserService.parse(RawMessageFormat.ARINC_618, request.rawMessage()))
+                    .thenReturn(parsed);
+            when(callsignMatchingService.resolveFlightId(eq("AFL1234"), any(), eq("UUEE"), eq("ULLI")))
+                    .thenReturn(Optional.of("SU1234"));
+            when(messageInputPort.receiveMessage(any(), any(), any(), any(), any(), any()))
+                    .thenReturn(4L);
+
+            controller.receiveRawMessage(request);
+
+            verify(callsignMatchingService).resolveFlightId(eq("AFL1234"), any(), eq("UUEE"), eq("ULLI"));
         }
     }
 }

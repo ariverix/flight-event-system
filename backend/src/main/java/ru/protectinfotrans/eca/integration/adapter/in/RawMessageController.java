@@ -12,11 +12,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.protectinfotrans.eca.eventprocessor.port.in.MessageInputPort;
+import ru.protectinfotrans.eca.integration.callsign.CallsignMatchingService;
 import ru.protectinfotrans.eca.integration.parser.ParsedMessage;
 import ru.protectinfotrans.eca.integration.parser.RawMessageParserService;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * REST-адаптер приёма СЫРОГО (нераспарсенного) сообщения «борт-земля» (P2-2): ARINC 618/620,
@@ -43,6 +46,20 @@ import java.util.Map;
  * {@link IllegalArgumentException}, перехватывается общим {@code GlobalExceptionHandler.handleBadRequest}
  * и возвращается как структурированный {@code ProblemDetail} 400 (детали — в логе ERROR на стороне
  * {@code RawMessageParserService}, задел под DLQ — P2-6).
+ *
+ * <p><b>Callsign matching -> FI (P2-4, часть 2).</b> {@link ParsedMessage#flightNumber()} несёт
+ * то, что разобрал форматный парсер (P2-2) из поля {@code FI/} тела телеграммы — на практике это
+ * МОЖЕТ быть уже готовый внутренний flight id (IATA-style, напр. {@code "SU1234"}) ИЛИ сырой
+ * ICAO-позывной (напр. {@code "AFL1234"}), который сама внешняя система ещё не привела к FI —
+ * оба варианта реально встречаются (ТЗ: «бывает и IATA... но SITA callsign matching обычно по
+ * ICAO carrier code»). После парсинга контроллер пробует {@link CallsignMatchingService}: если
+ * значение распознаётся как позывной (код перевозчика+номер) И находится действующее правило —
+ * {@code flightNumber} ЗАМЕНЯЕТСЯ на найденный FI перед передачей в
+ * {@link MessageInputPort#receiveMessage} (тот FI и есть привязка последовательности по
+ * паритету SITA). Если правило не найдено (либо значение не похоже на позывной, либо ни одно
+ * правило не подошло по периоду/дню/аэропортам) — {@code flightNumber} передаётся БЕЗ ИЗМЕНЕНИЙ,
+ * как и до P2-4: привязка по AN (tail number) либо по уже-валидному FI продолжает работать как
+ * раньше, матчинг здесь НИЧЕГО не ломает и не выдумывает FI при отсутствии правил.
  */
 @Tag(name = "Messages", description = "Приём сырых сообщений «борт-земля» (P2-2: ARINC 618/620, Type B, AFTN)")
 @RestController
@@ -53,6 +70,7 @@ public class RawMessageController {
 
     private final RawMessageParserService rawMessageParserService;
     private final MessageInputPort messageInputPort;
+    private final CallsignMatchingService callsignMatchingService;
 
     /**
      * Принять сырое (нераспарсенное) сообщение в одном из промышленных форматов «борт-земля».
@@ -62,7 +80,9 @@ public class RawMessageController {
      */
     @Operation(summary = "Принять сырое сообщение (ARINC 618/620, Type B, AFTN)",
                description = "P2-2: нормализация промышленного формата борт-земля в структуру и передача "
-                       + "в общий конвейер приёма (идемпотентность/persist — P2-1). Не требует аутентификации.")
+                       + "в общий конвейер приёма (идемпотентность/persist — P2-1). P2-4: позывной в "
+                       + "FI/-поле тела телеграммы при наличии правила сопоставляется с flight id (FI) "
+                       + "через callsign matching table. Не требует аутентификации.")
     @ApiResponse(responseCode = "200", description = "Сообщение распарсено, принято и обработано")
     @ApiResponse(responseCode = "400", description = "Сообщение не соответствует заявленному формату")
     @PostMapping("/messages/incoming/raw")
@@ -78,16 +98,37 @@ public class RawMessageController {
             metadata.put("externalMessageId", parsed.externalMessageId());
         }
 
+        String flightId = resolveFlightIdByCallsign(parsed, request);
+
         Long messageId = messageInputPort.receiveMessage(
                 parsed.messageType(),
                 parsed.templateName(),
                 parsed.aircraftId(),
-                parsed.flightNumber(),
+                flightId,
                 parsed.payload(),
                 metadata
         );
 
         return ResponseEntity.ok(new RawMessageReceivedResponse(messageId, "Raw message parsed, received and processed"));
+    }
+
+    /**
+     * Попытаться сопоставить {@code parsed.flightNumber()} как позывной с FI через
+     * {@link CallsignMatchingService}. Возвращает найденный FI, либо исходный
+     * {@code parsed.flightNumber()} без изменений, если матчинг не дал результата (нет правила,
+     * значение не похоже на позывной, или сам {@code flightNumber} отсутствует) — НЕ ломает
+     * существующую привязку по AN/уже-валидному FI (P2-4, часть 2).
+     */
+    private String resolveFlightIdByCallsign(ParsedMessage parsed, RawIncomingMessageRequest request) {
+        if (parsed.flightNumber() == null || parsed.flightNumber().isBlank()) {
+            return parsed.flightNumber();
+        }
+
+        LocalDate onDate = request.flightDate() != null ? request.flightDate() : LocalDate.now();
+        Optional<String> matchedFlightId = callsignMatchingService.resolveFlightId(
+                parsed.flightNumber(), onDate, request.departureAirport(), request.arrivalAirport());
+
+        return matchedFlightId.orElse(parsed.flightNumber());
     }
 
     /**

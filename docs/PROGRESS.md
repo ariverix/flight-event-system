@@ -39,7 +39,7 @@
 | P2-1 | Входящий шлюз ACARS: приём → нормализация → `MessageReceived`, идемпотентность по ID сообщения | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: TOCTOU-гонка). Идемпотентность шлюза по `externalMessageId` (persist-before-process, find-before-save), V25 `messages.external_message_id` + partial UNIQUE. Гонка: saveAndFlush+catch DataIntegrityViolation+recovery-read REQUIRES_NEW (graceful, без 500); 8-поточный тест на реальном Postgres. Дополняет идемпотентность потребителя P1-7. 397 тестов. |
 | P2-2 | Парсеры ARINC 620/618 / Type B / AFTN | integration-dev | Done | reviewer PASS (правка: openapi обновлён). Парсеры ARINC 618/620/Type B/AFTN (integration.parser), raw-эндпоинт `/messages/incoming/raw` в integration (вызов eventprocessor через port-in NamedInterface — цикл границ разрешён). Извлечение tail/flight/type/payload/externalMessageId, AN/FI паритет. Тесты на реальных примерах + негатив. Без миграции. 443 теста. |
 | P2-3 | Исходящий шлюз: uplink/ground через Outbox | integration-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: дедуп outbound при replay). Durable-шлюз: ACTION send → персист OutboundMessage(PENDING) атомарно с переходом → OutboundMessageDeliveryScheduler доставляет с claim single-fire (V26). Идемпотентность при рестарт-replay: дедуп по (instance,step) + partial UNIQUE (V27), optimistic-lock предотвращает гонку. origin/recipients сохранены. 469 тестов. |
-| P2-4 | Позывные + таблица `callsign_matching` → определение FI | integration-dev + db-dev | Pending | — |
+| P2-4 | Позывные + таблица `callsign_matching` → определение FI | integration-dev + db-dev | Done | reviewer PASS (правка: openapi обновлён). V28 callsign_matching (icao_carrier_code, flight_number, valid_from/to, days_of_week битмаска ISO, dep/arr airport, specificity). CallsignParser (ICAO/IATA) + CallsignMatchingService (findCandidates+дофильтр день/номер/аэропорт → max specificity, tie-break createdAt). Интеграция в raw-приём: FI заменяется только при матче, AN/явный FI не ломаются. 511 тестов. |
 | P2-5 | Источники позиций ACARS/ADS-B/radar, фактические vs оценочные | integration-dev | Pending | — |
 | P2-6 | DLQ + ручной reprocess + ретраи/backoff + circuit breaker | integration-dev | Pending | — |
 | P2-7 | Нагрузочный замер входящего потока (k6/Gatling), отчёт `docs/perf/` | test-engineer | Pending | — |
@@ -101,8 +101,8 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 469 зелёных.
-- Последняя миграция: V27 (`outbound_messages` dedup-ключ instance+step + partial UNIQUE).
+- Тестов: 511 зелёных.
+- Последняя миграция: V28 (таблица `callsign_matching`).
 - **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
