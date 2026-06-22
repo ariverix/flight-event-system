@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.CorrelationContext;
 import ru.protectinfotrans.eca.FlightStage;
+import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
@@ -93,6 +94,7 @@ public class ExecutionService {
     private final InstanceContextCodec instanceContextCodec;
     private final TrackingEventLogPort trackingEventLogPort;
     private final FlightStageEventRepositoryPort flightStageEventRepository;
+    private final CustomFieldQueryUseCase customFieldQueryUseCase;
 
     /**
      * P1-5: self-инъекция через {@code ObjectProvider}, а не прямое поле {@code ExecutionService},
@@ -933,6 +935,7 @@ public class ExecutionService {
             additionalData.put("activeConditions", conditionsMap);
 
             putOffTimeIfKnown(additionalData, event.aircraftId());
+            putCustomFieldsIfKnown(additionalData, event.aircraftId(), event.flightNumber());
         }
 
         return new ExecutionContext(
@@ -955,6 +958,7 @@ public class ExecutionService {
             }
 
             putOffTimeIfKnown(additionalData, aircraftId);
+            putCustomFieldsIfKnown(additionalData, aircraftId, flightNumber);
         }
         // INIT как нейтральная стадия при запуске первого шага —
         // реальная стадия придёт с первым NormalizedEvent для этого ВС
@@ -979,6 +983,31 @@ public class ExecutionService {
     private void putOffTimeIfKnown(Map<String, Object> additionalData, String aircraftId) {
         flightStageEventRepository.findLastStageTimestamp(aircraftId, FlightStage.OFF)
                 .ifPresent(offTime -> additionalData.put("offTime", offTime));
+    }
+
+    /**
+     * Кладёт АКТИВНЫЕ (не закрытые завершением рейса) custom field значения рейса в
+     * {@code additionalData} под ключом {@code "customFields"} — паритет с SITA Sequencer:
+     * "переиспользование данных, извлечённых из входящих сообщений, в критериях" (P3-2). Ключи
+     * карты уже несут префикс {@code "customField."} (см. {@code CustomFieldQueryUseCase}
+     * javadoc — единый формат для шаблонов И критериев), поэтому будущая критериальная логика,
+     * читающая это поле (по аналогии с {@code evaluateConditionActive}), обращается тем же
+     * именем, что и плейсхолдер шаблона {@code {{customField.X}}}.
+     *
+     * <p>Требует И {@code aircraftId}, И {@code flightNumber} — без номера рейса невозможно
+     * сузить per-flight ключ (на одном борту последовательно выполняются разные рейсы с разными
+     * custom field значениями, см. {@code CustomFieldValue} javadoc — "per-flight, не per-aircraft").
+     * Если {@code flightNumber} ещё не известен (раннее INIT до первого NormalizedEvent с номером
+     * рейса), ключ не кладётся — пустая карта при чтении (см. {@code CustomFieldQueryUseCase#getActiveValues}).
+     */
+    private void putCustomFieldsIfKnown(Map<String, Object> additionalData, String aircraftId, String flightNumber) {
+        if (flightNumber == null) {
+            return;
+        }
+        Map<String, String> customFields = customFieldQueryUseCase.getActiveValues(aircraftId, flightNumber);
+        if (!customFields.isEmpty()) {
+            additionalData.put("customFields", customFields);
+        }
     }
 
     /**

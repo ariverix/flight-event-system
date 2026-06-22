@@ -9,6 +9,7 @@ import org.jeasy.rules.annotation.Condition;
 import org.jeasy.rules.annotation.Fact;
 import org.jeasy.rules.annotation.Rule;
 import org.springframework.stereotype.Component;
+import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
@@ -22,6 +23,7 @@ import ru.protectinfotrans.eca.sequence.domain.UplinkOrigin;
 import ru.protectinfotrans.eca.sequence.domain.WaitTimeUnit;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +37,7 @@ public class ActionStepRule {
 
     private final MessageOutputPort messageOutputPort;
     private final ObjectMapper objectMapper;
+    private final CustomFieldQueryUseCase customFieldQueryUseCase;
 
     private StepResult result;
 
@@ -83,6 +86,7 @@ public class ActionStepRule {
         String templateName = (String) config.get("templateName");
         @SuppressWarnings("unchecked")
         Map<String, Object> params = (Map<String, Object>) config.getOrDefault("params", Map.of());
+        params = mergeCustomFields(params, context);
 
         // uplinkOrigin — паритет с SITA Sequencer: computer-generated | from external user.
         // Отсутствие поля в конфиге (исторические/упрощённые сценарии) трактуем как
@@ -106,9 +110,45 @@ public class ActionStepRule {
         List<String> recipients = (List<String>) config.get("recipients");
         @SuppressWarnings("unchecked")
         Map<String, Object> params = (Map<String, Object>) config.getOrDefault("params", Map.of());
+        params = mergeCustomFields(params, context);
 
         return messageOutputPort.sendGround(recipients, templateName, params,
                 instance.getId(), step.getOrderIndex());
+    }
+
+    /**
+     * Объединяет параметры ACTION-конфига со значениями custom fields текущего рейса — паритет с
+     * SITA Sequencer: "переиспользование данных, извлечённых из входящих сообщений, в исходящих"
+     * (P3-2). Слияние происходит ЗДЕСЬ, на ACTION-шаге (а НЕ позже, в
+     * {@code OutboundMessageDeliveryScheduler} непосредственно перед фактической доставкой) —
+     * принципиальное решение для сохранения детерминированности повторных попыток доставки
+     * (P2-6, backoff/circuit breaker): {@code params} становится единственным персистентным
+     * состоянием рендеринга ({@code OutboundMessage#paramsJson}), замороженным В МОМЕНТ ACTION-
+     * перехода, как и было задумано в P3-1 (см. javadoc {@code simulateChannelSend} —
+     * "params/templateName остаются единственным персистентным состоянием"). Если бы custom field
+     * подставлялся заново на КАЖДОЙ попытке доставки, а значение поля рейса успело бы измениться
+     * между попытками (новое входящее сообщение с тем же именем поля) — повторная попытка
+     * рендерила бы ДРУГОЙ текст для уже однажды поставленного в очередь сообщения, что нарушает
+     * "один и тот же вход → один и тот же выход" (CLAUDE.md).
+     *
+     * <p>Явные {@code params} ACTION-конфига ИМЕЮТ ПРИОРИТЕТ над custom field того же имени
+     * (insertion order {@code HashMap.putAll} — custom fields кладутся первыми, params вторыми и
+     * перезатирают совпадающий ключ) — автор сценария, явно указавший параметр в конфиге шага,
+     * сильнее автоматически извлечённого значения по той же позиции в карте переменных.
+     */
+    private Map<String, Object> mergeCustomFields(Map<String, Object> params, ExecutionContext context) {
+        if (context.aircraftId() == null || context.flightNumber() == null) {
+            return params;
+        }
+        Map<String, String> customFields = customFieldQueryUseCase.getActiveValues(
+                context.aircraftId(), context.flightNumber());
+        if (customFields.isEmpty()) {
+            return params;
+        }
+
+        Map<String, Object> merged = new HashMap<>(customFields);
+        merged.putAll(params);
+        return merged;
     }
 
     private boolean executeRaiseCondition(Map<String, Object> config, ExecutionContext context) {

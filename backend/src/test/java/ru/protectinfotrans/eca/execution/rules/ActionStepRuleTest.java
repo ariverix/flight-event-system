@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.protectinfotrans.eca.FlightStage;
+import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
@@ -45,6 +46,11 @@ class ActionStepRuleTest {
     @Spy
     private ObjectMapper objectMapper;
 
+    // P3-2: значения custom fields текущего рейса, объединяемые в params ACTION-шага
+    // (см. ActionStepRule#mergeCustomFields) — по умолчанию пусто (lenient).
+    @Mock
+    private CustomFieldQueryUseCase customFieldQueryUseCase;
+
     @InjectMocks
     private ActionStepRule rule;
 
@@ -75,6 +81,9 @@ class ActionStepRuleTest {
         );
 
         rule.reset();
+
+        org.mockito.Mockito.lenient().when(customFieldQueryUseCase.getActiveValues(anyString(), anyString()))
+                .thenReturn(Map.of());
     }
 
     @Test
@@ -130,6 +139,89 @@ class ActionStepRuleTest {
         verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CUSTOM_CLEARANCE"), any(Map.class),
                 eq(UplinkOrigin.EXTERNAL_USER), eq(instance.getId()), eq(step.getOrderIndex()));
         assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("SEND_UPLINK: должен объединить params с custom fields текущего рейса (P3-2)")
+    void shouldMergeCustomFieldsIntoUplinkParams() {
+        step.setConfigJson("""
+            {
+                "actionType": "SEND_UPLINK",
+                "templateName": "CLEARANCE",
+                "params": {"gate": "A1"}
+            }
+            """);
+
+        when(customFieldQueryUseCase.getActiveValues("VP-BAB", "SU1234"))
+                .thenReturn(Map.of("customField.RUNWAY", "25L"));
+        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any(), any(), any())).thenReturn(true);
+
+        rule.execute(step, instance, context);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Map<String, Object>> paramsCaptor =
+                org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CLEARANCE"), paramsCaptor.capture(),
+                eq(UplinkOrigin.COMPUTER_GENERATED), eq(instance.getId()), eq(step.getOrderIndex()));
+
+        assertThat(paramsCaptor.getValue())
+                .containsEntry("gate", "A1")
+                .containsEntry("customField.RUNWAY", "25L");
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("SEND_UPLINK: явный параметр конфига ДОЛЖЕН иметь приоритет над custom field "
+            + "с тем же ключом (P3-2)")
+    void shouldLetExplicitParamOverrideCustomFieldWithSameKey() {
+        step.setConfigJson("""
+            {
+                "actionType": "SEND_UPLINK",
+                "templateName": "CLEARANCE",
+                "params": {"gate": "EXPLICIT"}
+            }
+            """);
+
+        when(customFieldQueryUseCase.getActiveValues("VP-BAB", "SU1234"))
+                .thenReturn(Map.of("gate", "FROM_CUSTOM_FIELD"));
+        when(messageOutputPort.sendUplink(anyString(), anyString(), any(), any(), any(), any())).thenReturn(true);
+
+        rule.execute(step, instance, context);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Map<String, Object>> paramsCaptor =
+                org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(messageOutputPort).sendUplink(eq("VP-BAB"), eq("CLEARANCE"), paramsCaptor.capture(),
+                any(), any(), any());
+
+        assertThat(paramsCaptor.getValue()).containsEntry("gate", "EXPLICIT");
+    }
+
+    @Test
+    @DisplayName("SEND_GROUND: должен объединить params с custom fields текущего рейса (P3-2)")
+    void shouldMergeCustomFieldsIntoGroundParams() {
+        step.setConfigJson("""
+            {
+                "actionType": "SEND_GROUND",
+                "templateName": "NOTIFICATION",
+                "recipients": ["dispatcher@airline.com"],
+                "params": {}
+            }
+            """);
+
+        when(customFieldQueryUseCase.getActiveValues("VP-BAB", "SU1234"))
+                .thenReturn(Map.of("customField.PAX_COUNT", "180"));
+        when(messageOutputPort.sendGround(any(), anyString(), any(), any(), any())).thenReturn(true);
+
+        rule.execute(step, instance, context);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Map<String, Object>> paramsCaptor =
+                org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(messageOutputPort).sendGround(eq(List.of("dispatcher@airline.com")), eq("NOTIFICATION"),
+                paramsCaptor.capture(), eq(instance.getId()), eq(step.getOrderIndex()));
+
+        assertThat(paramsCaptor.getValue()).containsEntry("customField.PAX_COUNT", "180");
     }
 
     @Test

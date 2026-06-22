@@ -49,7 +49,7 @@
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
 | P3-1 | Движок шаблонов downlink/uplink/ground, computer-generated/external-user, CRUD + OpenAPI | templates-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: missing-variable в outbound). Новый модуль `templates` (границы чисто, integration→templates.port.in). Плейсхолдеры {{var}} single-pass, render строгий / tryRender мягкий. CRUD /api/v1/templates (RBAC ADMIN/OPERATOR), V31 таблица templates. Рендеринг в outbound: not-found→fallback, missing-var→markFailed+метрика (не мусор в канал). OpenAPI обновлён. 655 тестов. |
-| P3-2 | Движок custom fields: извлечение, хранение per-flight, подстановка | templates-dev + db-dev | Pending | — |
+| P3-2 | Движок custom fields: извлечение, хранение per-flight, подстановка | templates-dev + db-dev | Done | reviewer PASS. Новый модуль `customfields` (синк, границы чисто, 0 циклов между 4 модулями). Правила извлечения CONTENT(regex 1 группа)/METADATA; per-flight хранение (uq aircraft+flight+field); подстановка в шаблоны (merge в params на этапе шага → детерминизм retry, явные params выигрывают); значение доступно критериям (БЕЗ 7-го типа — инвариант 6 типов цел); закрытие на IN/SUMMARY (soft-close). V32. CRUD /custom-field-rules (RBAC). OpenAPI. 717 тестов. |
 | P3-3 | Условия/алерты raise/close, уровни No/Low/Medium/High/Critical, авто-закрытие | alerts-dev | Pending | — |
 | P3-4 | Event Handling (folder + sequence override) + Notify-каналы идемпотентно | alerts-dev + db-dev | Pending | — |
 
@@ -101,8 +101,8 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 655 зелёных.
-- Последняя миграция: V31 (таблица `templates`).
+- Тестов: 717 зелёных.
+- Последняя миграция: V32 (таблицы `custom_field_rules` + `custom_field_values`).
 - **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
@@ -112,6 +112,7 @@
 - **CLAUDE.md канонические метрики устарели**: заявлено «119 тестов / JaCoCo 72%», фактически 469 тестов / ~94%. Обновить документ (требует решения Дениса — не трогаю автономно).
 - **Гейтинг @Scheduled-поллеров по ApplicationReadyEvent** (из P2-3 ревью): OutboundMessageDeliveryScheduler (и др. @Scheduled) тикают независимо от готовности схемы — в тестах логируют ERROR в межтестовом flyway-clean окне (безвредно, есть try/catch). Гигиена логов: гейтить старт поллеров по готовности. Не дефект прода (Flyway мигрирует до старта пула). Backlog.
 - **Процесс: миграции пишет db-dev** (из P2-5): V29 написал integration-dev сам (ревью качества пройдено, дефектов нет), но по TEAM.md/CLAUDE.md схему ведёт db-dev. Впредь миграции — через db-dev (как V25/V26/V27/V28). Замечание процессное, не технический долг.
+- **Мёртвый код-риск** (из P3-2 ревью): `CriterionEvaluator.getCustomFieldValue` пока не вызывается production-путём оценки критерия (строительный блок под P3-3). Если P3-3 не подхватит — убрать. Также: индекс `idx_custom_field_values_active_lookup` — обычный композитный (не partial), функционально ок.
 - **Посторонний git worktree** `.claude/worktrees/strange-jang-f38717` (ветка claude/strange-jang-f38717, commit 2304c2e) — остаток изоляции суб-агента, не влияет на main. Проверить/почистить при удобном случае (не трогаю автономно — содержимое неизвестно).
 - JaCoCo gate baseline: LINE ≥ 0.88, INSTR ≥ 0.90 (цель проекта — 85% по
   изменённому коду на гейте ревью, см. CLAUDE.md, п.5 рабочего протокола).

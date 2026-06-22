@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import ru.protectinfotrans.eca.FlightStage;
+import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
@@ -97,6 +98,11 @@ class ExecutionServiceTest {
     @Mock
     private FlightStageEventRepositoryPort flightStageEventRepository;
 
+    // P3-2: значения custom fields текущего рейса (см. ExecutionService#putCustomFieldsIfKnown) —
+    // lenient, т.к. не все тесты строят ExecutionContext через buildContext/buildDefaultContext.
+    @Mock
+    private CustomFieldQueryUseCase customFieldQueryUseCase;
+
     @InjectMocks
     private ExecutionService service;
 
@@ -110,6 +116,8 @@ class ExecutionServiceTest {
         lenient().when(self.getObject()).thenReturn(service);
         lenient().when(flightStageEventRepository.findLastStageTimestamp(anyString(), any()))
                 .thenReturn(Optional.empty());
+        lenient().when(customFieldQueryUseCase.getActiveValues(anyString(), anyString()))
+                .thenReturn(java.util.Map.of());
 
         sequence = Sequence.builder()
                 .id(100L)

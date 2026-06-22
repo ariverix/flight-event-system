@@ -11,6 +11,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.customfields.port.in.CustomFieldExtractionUseCase;
+import ru.protectinfotrans.eca.customfields.port.in.FlightContextLifecycleUseCase;
 import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
@@ -45,12 +47,21 @@ class MessagePersistenceTransactionTest {
     @Mock
     private FlightStageEventRepositoryPort flightStageEventRepository;
 
+    // P3-2: движок custom fields — extract() вызывается на каждое сообщение (см. javadoc
+    // persistAndPublish), onFlightStageChanged() — на каждую обнаруженную смену стадии.
+    @Mock
+    private CustomFieldExtractionUseCase customFieldExtractionUseCase;
+
+    @Mock
+    private FlightContextLifecycleUseCase flightContextLifecycleUseCase;
+
     private MessagePersistenceTransaction persistenceTransaction;
 
     @BeforeEach
     void setUp() {
         persistenceTransaction = new MessagePersistenceTransaction(
-                messageRepository, eventPublisher, flightStageEventRepository, new ObjectMapper());
+                messageRepository, eventPublisher, flightStageEventRepository, new ObjectMapper(),
+                customFieldExtractionUseCase, flightContextLifecycleUseCase);
     }
 
     @Nested
@@ -94,6 +105,60 @@ class MessagePersistenceTransactionTest {
             assertThat(event.messageType()).isEqualTo(MessageType.DOWNLINK);
             assertThat(event.aircraftId()).isEqualTo("VP-BXX");
             assertThat(event.flightStage()).isEqualTo(FlightStage.OFF);
+        }
+
+        @Test
+        @DisplayName("P3-2: должен вызвать извлечение custom fields для сохранённого сообщения "
+                + "ДО публикации NormalizedEvent")
+        void shouldExtractCustomFieldsBeforePublishingEvent() {
+            IncomingMessage savedMessage = IncomingMessage.builder()
+                    .id(30L)
+                    .messageType(MessageType.DOWNLINK)
+                    .templateName("POSITION_REPORT")
+                    .aircraftId("VP-BXX")
+                    .flightNumber("SU100")
+                    .content("POS LAT=55.0 LON=37.0")
+                    .receivedAt(LocalDateTime.now())
+                    .build();
+
+            when(messageRepository.saveAndFlush(any(IncomingMessage.class))).thenReturn(savedMessage);
+
+            Map<String, Object> metadata = Map.of("flightStage", "OFF");
+
+            persistenceTransaction.persistAndPublish(
+                    MessageType.DOWNLINK, "POSITION_REPORT", "VP-BXX", "SU100",
+                    "POS LAT=55.0 LON=37.0", metadata, null);
+
+            verify(customFieldExtractionUseCase).extract(
+                    eq(30L), eq(MessageType.DOWNLINK), eq("POSITION_REPORT"), eq("VP-BXX"), eq("SU100"),
+                    eq("POS LAT=55.0 LON=37.0"), eq(metadata));
+
+            // порядок: extract() должен произойти ДО publish() NormalizedEvent
+            org.mockito.InOrder order = inOrder(customFieldExtractionUseCase, eventPublisher);
+            order.verify(customFieldExtractionUseCase).extract(any(), any(), any(), any(), any(), any(), any());
+            order.verify(eventPublisher).publish(any(NormalizedEvent.class));
+        }
+
+        @Test
+        @DisplayName("P3-2: должен закрыть контекст custom fields рейса при OOOI-метке IN, "
+                + "встроенной в обычное входящее сообщение")
+        void shouldCloseFlightContextWhenStageEmbeddedInMessageIsIn() {
+            IncomingMessage savedMessage = IncomingMessage.builder()
+                    .id(31L)
+                    .messageType(MessageType.DOWNLINK)
+                    .templateName("OOOI")
+                    .aircraftId("VP-BZZ")
+                    .flightNumber("SU200")
+                    .receivedAt(LocalDateTime.now())
+                    .build();
+
+            when(messageRepository.saveAndFlush(any(IncomingMessage.class))).thenReturn(savedMessage);
+
+            persistenceTransaction.persistAndPublish(
+                    MessageType.DOWNLINK, "OOOI", "VP-BZZ", "SU200", "IN UUEE",
+                    Map.of("flightStage", "IN"), null);
+
+            verify(flightContextLifecycleUseCase).onFlightStageChanged("VP-BZZ", "SU200", FlightStage.IN);
         }
 
         @Test

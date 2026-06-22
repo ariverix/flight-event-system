@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.customfields.port.in.FlightContextLifecycleUseCase;
 import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
@@ -56,12 +57,18 @@ class EventProcessorServiceTest {
     @Mock
     private FlightStageEventRepositoryPort flightStageEventRepository;
 
+    // P3-2: системный канал смены стадии (notifyFlightStageChange) обязан закрывать
+    // per-flight контекст custom fields на терминальных стадиях (IN/SUMMARY).
+    @Mock
+    private FlightContextLifecycleUseCase flightContextLifecycleUseCase;
+
     private EventProcessorService service;
 
     @BeforeEach
     void setUp() {
         service = new EventProcessorService(
-                messageRepository, eventPublisher, messagePersistenceTransaction, flightStageEventRepository);
+                messageRepository, eventPublisher, messagePersistenceTransaction, flightStageEventRepository,
+                flightContextLifecycleUseCase);
     }
 
     @Nested
@@ -271,6 +278,15 @@ class EventProcessorServiceTest {
 
             assertThat(stageEventCaptor.getValue().getOccurredAt())
                     .isEqualTo(normalizedEventCaptor.getValue().timestamp());
+        }
+
+        @Test
+        @DisplayName("P3-2: должен уведомить FlightContextLifecycleUseCase о смене стадии "
+                + "(закрытие контекста custom fields на IN/SUMMARY — решение принимается там)")
+        void shouldNotifyFlightContextLifecycleOnStageChange() {
+            service.notifyFlightStageChange("VP-BXX", "SU100", FlightStage.IN);
+
+            verify(flightContextLifecycleUseCase).onFlightStageChanged("VP-BXX", "SU100", FlightStage.IN);
         }
     }
 }

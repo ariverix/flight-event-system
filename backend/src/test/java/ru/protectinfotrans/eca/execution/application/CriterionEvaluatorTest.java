@@ -760,6 +760,46 @@ class CriterionEvaluatorTest {
     }
 
     @Nested
+    @DisplayName("getCustomFieldValue (P3-2)")
+    class CustomFieldValueTests {
+
+        @Test
+        @DisplayName("должен вернуть значение поля рейса из additionalData по имени без префикса")
+        void shouldReturnCustomFieldValue() {
+            Map<String, Object> additionalData = new HashMap<>(context.additionalData());
+            additionalData.put("customFields", Map.of("customField.GATE_NUMBER", "A12"));
+
+            ExecutionContext contextWithCustomFields = new ExecutionContext(
+                    context.aircraftId(), context.flightNumber(), context.currentFlightStage(),
+                    context.currentTime(), additionalData
+            );
+
+            assertThat(evaluator.getCustomFieldValue(contextWithCustomFields, "GATE_NUMBER"))
+                    .isEqualTo("A12");
+        }
+
+        @Test
+        @DisplayName("должен вернуть null если поле отсутствует в карте customFields")
+        void shouldReturnNullWhenFieldAbsent() {
+            Map<String, Object> additionalData = new HashMap<>(context.additionalData());
+            additionalData.put("customFields", Map.of("customField.GATE_NUMBER", "A12"));
+
+            ExecutionContext contextWithCustomFields = new ExecutionContext(
+                    context.aircraftId(), context.flightNumber(), context.currentFlightStage(),
+                    context.currentTime(), additionalData
+            );
+
+            assertThat(evaluator.getCustomFieldValue(contextWithCustomFields, "UNKNOWN_FIELD")).isNull();
+        }
+
+        @Test
+        @DisplayName("должен вернуть null если ключ customFields отсутствует в additionalData вовсе")
+        void shouldReturnNullWhenCustomFieldsMapAbsent() {
+            assertThat(evaluator.getCustomFieldValue(context, "GATE_NUMBER")).isNull();
+        }
+    }
+
+    @Nested
     @DisplayName("COMPOUND критерий (AND/OR, вложенные группы)")
     class CompoundTests {
 

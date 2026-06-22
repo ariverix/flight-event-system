@@ -56,6 +56,9 @@ public class SecurityConfig {
                         // P3-1: CRUD шаблонов сообщений — админ/оператор операция, НЕ открытый
                         // эндпоинт (явное правило ДО catch-all anyRequest().permitAll() ниже)
                         .requestMatchers("/api/v1/templates/**").hasAnyRole("OPERATOR", "ADMIN")
+                        // P3-2: CRUD правил извлечения custom fields — тот же принцип, что у
+                        // /api/v1/templates/** выше (явное правило ДО catch-all)
+                        .requestMatchers("/api/v1/custom-field-rules/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/auth/me").authenticated()
                         // статика и SPA — без защиты, закрываем только /api/**
                         .anyRequest().permitAll()

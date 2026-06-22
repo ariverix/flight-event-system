@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.customfields.port.in.CustomFieldExtractionUseCase;
+import ru.protectinfotrans.eca.customfields.port.in.FlightContextLifecycleUseCase;
 import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
@@ -47,6 +49,8 @@ class MessagePersistenceTransaction {
     private final EventPublisherPort eventPublisher;
     private final FlightStageEventRepositoryPort flightStageEventRepository;
     private final ObjectMapper objectMapper;
+    private final CustomFieldExtractionUseCase customFieldExtractionUseCase;
+    private final FlightContextLifecycleUseCase flightContextLifecycleUseCase;
 
     /**
      * Идемпотентность шлюза (P2-1): persist раньше обработки, но ПЕРЕД persist — проверка
@@ -106,6 +110,13 @@ class MessagePersistenceTransaction {
         message = messageRepository.saveAndFlush(message);
         log.debug("Message saved with ID: {}", message.getId());
 
+        // P3-2: извлечение custom fields ДО публикации NormalizedEvent — паритет с SITA: значения,
+        // извлечённые из ЭТОГО сообщения, обязаны быть видимы (per-flight, см. CustomFieldValue)
+        // уже тем шагам ECA-движка, которые обработают NormalizedEvent сразу после publish() ниже
+        // (в той же транзакции — REQUIRED, см. javadoc класса, atомарно с save()/publish()).
+        customFieldExtractionUseCase.extract(
+                message.getId(), messageType, templateName, aircraftId, flightNumber, content, metadata);
+
         FlightStage flightStage = extractFlightStage(metadata);
         recordFlightStageEvent(aircraftId, flightNumber, flightStage, message.getReceivedAt());
 
@@ -133,6 +144,14 @@ class MessagePersistenceTransaction {
      * входящего сообщения (например ARINC 618 с OUT/OFF/ON/IN-метками, см. {@code Arinc618Parser}) —
      * только при отдельном явном вызове {@code notifyFlightStageChange} (см. там же).
      * Не пишет ничего, если сообщение не несёт стадию (обычное большинство сообщений).
+     *
+     * <p>P3-2: тот же момент — единственное место, где OOOI-метка ВНУТРИ обычного входящего
+     * сообщения становится известна движку (в отличие от {@code notifyFlightStageChange} —
+     * отдельный системный канал) — поэтому здесь же, ПОСЛЕ записи самого факта смены стадии,
+     * уведомляем {@code FlightContextLifecycleUseCase} (закрытие custom fields рейса на
+     * IN/SUMMARY, см. её javadoc). Порядок принципиален: extract() для ЭТОГО сообщения уже
+     * выполнен ВЫШЕ по стеку вызовов (см. {@code persistAndPublish}), так что закрытие здесь
+     * не теряет значение, извлечённое из самого терминального сообщения.
      */
     private void recordFlightStageEvent(String aircraftId, String flightNumber,
                                          FlightStage flightStage, LocalDateTime occurredAt) {
@@ -146,6 +165,8 @@ class MessagePersistenceTransaction {
                 .stage(flightStage)
                 .occurredAt(occurredAt)
                 .build());
+
+        flightContextLifecycleUseCase.onFlightStageChanged(aircraftId, flightNumber, flightStage);
     }
 
     private FlightStage extractFlightStage(Map<String, Object> metadata) {

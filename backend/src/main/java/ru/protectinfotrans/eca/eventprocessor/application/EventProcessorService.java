@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.customfields.port.in.FlightContextLifecycleUseCase;
 import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
@@ -31,6 +32,7 @@ public class EventProcessorService implements MessageInputPort {
     private final EventPublisherPort eventPublisher;
     private final MessagePersistenceTransaction messagePersistenceTransaction;
     private final FlightStageEventRepositoryPort flightStageEventRepository;
+    private final FlightContextLifecycleUseCase flightContextLifecycleUseCase;
 
     /**
      * <b>Транзакционность (фикс ревью, TOCTOU-гонка P2-1):</b> этот метод сам НЕ {@code @Transactional} —
@@ -116,6 +118,14 @@ public class EventProcessorService implements MessageInputPort {
                 .stage(stage)
                 .occurredAt(occurredAt)
                 .build());
+
+        // P3-2: закрытие per-flight контекста custom fields на терминальной стадии (IN/SUMMARY) —
+        // паритет SITA "контекст закрывается при завершении рейса". Этот системный канал смены
+        // стадии (в отличие от OOOI-метки внутри обычного сообщения, см.
+        // MessagePersistenceTransaction#recordFlightStageEvent) не несёт никаких custom field
+        // значений сам по себе — закрытие здесь безопасно ПОСЛЕ записи FlightStageEvent
+        // (так же, как в близнецовом пути выше).
+        flightContextLifecycleUseCase.onFlightStageChanged(aircraftId, flightNumber, stage);
 
         NormalizedEvent event = new NormalizedEvent(
                 null,
