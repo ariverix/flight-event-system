@@ -54,3 +54,6 @@ Thumbs.db
 .env.*.local
 .claude/
 frontend/tsconfig.tsbuildinfo
+
+# Perf (P2-7): k6 run artifacts are per-stand results, not source — see docs/perf/README.md
+perf/k6/results/
