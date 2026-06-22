@@ -53,6 +53,9 @@ public class SecurityConfig {
                         // P2-6: DLQ — админская операция оператора над сбойными входящими (ручной
                         // reprocess/discard), НЕ открытый ingestion-путь (тот остаётся /messages/**)
                         .requestMatchers("/api/v1/dlq/**").hasAnyRole("OPERATOR", "ADMIN")
+                        // P3-1: CRUD шаблонов сообщений — админ/оператор операция, НЕ открытый
+                        // эндпоинт (явное правило ДО catch-all anyRequest().permitAll() ниже)
+                        .requestMatchers("/api/v1/templates/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/auth/me").authenticated()
                         // статика и SPA — без защиты, закрываем только /api/**
                         .anyRequest().permitAll()

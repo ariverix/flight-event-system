@@ -48,7 +48,7 @@
 
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
-| P3-1 | Движок шаблонов downlink/uplink/ground, computer-generated/external-user, CRUD + OpenAPI | templates-dev | Pending | — |
+| P3-1 | Движок шаблонов downlink/uplink/ground, computer-generated/external-user, CRUD + OpenAPI | templates-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: missing-variable в outbound). Новый модуль `templates` (границы чисто, integration→templates.port.in). Плейсхолдеры {{var}} single-pass, render строгий / tryRender мягкий. CRUD /api/v1/templates (RBAC ADMIN/OPERATOR), V31 таблица templates. Рендеринг в outbound: not-found→fallback, missing-var→markFailed+метрика (не мусор в канал). OpenAPI обновлён. 655 тестов. |
 | P3-2 | Движок custom fields: извлечение, хранение per-flight, подстановка | templates-dev + db-dev | Pending | — |
 | P3-3 | Условия/алерты raise/close, уровни No/Low/Medium/High/Critical, авто-закрытие | alerts-dev | Pending | — |
 | P3-4 | Event Handling (folder + sequence override) + Notify-каналы идемпотентно | alerts-dev + db-dev | Pending | — |
@@ -101,8 +101,8 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 596 зелёных.
-- Последняя миграция: V30 (`dead_letter_messages` + `channel_circuit_breakers` + `outbound_messages.next_attempt_at`).
+- Тестов: 655 зелёных.
+- Последняя миграция: V31 (таблица `templates`).
 - **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)

@@ -1,5 +1,6 @@
 package ru.protectinfotrans.eca.integration.application;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -14,9 +15,12 @@ import ru.protectinfotrans.eca.integration.domain.OutboundMessage;
 import ru.protectinfotrans.eca.integration.domain.OutboundMessageType;
 import ru.protectinfotrans.eca.integration.port.out.CircuitBreakerRepositoryPort;
 import ru.protectinfotrans.eca.integration.port.out.OutboundMessageRepositoryPort;
+import ru.protectinfotrans.eca.templates.port.in.MissingTemplateVariableException;
+import ru.protectinfotrans.eca.templates.port.in.TemplateRenderUseCase;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -77,14 +81,17 @@ public class OutboundMessageDeliveryScheduler {
     private final OutboundBackoffPolicy backoffPolicy;
     private final CircuitBreakerPolicy circuitBreakerPolicy;
     private final ObjectMapper objectMapper;
+    private final TemplateRenderUseCase templateRenderUseCase;
     private final AtomicLong sentCounter;
     private final AtomicLong failedCounter;
     private final AtomicLong circuitOpenBlockedCounter;
+    private final AtomicLong renderMissingVariableCounter;
 
     public OutboundMessageDeliveryScheduler(OutboundMessageRepositoryPort repository,
                                              CircuitBreakerRepositoryPort circuitBreakerRepository,
                                              ObjectProvider<OutboundMessageDeliveryScheduler> self,
                                              ObjectMapper objectMapper,
+                                             TemplateRenderUseCase templateRenderUseCase,
                                              MeterRegistry meterRegistry) {
         this.repository = repository;
         this.circuitBreakerRepository = circuitBreakerRepository;
@@ -92,9 +99,12 @@ public class OutboundMessageDeliveryScheduler {
         this.backoffPolicy = new OutboundBackoffPolicy();
         this.circuitBreakerPolicy = new CircuitBreakerPolicy();
         this.objectMapper = objectMapper;
+        this.templateRenderUseCase = templateRenderUseCase;
         this.sentCounter = meterRegistry.gauge("eca.integration.outbound.sent", new AtomicLong(0));
         this.failedCounter = meterRegistry.gauge("eca.integration.outbound.failed", new AtomicLong(0));
         this.circuitOpenBlockedCounter = meterRegistry.gauge("eca.integration.outbound.circuit_open_blocked", new AtomicLong(0));
+        this.renderMissingVariableCounter = meterRegistry.gauge(
+                "eca.integration.outbound.render_missing_variable", new AtomicLong(0));
     }
 
     /** Каждые 5 сек опрашиваем PENDING исходящие сообщения (durable claim в БД). */
@@ -167,7 +177,22 @@ public class OutboundMessageDeliveryScheduler {
             circuitBreakerRepository.recordSuccess(channel);
             sentCounter.incrementAndGet();
         } catch (Exception e) {
-            log.error("Outbound message {} delivery failed (channel={})", id, channel, e);
+            if (e instanceof MissingTemplateVariableException) {
+                // см. javadoc #renderTemplate: шаблон НАЙДЕН, но ACTION-шаг не предоставил
+                // значение плейсхолдера — ошибка КОНФИГУРАЦИИ, не инфраструктурный сбой канала.
+                // НЕ markSent с именем шаблона как текстом (P3-1 production-дефект) — трактуем
+                // как обычный сбой доставки (markFailed/backoff/circuit breaker ниже), но
+                // дополнительно сигналим отдельным счётчиком/ERROR-логом с диагностикой для
+                // оператора, настраивающего ACTION-шаг (aircraftId/templateName/недостающая
+                // переменная), а не общим "delivery failed" логом ниже.
+                renderMissingVariableCounter.incrementAndGet();
+                log.error("Outbound message {} render failed — template '{}' found but missing variable "
+                                + "for aircraft={}/recipients={}: {}",
+                        id, message.getTemplateName(), message.getAircraftId(), message.getRecipients(),
+                        e.getMessage());
+            } else {
+                log.error("Outbound message {} delivery failed (channel={})", id, channel, e);
+            }
 
             CircuitBreakerPolicy.Snapshot afterFailure = circuitBreakerPolicy.onFailure(snapshot, LocalDateTime.now());
             boolean shouldOpen = afterFailure.state() == ru.protectinfotrans.eca.integration.domain.CircuitBreakerState.OPEN;
@@ -210,13 +235,95 @@ public class OutboundMessageDeliveryScheduler {
         if (shouldSimulateFailure(message)) {
             throw new IllegalStateException("Simulated channel failure for test (params.__simulateFailure=true)");
         }
+
+        // P3-1: рендеринг шаблона в готовый текст НЕПОСРЕДСТВЕННО перед фактической отправкой в
+        // канал (а не на этапе постановки в очередь, ActionStepRule/OutboundMessageGatewayAdapter) —
+        // безопасно для retries (backoff P2-6): рендеринг детерминирован (TemplateRenderer.render),
+        // повторный вызов на той же (templateName, params) ВСЕГДА даёт тот же текст, поэтому
+        // повторная попытка доставки после сбоя канала не меняет смысл сообщения. Не меняет
+        // дедуп-ключ/схему OutboundMessage (P2-3) — params/templateName остаются единственным
+        // персистентным состоянием, рендеринг — производная, вычисляемая on-the-fly.
+        String renderedText = renderTemplate(message);
+
         if (message.getMessageType() == OutboundMessageType.UPLINK) {
-            log.info("[UPLINK] Sent to aircraft={}, template={}, origin={}, attempt={}",
+            log.info("[UPLINK] Sent to aircraft={}, template={}, origin={}, attempt={}, text={}",
                     message.getAircraftId(), message.getTemplateName(), message.getUplinkOrigin(),
-                    message.getAttempts() + 1);
+                    message.getAttempts() + 1, renderedText);
         } else {
-            log.info("[GROUND] Sent to recipients={}, template={}, attempt={}",
-                    message.getRecipients(), message.getTemplateName(), message.getAttempts() + 1);
+            log.info("[GROUND] Sent to recipients={}, template={}, attempt={}, text={}",
+                    message.getRecipients(), message.getTemplateName(), message.getAttempts() + 1, renderedText);
+        }
+    }
+
+    /**
+     * Рендерит тело шаблона через {@link TemplateRenderUseCase} — публичный порт модуля
+     * {@code templates} (см. его javadoc: главная точка входа для execution/integration).
+     * Параметры, ранее сериализованные в {@code OutboundMessage#paramsJson}
+     * ({@code ActionStepRule#executeSendUplink/executeSendGround}), десериализуются обратно в
+     * {@code Map<String, Object>} — единственная точка входа значений переменных сейчас (P3-2,
+     * custom fields, дополнит эту карту на стороне вызывающего без изменения сигнатуры порта).
+     *
+     * <p><b>Почему {@link TemplateRenderUseCase#tryRender} (мягкий вариант), а не
+     * {@code render} (бросающий {@code NoSuchElementException}):</b> до P3-1 {@code templateName}
+     * был свободной строкой без реестра — существующие ACTION-шаги/сценарии (P1-x/P2-x) ссылаются
+     * на имена шаблонов, для которых записи {@code Template} в БД никогда не создавались (и не
+     * должны создаваться этой задачей — миграция демо-данных не входит в объём P3-1). Жёсткое
+     * требование существования шаблона здесь сделало бы доставку ЭТИХ существующих сообщений
+     * проваливающейся (FAILURE из incorrectly раскрытого NoSuchElementException), хотя до
+     * появления движка шаблонов доставка была успешной — недопустимая регрессия для уже
+     * работающего P2-3/P2-6 пути. Поэтому: если шаблон зарегистрирован в реестре — рендерим его
+     * тело; если НЕТ — отправляем {@code templateName} как есть (обратная совместимость со
+     * "старой" моделью, где шаблон — просто опознавательная строка, без тела/подстановки).
+     *
+     * <p><b>Доп. try/catch здесь, ХОТЯ {@code tryRender} уже сам не должен бросать (кроме
+     * {@link MissingTemplateVariableException}, см. ниже):</b> {@code tryRender} выполняется
+     * в своей собственной {@code REQUIRES_NEW}-транзакции — если внутри неё Hibernate помечает
+     * транзакцию rollback-only (срабатывает на любой {@code DataAccessException}, например при
+     * недоступности/несовместимости схемы {@code templates}), Spring бросает
+     * {@code UnexpectedRollbackException} НА КОММИТЕ этой REQUIRES_NEW-транзакции — то есть уже
+     * ПОСЛЕ внутреннего try/catch метода, перехватить его изнутри самого {@code tryRender}
+     * невозможно. Эта транзакция изолирована от транзакции {@code deliverOne} (REQUIRES_NEW !=
+     * поломка соединения вызывающего), поэтому здесь его безопасно проглотить и откатиться на то
+     * же поведение — "шаблон не разрешился, шлём имя как есть" — без риска для
+     * {@code markSent}/{@code markFailed} вызывающего.
+     *
+     * <p><b>{@link MissingTemplateVariableException} — единственное исключение, НЕ глушится
+     * здесь, пробрасывается вызывающему ({@link #simulateChannelSend} → {@link #deliverOne}):</b>
+     * это ОТЛИЧАЕТСЯ от "шаблон не найден"/"БД недоступна" (легитимный fallback на
+     * {@code templateName}, обратная совместимость, см. выше) — шаблон НАЙДЕН, но ACTION-шаг
+     * не предоставил значение одной из его переменных. Раньше это тоже сворачивалось в
+     * {@code Optional.empty()} и тихо подменялось на {@code templateName}, из-за чего в канал
+     * (борту/диспетчеру) уходило ИМЯ ШАБЛОНА как обычный текст, а {@code deliverOne} помечал
+     * сообщение {@code markSent} — успешная доставка мусора без единого сигнала об ошибке. Это
+     * production-дефект (см. javadoc {@link ru.protectinfotrans.eca.templates.application.TemplateRenderer}
+     * — "явный сбой лучше тихой дыры"). Теперь это исключение долетает до {@code deliverOne}'s
+     * catch и трактуется как обычный сбой канала доставки (markFailed/backoff/retry/circuit
+     * breaker, P2-6), а НЕ как "шаблон не разрешился".
+     */
+    private String renderTemplate(OutboundMessage message) {
+        Map<String, Object> variables = deserializeParams(message.getParamsJson());
+        try {
+            return templateRenderUseCase.tryRender(message.getTemplateName(), variables)
+                    .orElse(message.getTemplateName());
+        } catch (MissingTemplateVariableException e) {
+            // намеренно НЕ ловим здесь — пробрасываем вызывающему как сбой доставки, см. javadoc
+            throw e;
+        } catch (RuntimeException e) {
+            log.warn("Template render lookup failed for '{}' (isolated REQUIRES_NEW transaction), "
+                    + "falling back to template name as-is: {}", message.getTemplateName(), e.toString());
+            return message.getTemplateName();
+        }
+    }
+
+    private Map<String, Object> deserializeParams(String paramsJson) {
+        if (paramsJson == null || paramsJson.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(paramsJson, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            log.warn("Failed to deserialize outbound message params, rendering with empty variables", e);
+            return Map.of();
         }
     }
 

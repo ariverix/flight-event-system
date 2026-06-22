@@ -17,6 +17,8 @@ import ru.protectinfotrans.eca.integration.domain.OutboundMessage;
 import ru.protectinfotrans.eca.integration.domain.OutboundMessageType;
 import ru.protectinfotrans.eca.integration.port.out.CircuitBreakerRepositoryPort;
 import ru.protectinfotrans.eca.integration.port.out.OutboundMessageRepositoryPort;
+import ru.protectinfotrans.eca.templates.port.in.MissingTemplateVariableException;
+import ru.protectinfotrans.eca.templates.port.in.TemplateRenderUseCase;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -58,15 +60,23 @@ class OutboundMessageDeliverySchedulerTest {
     @Mock
     private ObjectProvider<OutboundMessageDeliveryScheduler> self;
 
+    // P3-1: реестр шаблонов — никакой из тестовых templateName ("CLEARANCE", "T1", "T2") не
+    // зарегистрирован, поэтому tryRender всегда Optional.empty() — это значит OutboundMessageDeliveryScheduler
+    // отправляет templateName как есть (обратная совместимость, см. javadoc renderTemplate).
+    @Mock
+    private TemplateRenderUseCase templateRenderUseCase;
+
     private OutboundMessageDeliveryScheduler scheduler;
 
     @BeforeEach
     void setUp() {
         scheduler = new OutboundMessageDeliveryScheduler(repository, circuitBreakerRepository, self,
-                new ObjectMapper(), new SimpleMeterRegistry());
+                new ObjectMapper(), templateRenderUseCase, new SimpleMeterRegistry());
         org.mockito.Mockito.lenient().when(self.getObject()).thenReturn(scheduler);
         org.mockito.Mockito.lenient().when(circuitBreakerRepository.getOrCreate(any()))
                 .thenReturn(closedBreaker(OutboundMessageType.UPLINK));
+        org.mockito.Mockito.lenient().when(templateRenderUseCase.tryRender(anyString(), any()))
+                .thenReturn(Optional.empty());
     }
 
     private static ChannelCircuitBreaker closedBreaker(OutboundMessageType channel) {
@@ -367,6 +377,140 @@ class OutboundMessageDeliverySchedulerTest {
 
             verify(circuitBreakerRepository, never()).claimHalfOpenProbe(any());
             verify(repository).markSent(eq(1L), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("P3-1: рендеринг шаблона перед фактической отправкой")
+    class TemplateRenderingOnDelivery {
+
+        @Test
+        @DisplayName("шаблон зарегистрирован -> tryRender вызывается с десериализованными params, доставка успешна")
+        void rendersRegisteredTemplateWithDeserializedParams() {
+            OutboundMessage message = OutboundMessage.builder()
+                    .id(1L)
+                    .messageType(OutboundMessageType.UPLINK)
+                    .aircraftId("VP-BQR")
+                    .templateName("REQUEST_POSITION")
+                    .paramsJson("{\"eta\":\"12:30\"}")
+                    .attempts(0)
+                    .build();
+
+            when(repository.claimPending(1L)).thenReturn(true);
+            when(repository.findById(1L)).thenReturn(Optional.of(message));
+            when(templateRenderUseCase.tryRender(eq("REQUEST_POSITION"), any()))
+                    .thenReturn(Optional.of("Please report position, ETA 12:30"));
+
+            scheduler.deliverOne(1L);
+
+            verify(templateRenderUseCase).tryRender(eq("REQUEST_POSITION"),
+                    eq(java.util.Map.of("eta", "12:30")));
+            verify(repository).markSent(eq(1L), any());
+        }
+
+        @Test
+        @DisplayName("шаблон НЕ зарегистрирован (обратная совместимость) -> доставка всё равно успешна")
+        void fallsBackToTemplateNameWhenNotRegistered() {
+            OutboundMessage message = OutboundMessage.builder()
+                    .id(1L)
+                    .messageType(OutboundMessageType.GROUND)
+                    .recipients(List.of("ops@airline.com"))
+                    .templateName("LEGACY_FREE_TEXT")
+                    .attempts(0)
+                    .build();
+
+            when(repository.claimPending(1L)).thenReturn(true);
+            when(repository.findById(1L)).thenReturn(Optional.of(message));
+            // templateRenderUseCase.tryRender по умолчанию (setUp) -> Optional.empty()
+
+            scheduler.deliverOne(1L);
+
+            verify(repository).markSent(eq(1L), any());
+            verify(repository, never()).markFailed(anyLong(), anyString(), anyInt(), any());
+        }
+
+        @Test
+        @DisplayName("paramsJson отсутствует/пуст -> tryRender вызывается с пустой картой переменных")
+        void rendersWithEmptyVariablesWhenParamsJsonMissing() {
+            OutboundMessage message = OutboundMessage.builder()
+                    .id(1L)
+                    .messageType(OutboundMessageType.UPLINK)
+                    .aircraftId("VP-BQR")
+                    .templateName("FREE_TEXT")
+                    .paramsJson(null)
+                    .attempts(0)
+                    .build();
+
+            when(repository.claimPending(1L)).thenReturn(true);
+            when(repository.findById(1L)).thenReturn(Optional.of(message));
+            when(templateRenderUseCase.tryRender(eq("FREE_TEXT"), eq(java.util.Map.of())))
+                    .thenReturn(Optional.of("Hello"));
+
+            scheduler.deliverOne(1L);
+
+            verify(templateRenderUseCase).tryRender(eq("FREE_TEXT"), eq(java.util.Map.of()));
+            verify(repository).markSent(eq(1L), any());
+        }
+
+        @Test
+        @DisplayName("tryRender бросает наружу (например, UnexpectedRollbackException его собственной "
+                + "REQUIRES_NEW-транзакции) -> доставка изолирована, всё равно успешна с fallback на имя")
+        void deliverySurvivesTryRenderThrowing() {
+            OutboundMessage message = OutboundMessage.builder()
+                    .id(1L)
+                    .messageType(OutboundMessageType.UPLINK)
+                    .aircraftId("VP-BQR")
+                    .templateName("CLEARANCE")
+                    .attempts(0)
+                    .build();
+
+            when(repository.claimPending(1L)).thenReturn(true);
+            when(repository.findById(1L)).thenReturn(Optional.of(message));
+            when(templateRenderUseCase.tryRender(eq("CLEARANCE"), any()))
+                    .thenThrow(new org.springframework.transaction.UnexpectedRollbackException(
+                            "Transaction silently rolled back because it has been marked as rollback-only"));
+
+            scheduler.deliverOne(1L);
+
+            verify(repository).markSent(eq(1L), any());
+            verify(repository, never()).markFailed(anyLong(), anyString(), anyInt(), any());
+        }
+
+        @Test
+        @DisplayName("шаблон ЗАРЕГИСТРИРОВАН, но не хватает переменной -> НЕ markSent с именем "
+                + "шаблона как мусорным текстом; markFailed (сбой доставки, backoff/retry), "
+                + "счётчик инкрементнут, breaker.recordFailure вызван")
+        void registeredTemplateMissingVariableMarksFailedInsteadOfSendingGarbage() {
+            OutboundMessage message = OutboundMessage.builder()
+                    .id(1L)
+                    .messageType(OutboundMessageType.UPLINK)
+                    .aircraftId("VP-BQR")
+                    .templateName("REQUEST_POSITION")
+                    .paramsJson("{}")
+                    .attempts(0)
+                    .build();
+
+            when(repository.claimPending(1L)).thenReturn(true);
+            when(repository.findById(1L)).thenReturn(Optional.of(message));
+            when(templateRenderUseCase.tryRender(eq("REQUEST_POSITION"), any()))
+                    .thenThrow(new MissingTemplateVariableException("eta"));
+
+            scheduler.deliverOne(1L);
+
+            // главное: НИКОГДА markSent — ни с отрендеренным текстом, ни (что было дефектом)
+            // с именем шаблона "REQUEST_POSITION" в качестве мусорного текста
+            verify(repository, never()).markSent(anyLong(), any());
+
+            // вместо этого — обычный путь сбоя доставки: markFailed (-> backoff/retry,
+            // в итоге FAILED после MAX_ATTEMPTS по существующей механике P2-6)
+            ArgumentCaptor<String> lastErrorCaptor = ArgumentCaptor.forClass(String.class);
+            verify(repository).markFailed(eq(1L), lastErrorCaptor.capture(), eq(5), any(LocalDateTime.class));
+            assertThat(lastErrorCaptor.getValue()).contains("eta");
+
+            // breaker считает это обычным сбоем канала (та же механика P2-6, что и для любого
+            // другого сбоя simulateChannelSend)
+            verify(circuitBreakerRepository).recordFailure(eq(OutboundMessageType.UPLINK), eq(false),
+                    eq(1), any());
         }
     }
 }
