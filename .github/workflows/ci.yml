@@ -107,6 +107,70 @@ jobs:
           path: backend/target/site/aggregate-third-party-report.html
           retention-days: 90
 
+  security-scan:
+    name: Security scan (OWASP Dependency-Check, SpotBugs/FindSecBugs, Semgrep)
+    runs-on: ubuntu-latest
+    # P4-4 (RUN_PLAN.md): фейл сборки на High/Critical. Отдельный job — сканы медленные
+    # (Dependency-Check скачивает базу NVD) и не должны замедлять основной backend-гейт.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Grant execute permission to mvnw
+        working-directory: backend
+        run: chmod +x mvnw
+
+      # OWASP Dependency-Check: CVE в зависимостях, фейл при CVSS >= 7 (см. backend/pom.xml,
+      # профиль security-scan, failBuildOnCVSS=7). NVD_API_KEY — repo secret (бесплатный ключ
+      # NVD; без него обновление базы жёстко rate-limited). Кэшируем базу NVD между запусками.
+      - name: Cache NVD data
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ runner.os }}
+          restore-keys: nvd-${{ runner.os }}
+
+      - name: OWASP Dependency-Check (fail on CVSS>=7)
+        working-directory: backend
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: bash mvnw -B -Psecurity-scan dependency-check:check
+
+      # SpotBugs + FindSecBugs: SAST байткода, фейл на security-находках (см. spotbugs-security-include.xml).
+      - name: SpotBugs + FindSecBugs (security)
+        working-directory: backend
+        run: bash mvnw -B -Psecurity-scan -DskipTests compile spotbugs:check
+
+      # Semgrep: SAST исходников, правила Java + OWASP Top Ten; --error фейлит на находках.
+      - name: Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/java
+            p/owasp-top-ten
+            p/secrets
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            backend/target/dependency-check-report.html
+            backend/target/dependency-check-report.json
+            backend/target/spotbugsXml.xml
+          retention-days: 30
+
   frontend:
     name: Frontend (install, typecheck, build)
     runs-on: ubuntu-latest

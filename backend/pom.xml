@@ -26,6 +26,10 @@
         <testcontainers.version>1.20.4</testcontainers.version>
         <jacoco.version>0.8.15</jacoco.version>
         <license-maven-plugin.version>2.4.0</license-maven-plugin.version>
+        <!-- P4-4: SAST / сканирование зависимостей (профиль security-scan, не в обычной сборке) -->
+        <dependency-check-maven.version>10.0.4</dependency-check-maven.version>
+        <spotbugs-maven-plugin.version>4.8.6.4</spotbugs-maven-plugin.version>
+        <findsecbugs-plugin.version>1.13.0</findsecbugs-plugin.version>
     </properties>
 
     <dependencies>
@@ -286,6 +290,68 @@
     </build>
 
     <profiles>
+        <!--
+          P4-4: профиль security-scan — OWASP Dependency-Check + SpotBugs/FindSecBugs.
+          ВЫНЕСЕН в отдельный профиль (не в обычный mvn verify): эти сканы медленные
+          (Dependency-Check скачивает базу NVD) и запускаются отдельным CI-job'ом
+          (.github/workflows/ci.yml, job security-scan), фейлят сборку на High/Critical.
+          Запуск локально/в CI: mvn -Psecurity-scan dependency-check:check spotbugs:check
+        -->
+        <profile>
+            <id>security-scan</id>
+            <build>
+                <plugins>
+                    <!-- OWASP Dependency-Check: CVE в зависимостях. Фейл при CVSS >= 7 (High/Critical). -->
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>${dependency-check-maven.version}</version>
+                        <configuration>
+                            <!-- 7.0 = High; 9.0+ = Critical. Фейлим на High и выше. -->
+                            <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <formats>
+                                <format>HTML</format>
+                                <format>JSON</format>
+                            </formats>
+                            <!-- NVD требует API-ключ (иначе жёсткий rate-limit). В CI — secret NVD_API_KEY. -->
+                            <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                            <!-- Файл подавления документированных ложноположительных (изначально пуст). -->
+                            <suppressionFiles>
+                                <suppressionFile>${project.basedir}/owasp-suppressions.xml</suppressionFile>
+                            </suppressionFiles>
+                            <!-- Тестовые/опциональные scope не входят в поставку — не сканируем. -->
+                            <skipTestScope>true</skipTestScope>
+                        </configuration>
+                    </plugin>
+                    <!-- SpotBugs + FindSecBugs: статический анализ безопасности байткода. -->
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
+                        <version>${spotbugs-maven-plugin.version}</version>
+                        <configuration>
+                            <effort>Max</effort>
+                            <!-- P4-4 DoD: фейл на High/Critical. threshold=High → блокируют только
+                                 High-приоритетные security-находки; Medium (напр. CRLF-log-injection)
+                                 репортятся в отчёт, но не валят гейт (трекаются отдельно). -->
+                            <threshold>High</threshold>
+                            <failOnError>true</failOnError>
+                            <!-- Анализируем только наш main-код (не тесты). -->
+                            <includeTests>false</includeTests>
+                            <!-- Фильтр: только security-категория (FindSecBugs). -->
+                            <includeFilterFile>${project.basedir}/spotbugs-security-include.xml</includeFilterFile>
+                            <plugins>
+                                <plugin>
+                                    <groupId>com.h3xstream.findsecbugs</groupId>
+                                    <artifactId>findsecbugs-plugin</artifactId>
+                                    <version>${findsecbugs-plugin.version}</version>
+                                </plugin>
+                            </plugins>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Профиль для Docker Desktop на Windows (TCP вместо Unix socket) -->
         <profile>
             <id>windows-docker</id>

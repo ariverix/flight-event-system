@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  P4-4: фильтр SpotBugs — учитываем ТОЛЬКО security-категорию (баги FindSecBugs репортятся в
+  категории SECURITY). Сборка (mvn -Psecurity-scan spotbugs:check) фейлится при наличии
+  security-находок (threshold=Medium → Medium/High confidence). Функциональные/стилевые баги
+  SpotBugs не фейлят CI — это задача code review, не security-гейта.
+-->
+<FindBugsFilter>
+    <Match>
+        <Bug category="SECURITY"/>
+    </Match>
+</FindBugsFilter>

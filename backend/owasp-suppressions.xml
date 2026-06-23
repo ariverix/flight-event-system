@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  P4-4: подавления ложноположительных OWASP Dependency-Check. Изначально пуст.
+  Каждое подавление ДОЛЖНО иметь обоснование (<notes>) и быть точечным (по CVE/координатам),
+  а не широким. Добавляется только после ревью security-agent.
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>

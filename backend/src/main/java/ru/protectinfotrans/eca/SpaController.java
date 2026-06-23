@@ -1,7 +1,7 @@
 package ru.protectinfotrans.eca;
 
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 
 /**
  * Контроллер для поддержки клиентской маршрутизации React Router (SPA Fallback).
@@ -15,8 +15,12 @@ public class SpaController {
     /**
      * Перехватить все маршруты, не обработанные Spring MVC,
      * и вернуть index.html для обработки React Router.
+     *
+     * <p>P4-4: только GET — это навигация SPA (отдаём оболочку index.html). Ограничение метода
+     * закрывает находку FindSecBugs SPRING_CSRF_UNRESTRICTED_REQUEST_MAPPING (неограниченный
+     * по методу {@code @RequestMapping} принимал бы и POST/PUT/DELETE).
      */
-    @RequestMapping(value = {
+    @GetMapping(value = {
             "/sequences/**",
             "/executions/**",
             "/messages/**",
