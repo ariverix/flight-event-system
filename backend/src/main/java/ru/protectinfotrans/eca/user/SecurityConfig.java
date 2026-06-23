@@ -62,6 +62,10 @@ public class SecurityConfig {
                         // P3-3: обзор активных custom conditions — тот же принцип, что у
                         // /api/v1/custom-field-rules/** выше (явное правило ДО catch-all)
                         .requestMatchers("/api/v1/conditions/**").hasAnyRole("OPERATOR", "ADMIN")
+                        // P3-4: папки и обработчики событий (event handling) — админ/оператор,
+                        // тот же принцип явного правила ДО catch-all
+                        .requestMatchers("/api/v1/folders/**").hasAnyRole("OPERATOR", "ADMIN")
+                        .requestMatchers("/api/v1/event-handlers/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/auth/me").authenticated()
                         // статика и SPA — без защиты, закрываем только /api/**
                         .anyRequest().permitAll()

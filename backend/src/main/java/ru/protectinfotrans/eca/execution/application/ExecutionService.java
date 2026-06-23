@@ -757,12 +757,21 @@ public class ExecutionService {
                 message
         );
 
+        // P3-4: folderId последовательности — для разрешения обработчиков событий уровня папки
+        // (наследование) в модуле eventhandling. Один PK-лукап; sequence уже в кэше Hibernate
+        // в большинстве путей вызова.
+        Long folderId = sequenceQuery.findById(instance.getSequenceId())
+                .map(Sequence::getFolderId)
+                .orElse(null);
+
         eventPublisher.publishEvent(new StepNotificationEvent(
                 instance.getId(),
                 step.getOrderIndex(),
                 result,
                 instance.getAircraftId(),
-                result == StepResult.SUCCESS
+                result == StepResult.SUCCESS,
+                instance.getSequenceId(),
+                folderId
         ));
     }
 

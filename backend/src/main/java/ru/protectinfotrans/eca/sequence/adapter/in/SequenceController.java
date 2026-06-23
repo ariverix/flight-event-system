@@ -90,6 +90,17 @@ public class SequenceController {
         return sequenceUseCase.deactivateSequence(id, resolveUserId(auth));
     }
 
+    @Operation(summary = "Назначить последовательность в папку",
+               description = "P3-4: организация по папкам для наследования event-handling-конфигурации. "
+                       + "folderId == null снимает последовательность из папки.")
+    @PutMapping("/{id}/folder")
+    @PreAuthorize("hasRole('ADMIN')")
+    public SequenceResponse assignFolder(@PathVariable Long id,
+                                         @RequestParam(required = false) Long folderId,
+                                         Authentication auth) {
+        return sequenceUseCase.assignToFolder(id, folderId, resolveUserId(auth));
+    }
+
     @Operation(summary = "Добавить шаг", tags = {"Steps"},
                description = "UC-02: Добавить шаг типа ACTION, EVALUATE или WAIT")
     @ApiResponse(responseCode = "201", description = "Шаг добавлен")

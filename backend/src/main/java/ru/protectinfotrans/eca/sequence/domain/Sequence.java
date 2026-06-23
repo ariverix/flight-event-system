@@ -62,6 +62,16 @@ public class Sequence {
     @Column(name = "logging_enabled", nullable = false)
     private boolean loggingEnabled = true;
 
+    /**
+     * P3-4: папка, в которой лежит последовательность (nullable — может быть вне папок).
+     * Простой nullable FK на {@code folders.id} (таблица — модуль {@code eventhandling}, V34);
+     * хранится как обычный {@code Long}, БЕЗ JPA-связи на сущность {@code Folder} из чужого
+     * модуля — границы Modulith целы. Используется для разрешения обработчиков событий уровня
+     * папки (наследование) при доставке уведомлений, см. {@code eventhandling.EventHandlerResolver}.
+     */
+    @Column(name = "folder_id")
+    private Long folderId;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

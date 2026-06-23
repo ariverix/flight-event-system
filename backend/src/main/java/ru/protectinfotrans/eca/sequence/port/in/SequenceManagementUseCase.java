@@ -21,6 +21,9 @@ public interface SequenceManagementUseCase {
 
     SequenceResponse deactivateSequence(Long id, Long userId);
 
+    /** P3-4: назначить последовательность в папку (folderId == null — снять из папки). */
+    SequenceResponse assignToFolder(Long id, Long folderId, Long userId);
+
     StepResponse addStep(Long sequenceId, StepCreateRequest request, Long userId);
 
     StepResponse updateStep(Long sequenceId, Long stepId, StepUpdateRequest request, Long userId);

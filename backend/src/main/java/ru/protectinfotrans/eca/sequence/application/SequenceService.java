@@ -96,6 +96,19 @@ public class SequenceService implements SequenceManagementUseCase {
     }
 
     @Override
+    public SequenceResponse assignToFolder(Long id, Long folderId, Long userId) {
+        // P3-4: организация по папкам — допускается в любом статусе (не только DRAFT): папки —
+        // способ группировки и наследования event-handling-конфигурации, не редактирование самой
+        // логики последовательности. folderId == null снимает последовательность из папки.
+        Sequence sequence = findSequenceOrThrow(id);
+        sequence.setFolderId(folderId);
+        Sequence saved = sequenceRepository.save(sequence);
+        audit(userId, "ASSIGN_SEQUENCE_FOLDER", "SEQUENCE", saved.getId());
+        log.info("Последовательность id={} назначена в папку folderId={}", saved.getId(), folderId);
+        return toResponse(saved);
+    }
+
+    @Override
     public void deleteSequence(Long id, Long userId) {
         Sequence sequence = findSequenceOrThrow(id);
         requireDraft(sequence);
