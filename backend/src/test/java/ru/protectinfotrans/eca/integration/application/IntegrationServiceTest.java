@@ -72,82 +72,10 @@ class IntegrationServiceTest {
         }
     }
 
-    @Nested
-    @DisplayName("Condition management")
-    class ConditionManagementTests {
-
-        @Test
-        @DisplayName("должен поднимать условие и сохранять его в памяти")
-        void shouldRaiseConditionAndStoreIt() {
-            // Arrange
-            when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
-
-            // Act
-            boolean result = service.raiseCondition("VP-BXX", "DELAYED", "HIGH");
-
-            // Assert
-            assertThat(result).isTrue();
-            assertThat(service.isConditionActive("VP-BXX", "DELAYED")).isTrue();
-            verify(messageOutputPort).raiseCondition("VP-BXX", "DELAYED", "HIGH");
-        }
-
-        @Test
-        @DisplayName("должен снимать условие и удалять из памяти")
-        void shouldCloseConditionAndRemoveFromMemory() {
-            // Arrange
-            when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
-            when(messageOutputPort.closeCondition(anyString(), anyString())).thenReturn(true);
-
-            service.raiseCondition("VP-BXX", "DELAYED", "HIGH");
-            assertThat(service.isConditionActive("VP-BXX", "DELAYED")).isTrue();
-
-            // Act
-            boolean result = service.closeCondition("VP-BXX", "DELAYED");
-
-            // Assert
-            assertThat(result).isTrue();
-            assertThat(service.isConditionActive("VP-BXX", "DELAYED")).isFalse();
-            verify(messageOutputPort).closeCondition("VP-BXX", "DELAYED");
-        }
-
-        @Test
-        @DisplayName("должен возвращать false для неактивного условия")
-        void shouldReturnFalseForInactiveCondition() {
-            assertThat(service.isConditionActive("VP-BXX", "UNKNOWN")).isFalse();
-        }
-
-        @Test
-        @DisplayName("должен поддерживать несколько условий для одного ВС")
-        void shouldSupportMultipleConditionsPerAircraft() {
-            // Arrange
-            when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
-
-            // Act
-            service.raiseCondition("VP-BXX", "DELAYED", "HIGH");
-            service.raiseCondition("VP-BXX", "NO_POSITION", "MEDIUM");
-
-            // Assert
-            assertThat(service.getActiveConditions("VP-BXX")).containsExactlyInAnyOrder("DELAYED", "NO_POSITION");
-            assertThat(service.isConditionActive("VP-BXX", "DELAYED")).isTrue();
-            assertThat(service.isConditionActive("VP-BXX", "NO_POSITION")).isTrue();
-        }
-
-        @Test
-        @DisplayName("должен изолировать условия разных ВС")
-        void shouldIsolateConditionsBetweenAircraft() {
-            // Arrange
-            when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
-
-            // Act
-            service.raiseCondition("VP-BXX", "DELAYED", "HIGH");
-            service.raiseCondition("VP-BYY", "DELAYED", "HIGH");
-
-            // Assert
-            assertThat(service.isConditionActive("VP-BXX", "DELAYED")).isTrue();
-            assertThat(service.isConditionActive("VP-BYY", "DELAYED")).isTrue();
-            assertThat(service.isConditionActive("VP-BZZ", "DELAYED")).isFalse();
-        }
-    }
+    // P3-3: управление условиями (raise/close/query) больше НЕ часть IntegrationService — переехало
+    // в отдельный модуль conditions (ConditionManagementUseCase/ConditionQueryUseCase,
+    // реализация ConditionService, персистентное per-flight хранилище). Покрытие raise/close/
+    // auto-close/изоляция между рейсами и бортами — см. ConditionServiceTest в модуле conditions.
 
     @Nested
     @DisplayName("Operator notifications")

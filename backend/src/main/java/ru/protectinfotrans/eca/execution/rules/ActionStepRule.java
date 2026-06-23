@@ -9,6 +9,7 @@ import org.jeasy.rules.annotation.Condition;
 import org.jeasy.rules.annotation.Fact;
 import org.jeasy.rules.annotation.Rule;
 import org.springframework.stereotype.Component;
+import ru.protectinfotrans.eca.conditions.port.in.ConditionManagementUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
@@ -38,6 +39,7 @@ public class ActionStepRule {
     private final MessageOutputPort messageOutputPort;
     private final ObjectMapper objectMapper;
     private final CustomFieldQueryUseCase customFieldQueryUseCase;
+    private final ConditionManagementUseCase conditionManagementUseCase;
 
     private StepResult result;
 
@@ -151,27 +153,31 @@ public class ActionStepRule {
         return merged;
     }
 
+    /**
+     * RAISE_CONDITION — паритет с SITA Sequencer (P3-3, движок условий/алертов в модуле
+     * {@code conditions}). Уровень алерта ТЕПЕРЬ персистируется как реальный атрибут поднятого
+     * условия (см. {@code RaisedCondition}), а не просто прокидывается в лог-заглушку — поэтому
+     * (в отличие от прежнего поведения "warn и пропустить") нестандартное значение ВНЕ
+     * канонического словаря No/Low/Medium/High/Critical теперь {@code IllegalArgumentException} →
+     * перехватывается в {@link #execute}, ACTION-шаг возвращает {@code FAILURE}: автор сценария
+     * решает через decision-граф (CONTINUE/GOTO/END/ABORT на false), что делать при опечатке в
+     * уровне. Попытка поднять УЖЕ активное условие тем же именем —
+     * {@code ConditionAlreadyRaisedException} (паритет "нельзя поднять дважды одним именем", см.
+     * её javadoc) — тоже перехватывается там же, тоже {@code FAILURE}.
+     */
     private boolean executeRaiseCondition(Map<String, Object> config, ExecutionContext context) {
         String conditionName = (String) config.get("conditionName");
-        String alertLevel = (String) config.getOrDefault("alertLevel", AlertLevel.NO.name());
+        String alertLevelRaw = (String) config.getOrDefault("alertLevel", AlertLevel.NO.name());
+        AlertLevel alertLevel = AlertLevel.valueOf(alertLevelRaw.toUpperCase());
 
-        // Канонический словарь уровней — No/Low/Medium/High/Critical (паритет с SITA).
-        // Не выбрасываем исключение на нестандартное значение (исторические сценарии
-        // используют свободный текст типа "INFO"/"WARNING") — только предупреждаем в лог,
-        // чтобы не ронять выполнение последовательности из-за расхождения словаря.
-        try {
-            AlertLevel.valueOf(alertLevel.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            log.warn("RAISE_CONDITION: alertLevel '{}' is outside canonical SITA vocabulary "
-                    + "(No/Low/Medium/High/Critical) — passing through as-is", alertLevel);
-        }
-
-        return messageOutputPort.raiseCondition(context.aircraftId(), conditionName, alertLevel);
+        conditionManagementUseCase.raiseCondition(context.aircraftId(), context.flightNumber(), conditionName, alertLevel);
+        return true;
     }
 
     private boolean executeCloseCondition(Map<String, Object> config, ExecutionContext context) {
         String conditionName = (String) config.get("conditionName");
-        return messageOutputPort.closeCondition(context.aircraftId(), conditionName);
+        conditionManagementUseCase.closeCondition(context.aircraftId(), context.flightNumber(), conditionName);
+        return true;
     }
 
     // Thread.sleep нельзя — пишем waitTimeoutAt и уходим в WAITING.

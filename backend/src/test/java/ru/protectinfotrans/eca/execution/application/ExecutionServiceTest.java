@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import ru.protectinfotrans.eca.FlightStage;
+import ru.protectinfotrans.eca.conditions.port.in.ConditionQueryUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
@@ -22,7 +23,6 @@ import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
 import ru.protectinfotrans.eca.execution.event.ExecutionCompletedEvent;
 import ru.protectinfotrans.eca.execution.event.ExecutionStartedEvent;
-import ru.protectinfotrans.eca.execution.port.out.ConditionQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
@@ -33,7 +33,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,8 +64,10 @@ class ExecutionServiceTest {
     @Mock
     private NotificationPort notificationPort;
 
+    // P3-3: активные condition'ы текущего рейса (см. ExecutionService#putActiveConditionsIfKnown) —
+    // lenient, т.к. не все тесты строят ExecutionContext через buildContext/buildDefaultContext.
     @Mock
-    private ConditionQueryPort conditionQueryPort;
+    private ConditionQueryUseCase conditionQueryUseCase;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -111,8 +112,8 @@ class ExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Mock ConditionQueryPort to return empty conditions by default (lenient for tests that don't use it)
-        lenient().when(conditionQueryPort.getActiveConditions(anyString())).thenReturn(Set.of());
+        // Mock ConditionQueryUseCase to return empty conditions by default (lenient for tests that don't use it)
+        lenient().when(conditionQueryUseCase.getActiveConditions(anyString(), anyString())).thenReturn(java.util.Map.of());
         lenient().when(self.getObject()).thenReturn(service);
         lenient().when(flightStageEventRepository.findLastStageTimestamp(anyString(), any()))
                 .thenReturn(Optional.empty());

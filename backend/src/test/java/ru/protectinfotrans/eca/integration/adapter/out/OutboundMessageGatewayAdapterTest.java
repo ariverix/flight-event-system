@@ -36,16 +36,13 @@ class OutboundMessageGatewayAdapterTest {
     @Mock
     private OutboundMessageRepositoryPort repository;
 
-    @Mock
-    private LogMessageAdapter conditionFallbackAdapter;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private OutboundMessageGatewayAdapter adapter;
 
     @BeforeEach
     void setUp() {
-        adapter = new OutboundMessageGatewayAdapter(repository, conditionFallbackAdapter, objectMapper);
+        adapter = new OutboundMessageGatewayAdapter(repository, objectMapper);
         CorrelationContext.clear();
     }
 
@@ -125,18 +122,10 @@ class OutboundMessageGatewayAdapterTest {
         CorrelationContext.clear();
     }
 
-    @Test
-    @DisplayName("raiseCondition/closeCondition делегируются в LogMessageAdapter (вне объёма P2-3)")
-    void delegatesConditionsToFallbackAdapter() {
-        when(conditionFallbackAdapter.raiseCondition("VP-BQR", "DELAYED", "HIGH")).thenReturn(true);
-        when(conditionFallbackAdapter.closeCondition("VP-BQR", "DELAYED")).thenReturn(true);
-
-        assertThat(adapter.raiseCondition("VP-BQR", "DELAYED", "HIGH")).isTrue();
-        assertThat(adapter.closeCondition("VP-BQR", "DELAYED")).isTrue();
-
-        verify(conditionFallbackAdapter).raiseCondition("VP-BQR", "DELAYED", "HIGH");
-        verify(conditionFallbackAdapter).closeCondition("VP-BQR", "DELAYED");
-    }
+    // P3-3: raise/close condition больше НЕ часть MessageOutputPort/этого адаптера — переехали в
+    // отдельный модуль conditions (ConditionManagementUseCase, ConditionService), см. её unit-тесты
+    // (ConditionServiceTest) для покрытия raise/close/auto-close. Старый тест
+    // delegatesConditionsToFallbackAdapter удалён вместе с этим поведением.
 
     // ============================================================
     // Фикс регрессии идемпотентности P1-4 x P2-3: дедуп по

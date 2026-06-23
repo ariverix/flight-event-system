@@ -54,7 +54,10 @@ public class CriterionEvaluator {
                 case POSITION_REPORTED -> evaluatePosition(criteria, context, waitStartedAt);
                 // ETD/ETA/Init/Out/Off/On/In должны быть заранее положены в context.additionalData
                 case TIME_COMPARISON -> evaluateTime(criteria, context);
-                // активные алерты живут в IntegrationService (in-memory), пробрасываются в контекст
+                // P3-3: активные условия живут в персистентном per-flight хранилище модуля
+                // conditions (ConditionService/RaisedCondition), пробрасываются в контекст
+                // ExecutionService#putActiveConditionsIfKnown — этот метод сам не знает про
+                // персистентность, читает только то, что уже положено в additionalData
                 case CONDITION_ACTIVE -> evaluateConditionActive(criteria, context);
                 // рекурсивный AND/OR — передаём waitStartedAt вглубь для fromThisPointOnly
                 case COMPOUND -> evaluateCompound(criteria, context, waitStartedAt);

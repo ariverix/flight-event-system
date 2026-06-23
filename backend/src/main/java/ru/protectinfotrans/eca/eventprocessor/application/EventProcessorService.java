@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.conditions.port.in.FlightConditionLifecycleUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.FlightContextLifecycleUseCase;
 import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
@@ -33,6 +34,7 @@ public class EventProcessorService implements MessageInputPort {
     private final MessagePersistenceTransaction messagePersistenceTransaction;
     private final FlightStageEventRepositoryPort flightStageEventRepository;
     private final FlightContextLifecycleUseCase flightContextLifecycleUseCase;
+    private final FlightConditionLifecycleUseCase flightConditionLifecycleUseCase;
 
     /**
      * <b>Транзакционность (фикс ревью, TOCTOU-гонка P2-1):</b> этот метод сам НЕ {@code @Transactional} —
@@ -126,6 +128,11 @@ public class EventProcessorService implements MessageInputPort {
         // значений сам по себе — закрытие здесь безопасно ПОСЛЕ записи FlightStageEvent
         // (так же, как в близнецовом пути выше).
         flightContextLifecycleUseCase.onFlightStageChanged(aircraftId, flightNumber, stage);
+
+        // P3-3: тот же системный канал — авто-закрытие активных custom conditions рейса на
+        // терминальной стадии (паритет SITA "активные условия закрываются автоматически при
+        // завершении рейса"), независимо от flightContextLifecycleUseCase выше.
+        flightConditionLifecycleUseCase.onFlightStageChanged(aircraftId, flightNumber, stage);
 
         NormalizedEvent event = new NormalizedEvent(
                 null,

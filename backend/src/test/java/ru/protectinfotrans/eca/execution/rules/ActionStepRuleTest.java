@@ -10,12 +10,15 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.protectinfotrans.eca.FlightStage;
+import ru.protectinfotrans.eca.conditions.domain.ConditionAlreadyRaisedException;
+import ru.protectinfotrans.eca.conditions.port.in.ConditionManagementUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.execution.domain.ExecutionInstance;
 import ru.protectinfotrans.eca.execution.domain.ExecutionStatus;
 import ru.protectinfotrans.eca.execution.domain.StepResult;
 import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
 import ru.protectinfotrans.eca.execution.port.out.MessageOutputPort;
+import ru.protectinfotrans.eca.sequence.domain.AlertLevel;
 import ru.protectinfotrans.eca.sequence.domain.Step;
 import ru.protectinfotrans.eca.sequence.domain.StepType;
 import ru.protectinfotrans.eca.sequence.domain.UplinkOrigin;
@@ -50,6 +53,11 @@ class ActionStepRuleTest {
     // (см. ActionStepRule#mergeCustomFields) — по умолчанию пусто (lenient).
     @Mock
     private CustomFieldQueryUseCase customFieldQueryUseCase;
+
+    // P3-3: raise/close condition теперь делегируют в движок условий/алертов модуля conditions
+    // (см. ActionStepRule#executeRaiseCondition/executeCloseCondition), а не в MessageOutputPort.
+    @Mock
+    private ConditionManagementUseCase conditionManagementUseCase;
 
     @InjectMocks
     private ActionStepRule rule;
@@ -248,26 +256,41 @@ class ActionStepRuleTest {
     }
 
     @Test
-    @DisplayName("RAISE_CONDITION: должен поднять условие и вернуть SUCCESS")
+    @DisplayName("RAISE_CONDITION: должен поднять условие (per-flight) и вернуть SUCCESS")
     void shouldExecuteRaiseCondition() {
         step.setConfigJson("""
             {
                 "actionType": "RAISE_CONDITION",
                 "conditionName": "DELAYED",
-                "alertLevel": "WARNING"
+                "alertLevel": "HIGH"
             }
             """);
 
-        when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
-
         rule.execute(step, instance, context);
 
-        verify(messageOutputPort).raiseCondition("VP-BAB", "DELAYED", "WARNING");
+        verify(conditionManagementUseCase).raiseCondition("VP-BAB", "SU1234", "DELAYED", AlertLevel.HIGH);
         assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
     }
 
     @Test
-    @DisplayName("CLOSE_CONDITION: должен снять условие и вернуть SUCCESS")
+    @DisplayName("RAISE_CONDITION: без alertLevel в конфиге должен поднять условие с уровнем NO "
+            + "(условие и алерт независимы — можно поднять условие без алертинга)")
+    void shouldExecuteRaiseConditionDefaultingToNoAlertLevel() {
+        step.setConfigJson("""
+            {
+                "actionType": "RAISE_CONDITION",
+                "conditionName": "DELAYED"
+            }
+            """);
+
+        rule.execute(step, instance, context);
+
+        verify(conditionManagementUseCase).raiseCondition("VP-BAB", "SU1234", "DELAYED", AlertLevel.NO);
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("CLOSE_CONDITION: должен снять условие (per-flight) и вернуть SUCCESS")
     void shouldExecuteCloseCondition() {
         step.setConfigJson("""
             {
@@ -276,11 +299,9 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.closeCondition(anyString(), anyString())).thenReturn(true);
-
         rule.execute(step, instance, context);
 
-        verify(messageOutputPort).closeCondition("VP-BAB", "DELAYED");
+        verify(conditionManagementUseCase).closeCondition("VP-BAB", "SU1234", "DELAYED");
         assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
     }
 
@@ -385,8 +406,10 @@ class ActionStepRuleTest {
     }
 
     @Test
-    @DisplayName("RAISE_CONDITION: должен принять нестандартный alertLevel без падения (лишь warn-лог)")
-    void shouldRaiseConditionWithNonCanonicalAlertLevelWithoutFailing() {
+    @DisplayName("RAISE_CONDITION: нестандартный alertLevel ВНЕ канонического словаря "
+            + "No/Low/Medium/High/Critical теперь FAILURE (P3-3, регрессия лояльности — уровень "
+            + "алерта персистируется как реальный enum, не прокидывается в лог-заглушку как раньше)")
+    void shouldFailRaiseConditionWithNonCanonicalAlertLevel() {
         step.setConfigJson("""
             {
                 "actionType": "RAISE_CONDITION",
@@ -395,12 +418,11 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
-
         rule.execute(step, instance, context);
 
-        verify(messageOutputPort).raiseCondition("VP-BAB", "LEGACY_ALERT", "WARNING");
-        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+        assertThat(rule.getResult()).isEqualTo(StepResult.FAILURE);
+        verify(conditionManagementUseCase, org.mockito.Mockito.never())
+                .raiseCondition(any(), any(), any(), any());
     }
 
     @Test
@@ -414,11 +436,31 @@ class ActionStepRuleTest {
             }
             """);
 
-        when(messageOutputPort.raiseCondition(anyString(), anyString(), anyString())).thenReturn(true);
+        rule.execute(step, instance, context);
+
+        verify(conditionManagementUseCase).raiseCondition("VP-BAB", "SU1234", "ENGINE_FAILURE", AlertLevel.CRITICAL);
+        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("RAISE_CONDITION: повторный raise уже активного условия тем же именем — FAILURE "
+            + "(паритет SITA \"нельзя поднять дважды одним именем\", см. "
+            + "ConditionAlreadyRaisedException)")
+    void shouldFailRaiseConditionWhenAlreadyRaised() {
+        step.setConfigJson("""
+            {
+                "actionType": "RAISE_CONDITION",
+                "conditionName": "DELAYED",
+                "alertLevel": "LOW"
+            }
+            """);
+
+        org.mockito.Mockito.doThrow(new ConditionAlreadyRaisedException("VP-BAB", "SU1234", "DELAYED"))
+                .when(conditionManagementUseCase)
+                .raiseCondition("VP-BAB", "SU1234", "DELAYED", AlertLevel.LOW);
 
         rule.execute(step, instance, context);
 
-        verify(messageOutputPort).raiseCondition("VP-BAB", "ENGINE_FAILURE", "CRITICAL");
-        assertThat(rule.getResult()).isEqualTo(StepResult.SUCCESS);
+        assertThat(rule.getResult()).isEqualTo(StepResult.FAILURE);
     }
 }

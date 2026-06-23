@@ -6,10 +6,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Выходной порт для отправки исходящих сообщений и управления пользовательскими условиями.
+ * Выходной порт для отправки исходящих сообщений (uplink/ground) — реализуется адаптерами в
+ * integration модуле.
  *
- * модуля вызывает этот порт, а адаптеры в integration модуле реализуют его.
- *
+ * <p><b>P3-3:</b> raise/close condition больше НЕ часть этого порта — условия/алерты переехали в
+ * отдельный модуль {@code conditions} (см. {@code ConditionManagementUseCase}), поскольку у них
+ * нет материального "отправить во внешнюю систему" эффекта (в отличие от send uplink/ground) —
+ * это внутреннее понятие Sequencer-движка (см. {@code conditions.package-info} для полного
+ * обоснования).
  */
 public interface MessageOutputPort {
 
@@ -111,23 +115,4 @@ public interface MessageOutputPort {
                                 Long executionInstanceId, Integer stepOrderIndex) {
         return sendGround(recipients, templateName, params);
     }
-
-    /**
-     * Поднять пользовательское условие (алерт) для ВС.
-     *
-     * @param aircraftId идентификатор ВС
-     * @param conditionName название условия
-     * @param alertLevel уровень алерта (INFO, WARNING, ERROR)
-     * @return true если операция успешна
-     */
-    boolean raiseCondition(String aircraftId, String conditionName, String alertLevel);
-
-    /**
-     * Снять пользовательское условие для ВС.
-     *
-     * @param aircraftId идентификатор ВС
-     * @param conditionName название условия
-     * @return true если операция успешна
-     */
-    boolean closeCondition(String aircraftId, String conditionName);
 }

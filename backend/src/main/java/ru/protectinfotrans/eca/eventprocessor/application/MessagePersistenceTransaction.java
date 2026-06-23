@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.conditions.port.in.FlightConditionLifecycleUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.CustomFieldExtractionUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.FlightContextLifecycleUseCase;
 import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
@@ -51,6 +52,7 @@ class MessagePersistenceTransaction {
     private final ObjectMapper objectMapper;
     private final CustomFieldExtractionUseCase customFieldExtractionUseCase;
     private final FlightContextLifecycleUseCase flightContextLifecycleUseCase;
+    private final FlightConditionLifecycleUseCase flightConditionLifecycleUseCase;
 
     /**
      * Идемпотентность шлюза (P2-1): persist раньше обработки, но ПЕРЕД persist — проверка
@@ -152,6 +154,11 @@ class MessagePersistenceTransaction {
      * IN/SUMMARY, см. её javadoc). Порядок принципиален: extract() для ЭТОГО сообщения уже
      * выполнен ВЫШЕ по стеку вызовов (см. {@code persistAndPublish}), так что закрытие здесь
      * не теряет значение, извлечённое из самого терминального сообщения.
+     *
+     * <p>P3-3: точно тот же канал/порядок используется для авто-закрытия активных custom
+     * conditions рейса ({@code FlightConditionLifecycleUseCase}, паритет SITA "активные условия
+     * закрываются автоматически при завершении рейса") — независимый вызов ПОСЛЕ
+     * {@code flightContextLifecycleUseCase}, оба идемпотентны и не зависят друг от друга.
      */
     private void recordFlightStageEvent(String aircraftId, String flightNumber,
                                          FlightStage flightStage, LocalDateTime occurredAt) {
@@ -167,6 +174,7 @@ class MessagePersistenceTransaction {
                 .build());
 
         flightContextLifecycleUseCase.onFlightStageChanged(aircraftId, flightNumber, flightStage);
+        flightConditionLifecycleUseCase.onFlightStageChanged(aircraftId, flightNumber, flightStage);
     }
 
     private FlightStage extractFlightStage(Map<String, Object> metadata) {

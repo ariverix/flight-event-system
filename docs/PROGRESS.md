@@ -50,7 +50,7 @@
 |---|---|---|---|---|
 | P3-1 | Движок шаблонов downlink/uplink/ground, computer-generated/external-user, CRUD + OpenAPI | templates-dev + db-dev | Done | reviewer PASS (1 цикл bug-fixer: missing-variable в outbound). Новый модуль `templates` (границы чисто, integration→templates.port.in). Плейсхолдеры {{var}} single-pass, render строгий / tryRender мягкий. CRUD /api/v1/templates (RBAC ADMIN/OPERATOR), V31 таблица templates. Рендеринг в outbound: not-found→fallback, missing-var→markFailed+метрика (не мусор в канал). OpenAPI обновлён. 655 тестов. |
 | P3-2 | Движок custom fields: извлечение, хранение per-flight, подстановка | templates-dev + db-dev | Done | reviewer PASS. Новый модуль `customfields` (синк, границы чисто, 0 циклов между 4 модулями). Правила извлечения CONTENT(regex 1 группа)/METADATA; per-flight хранение (uq aircraft+flight+field); подстановка в шаблоны (merge в params на этапе шага → детерминизм retry, явные params выигрывают); значение доступно критериям (БЕЗ 7-го типа — инвариант 6 типов цел); закрытие на IN/SUMMARY (soft-close). V32. CRUD /custom-field-rules (RBAC). OpenAPI. 717 тестов. |
-| P3-3 | Условия/алерты raise/close, уровни No/Low/Medium/High/Critical, авто-закрытие | alerts-dev | Pending | — |
+| P3-3 | Условия/алерты raise/close, уровни No/Low/Medium/High/Critical, авто-закрытие | alerts-dev | Done | reviewer PASS (inline-гейт: `mvn verify` BUILD SUCCESS, 752 теста, JaCoCo "All coverage checks have been met", ModularityTests зелёный). Новый модуль `conditions` (синк, структурный аналог `customfields`/`templates`, 0 циклов): per-flight `raised_conditions` (aircraft+flight+name), независимый alertLevel No/Low/Medium/High/Critical, "нельзя поднять дважды" = частичный UNIQUE активной строки (V33) + явная проверка → `ConditionAlreadyRaisedException`, мягкое закрытие (closed_at), авто-закрытие на IN/SUMMARY. Рефактор: условия вынесены из `integration` (in-memory per-aircraft Map) в durable per-flight — удалены `execution.port.out.ConditionQueryPort` и `MessageOutputPort#raise/closeCondition`; `ActionStepRule`→`conditions.port.in` напрямую; `ExecutionService` читает активные условия per-flight; `eventprocessor`→`FlightConditionLifecycleUseCase` на IN/SUMMARY. Семантика: re-raise активного → шаг FAILURE, нестандартный alertLevel → FAILURE. Починен баг транзакционного отравления: `@Transactional(noRollbackFor=ConditionAlreadyRaisedException)` — без него re-raise в GOTO-цикле ронял переход движка `UnexpectedRollbackException` (2 теста P1_2). Метрики `eca.conditions.raised/closed/active/rejected`. GET /api/v1/conditions (RBAC OPERATOR/ADMIN). OpenAPI обновлён. 752 теста. |
 | P3-4 | Event Handling (folder + sequence override) + Notify-каналы идемпотентно | alerts-dev + db-dev | Pending | — |
 
 ## P4 — Безопасность
@@ -101,9 +101,9 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 717 зелёных.
-- Последняя миграция: V32 (таблицы `custom_field_rules` + `custom_field_values`).
-- **Фаза P1 завершена** (P1-1..P1-8 все reviewer-PASS). P2 в работе.
+- Тестов: 752 зелёных (JaCoCo gate пройден).
+- Последняя миграция: V33 (таблица `raised_conditions` + частичный UNIQUE активной строки).
+- **Фазы P1 и P2 завершены.** P3 в работе: P3-1/P3-2/P3-3 — Done, осталась P3-4.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
 
@@ -120,4 +120,4 @@
 - Последний коммит фундамента: `42aabec` ("P0 guardrails: CI/CD, OpenAPI,
   structured logging + audit_log").
 
-*Обновлено: 2026-06-19.*
+*Обновлено: 2026-06-23.*

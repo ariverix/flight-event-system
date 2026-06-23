@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.conditions.port.in.FlightConditionLifecycleUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.CustomFieldExtractionUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.FlightContextLifecycleUseCase;
 import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
@@ -55,13 +56,17 @@ class MessagePersistenceTransactionTest {
     @Mock
     private FlightContextLifecycleUseCase flightContextLifecycleUseCase;
 
+    // P3-3: тот же системный канал, но для авто-закрытия активных custom conditions рейса.
+    @Mock
+    private FlightConditionLifecycleUseCase flightConditionLifecycleUseCase;
+
     private MessagePersistenceTransaction persistenceTransaction;
 
     @BeforeEach
     void setUp() {
         persistenceTransaction = new MessagePersistenceTransaction(
                 messageRepository, eventPublisher, flightStageEventRepository, new ObjectMapper(),
-                customFieldExtractionUseCase, flightContextLifecycleUseCase);
+                customFieldExtractionUseCase, flightContextLifecycleUseCase, flightConditionLifecycleUseCase);
     }
 
     @Nested
@@ -159,6 +164,28 @@ class MessagePersistenceTransactionTest {
                     Map.of("flightStage", "IN"), null);
 
             verify(flightContextLifecycleUseCase).onFlightStageChanged("VP-BZZ", "SU200", FlightStage.IN);
+        }
+
+        @Test
+        @DisplayName("P3-3: должен авто-закрыть активные custom conditions рейса при OOOI-метке IN, "
+                + "встроенной в обычное входящее сообщение")
+        void shouldCloseConditionsWhenStageEmbeddedInMessageIsIn() {
+            IncomingMessage savedMessage = IncomingMessage.builder()
+                    .id(31L)
+                    .messageType(MessageType.DOWNLINK)
+                    .templateName("OOOI")
+                    .aircraftId("VP-BZZ")
+                    .flightNumber("SU200")
+                    .receivedAt(LocalDateTime.now())
+                    .build();
+
+            when(messageRepository.saveAndFlush(any(IncomingMessage.class))).thenReturn(savedMessage);
+
+            persistenceTransaction.persistAndPublish(
+                    MessageType.DOWNLINK, "OOOI", "VP-BZZ", "SU200", "IN UUEE",
+                    Map.of("flightStage", "IN"), null);
+
+            verify(flightConditionLifecycleUseCase).onFlightStageChanged("VP-BZZ", "SU200", FlightStage.IN);
         }
 
         @Test

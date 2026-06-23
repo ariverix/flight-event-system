@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import ru.protectinfotrans.eca.FlightStage;
 import ru.protectinfotrans.eca.MessageType;
+import ru.protectinfotrans.eca.conditions.port.in.FlightConditionLifecycleUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.FlightContextLifecycleUseCase;
 import ru.protectinfotrans.eca.eventprocessor.domain.FlightStageEvent;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
@@ -62,13 +63,18 @@ class EventProcessorServiceTest {
     @Mock
     private FlightContextLifecycleUseCase flightContextLifecycleUseCase;
 
+    // P3-3: тот же системный канал обязан авто-закрывать активные custom conditions рейса на
+    // терминальных стадиях (IN/SUMMARY) — независимо от flightContextLifecycleUseCase выше.
+    @Mock
+    private FlightConditionLifecycleUseCase flightConditionLifecycleUseCase;
+
     private EventProcessorService service;
 
     @BeforeEach
     void setUp() {
         service = new EventProcessorService(
                 messageRepository, eventPublisher, messagePersistenceTransaction, flightStageEventRepository,
-                flightContextLifecycleUseCase);
+                flightContextLifecycleUseCase, flightConditionLifecycleUseCase);
     }
 
     @Nested
@@ -287,6 +293,15 @@ class EventProcessorServiceTest {
             service.notifyFlightStageChange("VP-BXX", "SU100", FlightStage.IN);
 
             verify(flightContextLifecycleUseCase).onFlightStageChanged("VP-BXX", "SU100", FlightStage.IN);
+        }
+
+        @Test
+        @DisplayName("P3-3: должен уведомить FlightConditionLifecycleUseCase о смене стадии "
+                + "(авто-закрытие активных custom conditions на IN/SUMMARY — решение принимается там)")
+        void shouldNotifyFlightConditionLifecycleOnStageChange() {
+            service.notifyFlightStageChange("VP-BXX", "SU100", FlightStage.IN);
+
+            verify(flightConditionLifecycleUseCase).onFlightStageChanged("VP-BXX", "SU100", FlightStage.IN);
         }
     }
 }

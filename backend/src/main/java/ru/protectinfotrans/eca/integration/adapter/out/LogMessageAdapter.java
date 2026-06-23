@@ -32,18 +32,4 @@ public class LogMessageAdapter implements MessageOutputPort {
         // TODO: реальная отправка
         return true;
     }
-
-    @Override
-    public boolean raiseCondition(String aircraftId, String conditionName, String alertLevel) {
-        log.warn("[CONDITION] Raising condition '{}' for aircraft={}, level={}", conditionName, aircraftId, alertLevel);
-        // TODO: реальная отправка
-        return true;
-    }
-
-    @Override
-    public boolean closeCondition(String aircraftId, String conditionName) {
-        log.info("[CONDITION] Closing condition '{}' for aircraft={}", conditionName, aircraftId);
-        // TODO: реальная отправка
-        return true;
-    }
 }

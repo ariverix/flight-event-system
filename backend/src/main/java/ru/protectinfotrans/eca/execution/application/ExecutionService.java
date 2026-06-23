@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.CorrelationContext;
 import ru.protectinfotrans.eca.FlightStage;
+import ru.protectinfotrans.eca.conditions.port.in.ConditionQueryUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.eventprocessor.event.NormalizedEvent;
 import ru.protectinfotrans.eca.eventprocessor.port.out.FlightStageEventRepositoryPort;
@@ -27,11 +28,11 @@ import ru.protectinfotrans.eca.execution.event.ExecutionCompletedEvent;
 import ru.protectinfotrans.eca.execution.event.ExecutionStartedEvent;
 import ru.protectinfotrans.eca.execution.event.StepNotificationEvent;
 import ru.protectinfotrans.eca.execution.event.StepTransitionEvent;
-import ru.protectinfotrans.eca.execution.port.out.ConditionQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.ExecutionRepositoryPort;
 import ru.protectinfotrans.eca.execution.port.out.SequenceQueryPort;
 import ru.protectinfotrans.eca.execution.port.out.NotificationPort;
 import ru.protectinfotrans.eca.execution.port.out.TrackingEventLogPort;
+import ru.protectinfotrans.eca.sequence.domain.AlertLevel;
 import ru.protectinfotrans.eca.sequence.domain.Sequence;
 import ru.protectinfotrans.eca.sequence.domain.SequenceStatus;
 import ru.protectinfotrans.eca.sequence.domain.Step;
@@ -44,7 +45,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Основной сервис выполнения последовательностей.
@@ -88,7 +88,7 @@ public class ExecutionService {
     private final EcaRuleEngine ecaRuleEngine;
     private final CriterionEvaluator criterionEvaluator;
     private final NotificationPort notificationPort;
-    private final ConditionQueryPort conditionQueryPort;
+    private final ConditionQueryUseCase conditionQueryUseCase;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final InstanceContextCodec instanceContextCodec;
@@ -927,13 +927,7 @@ public class ExecutionService {
         Map<String, Object> additionalData = new HashMap<>();
 
         if (event.aircraftId() != null) {
-            Set<String> activeConditions = conditionQueryPort.getActiveConditions(event.aircraftId());
-            Map<String, Boolean> conditionsMap = new HashMap<>();
-            for (String conditionName : activeConditions) {
-                conditionsMap.put(conditionName, true);
-            }
-            additionalData.put("activeConditions", conditionsMap);
-
+            putActiveConditionsIfKnown(additionalData, event.aircraftId(), event.flightNumber());
             putOffTimeIfKnown(additionalData, event.aircraftId());
             putCustomFieldsIfKnown(additionalData, event.aircraftId(), event.flightNumber());
         }
@@ -950,13 +944,7 @@ public class ExecutionService {
     private ExecutionContext buildDefaultContext(String aircraftId, String flightNumber) {
         Map<String, Object> additionalData = new HashMap<>();
         if (aircraftId != null) {
-            Set<String> conditions = conditionQueryPort.getActiveConditions(aircraftId);
-            if (!conditions.isEmpty()) {
-                Map<String, Boolean> conditionsMap = new HashMap<>();
-                conditions.forEach(c -> conditionsMap.put(c, true));
-                additionalData.put("activeConditions", conditionsMap);
-            }
-
+            putActiveConditionsIfKnown(additionalData, aircraftId, flightNumber);
             putOffTimeIfKnown(additionalData, aircraftId);
             putCustomFieldsIfKnown(additionalData, aircraftId, flightNumber);
         }
@@ -969,6 +957,36 @@ public class ExecutionService {
                 LocalDateTime.now(),
                 additionalData
         );
+    }
+
+    /**
+     * Кладёт активные (поднятые, не закрытые) custom conditions РЕЙСА в {@code additionalData} под
+     * ключом {@code "activeConditions"} — паритет SITA, критерий CONDITION_ACTIVE (P3-3, см.
+     * {@code CriterionEvaluator#evaluateConditionActive}). Per-flight, как и
+     * {@code putCustomFieldsIfKnown} (P3-2) — требует И {@code aircraftId}, И
+     * {@code flightNumber}: без номера рейса невозможно сузить запрос до конкретного рейса этого
+     * борта (см. {@code RaisedCondition} javadoc — "per-flight, не per-aircraft", фикс
+     * регрессии in-memory реализации до этой задачи, которая была keyed только по
+     * {@code aircraftId}).
+     *
+     * <p>Карта приводится к {@code Map<String, Boolean>} (значение всегда {@code true} для
+     * присутствующих ключей) — формат, который уже читает {@code evaluateConditionActive}; уровень
+     * алерта ({@link AlertLevel}) сюда не прокидывается: критерий CONDITION_ACTIVE проверяет
+     * только факт активности условия, не его серьёзность (это и есть "условие и алерт — разные
+     * сущности", см. {@code RaisedCondition} javadoc).
+     */
+    private void putActiveConditionsIfKnown(Map<String, Object> additionalData, String aircraftId, String flightNumber) {
+        if (flightNumber == null) {
+            return;
+        }
+        Map<String, AlertLevel> active =
+                conditionQueryUseCase.getActiveConditions(aircraftId, flightNumber);
+        if (active.isEmpty()) {
+            return;
+        }
+        Map<String, Boolean> conditionsMap = new HashMap<>();
+        active.keySet().forEach(name -> conditionsMap.put(name, true));
+        additionalData.put("activeConditions", conditionsMap);
     }
 
     /**

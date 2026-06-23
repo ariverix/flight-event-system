@@ -31,15 +31,12 @@ import java.util.Optional;
  * {@code true} означает "успешно поставлено в durable-очередь", НЕ "успешно доставлено борту/
  * получателю" — фактическая доставка асинхронна, см. {@code OutboundMessageDeliveryScheduler}.
  *
- * <p>{@code raiseCondition}/{@code closeCondition} НЕ переведены на durable-очередь (не входят
- * в объём P2-3 — формулировка задачи ограничена send uplink/ground) — делегируются в
- * {@link LogMessageAdapter}.
- *
  * <p>{@code @Primary}: {@code ActionStepRule} (execution) автовайрит ровно один бин
  * {@code MessageOutputPort} по типу — {@link LogMessageAdapter} остаётся в контексте как
- * вспомогательный компонент для {@code raiseCondition}/{@code closeCondition} (делегирование
- * выше) и как симулятор реального канала для {@code OutboundMessageDeliveryScheduler}, но не
- * должен сам стать кандидатом инъекции вместо этого адаптера.
+ * симулятор реального канала для {@code OutboundMessageDeliveryScheduler}, но не должен сам стать
+ * кандидатом инъекции вместо этого адаптера. (P3-3: raise/close condition больше не часть
+ * {@code MessageOutputPort} — см. {@code conditions} модуль — поэтому этот класс больше не
+ * делегирует в {@code LogMessageAdapter} для условий.)
  *
  * <p><b>Идемпотентность (фикс регрессии P1-4 x P2-3, см. ADR-0002 и javadoc
  * {@code ExecutionService#resumeRunningInstanceAfterRestart}):</b> 6/5-аргументные перегрузки
@@ -80,7 +77,6 @@ import java.util.Optional;
 public class OutboundMessageGatewayAdapter implements MessageOutputPort {
 
     private final OutboundMessageRepositoryPort repository;
-    private final LogMessageAdapter conditionFallbackAdapter;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -157,16 +153,6 @@ public class OutboundMessageGatewayAdapter implements MessageOutputPort {
         repository.save(message);
         log.info("[GROUND] queued durably: recipients={}, template={}", recipients, templateName);
         return true;
-    }
-
-    @Override
-    public boolean raiseCondition(String aircraftId, String conditionName, String alertLevel) {
-        return conditionFallbackAdapter.raiseCondition(aircraftId, conditionName, alertLevel);
-    }
-
-    @Override
-    public boolean closeCondition(String aircraftId, String conditionName) {
-        return conditionFallbackAdapter.closeCondition(aircraftId, conditionName);
     }
 
     private String serializeParams(Map<String, Object> params) {
