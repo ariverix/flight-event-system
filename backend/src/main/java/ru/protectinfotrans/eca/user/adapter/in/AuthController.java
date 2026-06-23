@@ -48,18 +48,21 @@ public class AuthController {
 
         if (user == null) {
             log.warn("Login failed: user '{}' not found", request.username());
+            auditLoginFailure(request.username(), null, "USER_NOT_FOUND");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid username or password"));
         }
 
         if (!user.getEnabled()) {
             log.warn("Login failed: user '{}' is disabled", request.username());
+            auditLoginFailure(request.username(), user.getId(), "USER_DISABLED");
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "User account is disabled"));
         }
 
         if (!userService.checkPassword(user, request.password())) {
             log.warn("Login failed: incorrect password for user '{}'", request.username());
+            auditLoginFailure(request.username(), user.getId(), "BAD_PASSWORD");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid username or password"));
         }
@@ -71,6 +74,8 @@ public class AuthController {
 
         auditLogPort.save(ru.protectinfotrans.eca.AuditLog.builder()
                 .action("USER_LOGIN")
+                // P4-5: «кто» — сам вошедший пользователь (actor == entity для логина)
+                .userId(user.getId())
                 .entityType("USER")
                 .entityId(user.getId())
                 .detailsJson(toJson(Map.of("username", user.getUsername())))
@@ -113,7 +118,14 @@ public class AuthController {
     @PostMapping("/logout")
     @Operation(summary = "Logout", description = "P4-2: инвалидировать refresh-токен.")
     public ResponseEntity<?> logout(@Valid @RequestBody RefreshRequest request) {
-        refreshTokenService.revoke(request.refreshToken());
+        Long userId = refreshTokenService.revoke(request.refreshToken());
+        // P4-5: аудит выхода. userId известен, только если токен найден (иначе no-op-logout).
+        auditLogPort.save(ru.protectinfotrans.eca.AuditLog.builder()
+                .action("USER_LOGOUT")
+                .userId(userId)
+                .entityType("USER")
+                .entityId(userId)
+                .build());
         return ResponseEntity.noContent().build();
     }
 
@@ -161,6 +173,19 @@ public class AuthController {
 
         UserResponse response = UserResponse.fromEntity(user);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * P4-5: аудит НЕУДАЧНОЙ попытки входа (безопасность — попытки подбора/доступа к отключённым
+     * учёткам). userId может быть null (несуществующий пользователь); username и причина — в деталях.
+     */
+    private void auditLoginFailure(String username, Long userId, String reason) {
+        auditLogPort.save(ru.protectinfotrans.eca.AuditLog.builder()
+                .action("USER_LOGIN_FAILED")
+                .entityType("USER")
+                .entityId(userId)
+                .detailsJson(toJson(Map.of("username", username, "reason", reason)))
+                .build());
     }
 
     private String toJson(Object value) {

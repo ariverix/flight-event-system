@@ -81,12 +81,16 @@ public class RefreshTokenService {
         return new Rotation(newPlaintext, existing.getUserId());
     }
 
-    /** Отзыв токена (logout). Идемпотентно: неизвестный токен — no-op. */
-    public void revoke(String presentedToken) {
-        repository.findByTokenHash(hash(presentedToken)).ifPresent(t -> {
+    /**
+     * Отзыв токена (logout). Идемпотентно: неизвестный токен — no-op.
+     * @return userId владельца, если токен найден; {@code null} иначе (для аудита).
+     */
+    public Long revoke(String presentedToken) {
+        return repository.findByTokenHash(hash(presentedToken)).map(t -> {
             t.setRevoked(true);
             repository.save(t);
-        });
+            return t.getUserId();
+        }).orElse(null);
     }
 
     private String generateToken() {

@@ -106,7 +106,9 @@ class AuthControllerTest {
             ResponseEntity<?> response = controller.login(new LoginRequest("unknown", "pass"));
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-            verify(auditLogPort, never()).save(any());
+            // P4-5: неудачная попытка входа аудируется (USER_LOGIN_FAILED)
+            verify(auditLogPort).save(org.mockito.ArgumentMatchers.argThat(
+                    a -> "USER_LOGIN_FAILED".equals(a.getAction())));
         }
 
         @Test
