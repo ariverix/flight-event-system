@@ -3,15 +3,16 @@ services:
     image: postgres:16-alpine
     container_name: eca-postgres
     environment:
-      POSTGRES_DB: eca_db
-      POSTGRES_USER: eca_user
-      POSTGRES_PASSWORD: eca_password
+      # P4-3: значения из окружения/.env (см. .env.example), dev-фоллбэк после ":-"
+      POSTGRES_DB: ${DB_NAME:-eca_db}
+      POSTGRES_USER: ${DB_USERNAME:-eca_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-eca_password}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eca_user -d eca_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,9 +25,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eca_db
-      SPRING_DATASOURCE_USERNAME: eca_user
-      SPRING_DATASOURCE_PASSWORD: eca_password
+      # P4-3: секреты из окружения/.env; в проде задать DB_PASSWORD и JWT_SECRET обязательно
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-eca_db}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-eca_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-eca_password}
+      JWT_SECRET: ${JWT_SECRET:-eca-jwt-secret-key-for-development-minimum-256-bits-long}
     depends_on:
       postgres:
         condition: service_healthy

@@ -3,9 +3,12 @@ spring:
     name: eca-system
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/eca_db
-    username: eca_user
-    password: eca_password
+    # P4-3: секреты вынесены в окружение. Значения после ':' — ТОЛЬКО dev-дефолты для
+    # локального запуска/тестов; в проде ОБЯЗАТЕЛЬНО переопределяются env/secret-manager'ом
+    # (см. docs/security/secrets-management.md).
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/eca_db}
+    username: ${DB_USERNAME:eca_user}
+    password: ${DB_PASSWORD:eca_password}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -59,8 +62,10 @@ management:
     health:
       show-details: always
   info:
+    # P4-3: не публиковать env-производные свойства через /actuator/info (минимизация раскрытия;
+    # сам actuator уже за RBAC SYSTEM_ADMIN, но info.env — лишняя поверхность).
     env:
-      enabled: true
+      enabled: false
 
 info:
   app:
@@ -70,7 +75,10 @@ info:
 
 app:
   jwt:
-    secret: eca-jwt-secret-key-for-development-minimum-256-bits-long
+    # P4-3: dev-дефолт ниже — НЕ для прода. В проде задать JWT_SECRET (≥256 бит) через
+    # env/secret-manager (см. docs/security/secrets-management.md). Утечка этого ключа =
+    # подделка любого access-токена.
+    secret: ${JWT_SECRET:eca-jwt-secret-key-for-development-minimum-256-bits-long}
     # P4-2: короткоживущий access-токен (15 мин) + долгоживущий refresh с ротацией (7 дней)
-    expiration-ms: 900000
-    refresh-expiration-ms: 604800000
+    expiration-ms: ${JWT_EXPIRATION_MS:900000}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
