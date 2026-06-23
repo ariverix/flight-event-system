@@ -69,6 +69,12 @@ public class UserService implements UserLookupPort {
         return userRepository.findByUsername(username).orElse(null);
     }
 
+    /** P4-2: поиск по id (для обновления access-токена при refresh). */
+    @Transactional(readOnly = true)
+    public User findById(Long id) {
+        return userRepository.findById(id).orElse(null);
+    }
+
     /**
      * Проверка пароля пользователя.
      * Используется при аутентификации.

@@ -14,10 +14,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import ru.protectinfotrans.eca.AuditLog;
 import ru.protectinfotrans.eca.user.application.JwtService;
+import ru.protectinfotrans.eca.user.application.InvalidRefreshTokenException;
+import ru.protectinfotrans.eca.user.application.RefreshTokenService;
 import ru.protectinfotrans.eca.user.application.UserService;
 import ru.protectinfotrans.eca.user.domain.User;
 import ru.protectinfotrans.eca.user.dto.LoginRequest;
 import ru.protectinfotrans.eca.user.dto.LoginResponse;
+import ru.protectinfotrans.eca.user.dto.RefreshRequest;
 import ru.protectinfotrans.eca.user.dto.RegisterRequest;
 import ru.protectinfotrans.eca.user.dto.UserResponse;
 
@@ -32,6 +35,7 @@ public class AuthController {
 
     private final UserService userService;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final ru.protectinfotrans.eca.user.port.out.AuditLogPort auditLogPort;
     private final ObjectMapper objectMapper;
 
@@ -61,6 +65,7 @@ public class AuthController {
         }
 
         String token = jwtService.generateToken(user.getUsername(), user.getRole());
+        String refreshToken = refreshTokenService.issue(user.getId());
 
         log.info("Login successful for user: {}, role: {}", user.getUsername(), user.getRole());
 
@@ -73,12 +78,43 @@ public class AuthController {
 
         LoginResponse response = new LoginResponse(
                 token,
+                refreshToken,
                 user.getUsername(),
                 user.getRole(),
                 user.getFullName()
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh tokens",
+               description = "P4-2: обменять refresh-токен на новую пару (access + новый refresh, ротация). "
+                       + "Старый refresh инвалидируется; reuse отозванного → 401 и отзыв всех токенов пользователя.")
+    public ResponseEntity<?> refresh(@Valid @RequestBody RefreshRequest request) {
+        try {
+            RefreshTokenService.Rotation rotation = refreshTokenService.rotate(request.refreshToken());
+            User user = userService.findById(rotation.userId());
+            if (user == null || !user.getEnabled()) {
+                refreshTokenService.revoke(rotation.refreshToken());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "User unavailable"));
+            }
+            String access = jwtService.generateToken(user.getUsername(), user.getRole());
+            return ResponseEntity.ok(new LoginResponse(
+                    access, rotation.refreshToken(), user.getUsername(), user.getRole(), user.getFullName()));
+        } catch (InvalidRefreshTokenException e) {
+            log.warn("Refresh failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid refresh token"));
+        }
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "P4-2: инвалидировать refresh-токен.")
+    public ResponseEntity<?> logout(@Valid @RequestBody RefreshRequest request) {
+        refreshTokenService.revoke(request.refreshToken());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/register")

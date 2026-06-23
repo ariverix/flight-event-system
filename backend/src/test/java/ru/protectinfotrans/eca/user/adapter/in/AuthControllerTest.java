@@ -48,6 +48,9 @@ class AuthControllerTest {
     private JwtService jwtService;
 
     @Mock
+    private ru.protectinfotrans.eca.user.application.RefreshTokenService refreshTokenService;
+
+    @Mock
     private AuditLogPort auditLogPort;
 
     @InjectMocks
@@ -57,7 +60,7 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new AuthController(userService, jwtService, auditLogPort, new ObjectMapper());
+        controller = new AuthController(userService, jwtService, refreshTokenService, auditLogPort, new ObjectMapper());
 
         user = User.builder()
                 .id(1L)

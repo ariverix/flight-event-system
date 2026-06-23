@@ -71,4 +71,6 @@ info:
 app:
   jwt:
     secret: eca-jwt-secret-key-for-development-minimum-256-bits-long
-    expiration-ms: 86400000
+    # P4-2: короткоживущий access-токен (15 мин) + долгоживущий refresh с ротацией (7 дней)
+    expiration-ms: 900000
+    refresh-expiration-ms: 604800000

@@ -40,6 +40,8 @@ public class SecurityConfig {
                 // Роль раскрывается в права в JwtAuthenticationFilter (Role.getPermissions()).
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/login").permitAll()
+                        // P4-2: refresh/logout аутентифицируются самим refresh-токеном (в теле), не access-JWT
+                        .requestMatchers("/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()
                         // внешние ACARS-системы и OOOI-источники не имеют JWT —
                         // это ingestion endpoint, аутентификация на уровне сети/VPN
                         .requestMatchers("/api/v1/messages/**").permitAll()
