@@ -30,7 +30,7 @@ public class ConditionController {
 
     @Operation(summary = "Список активных условий", description = "Все активные (не закрытые) условия по всем бортам/рейсам.")
     @GetMapping
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_CONDITIONS')")
     public List<RaisedConditionResponse> listActive() {
         return conditionQueryUseCase.listAllActive().stream()
                 .map(RaisedConditionResponse::from)

@@ -24,14 +24,14 @@ public class FolderController {
     @Operation(summary = "Создать папку")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_EVENT_HANDLING')")
     public FolderResponse create(@Valid @RequestBody FolderCreateRequest request) {
         return folderUseCase.createFolder(request);
     }
 
     @Operation(summary = "Список папок")
     @GetMapping
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_EVENT_HANDLING')")
     public List<FolderResponse> list() {
         return folderUseCase.listFolders();
     }

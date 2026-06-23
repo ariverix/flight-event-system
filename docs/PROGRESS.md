@@ -57,7 +57,7 @@
 
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
-| P4-1 | RBAC user-rights (роли→права→проверки на эндпоинтах) | security-agent + db-dev | Pending | — |
+| P4-1 | RBAC user-rights (роли→права→проверки на эндпоинтах) | security-agent + db-dev | Done | reviewer PASS (inline-гейт: `mvn verify` BUILD SUCCESS, 782 теста, JaCoCo gate, ModularityTests зелёный). Гранулярные user-rights (`Permission` enum, паритет SITA): VIEW/MANAGE_SEQUENCES, MANAGE_EXECUTIONS, VIEW/MANAGE_TEMPLATES, VIEW/MANAGE_CUSTOM_FIELDS, VIEW_CONDITIONS, MANAGE_EVENT_HANDLING, MANAGE_DLQ, MANAGE_USERS, VIEW_AUDIT_LOG, SYSTEM_ADMIN. Роль раскрывается в права (`Role.getPermissions()`, кодовый маппинг — источник истины; OPERATOR=операционные read+exec/dlq/eventhandling, ADMIN=все). JwtAuthenticationFilter выдаёт ROLE_ + права как authorities (формат JWT не изменён). Все эндпоинты переведены с hasRole/hasAnyRole на hasAuthority('<RIGHT>') — SecurityConfig (path-level read) + 32 @PreAuthorize в 8 контроллерах (method-level write). **Закрыт backlog P0-3**: default-deny `/api/**` → authenticated (раньше цепочка кончалась anyRequest().permitAll() = default-allow). GlobalExceptionHandler: AccessDeniedException → 403 (раньше generic-handler отдавал 500 на method-security отказ). Тесты доступа можно/нельзя (P4_1_RbacScenarioIntTest: operator read OK, operator write/users 403, admin 201/200, unauth 401, default-deny 401). Без миграции (RBAC кодовый). 782 теста. NB: конфигурируемые per-role права в БД — возможный follow-up. |
 | P4-2 | JWT доступа + refresh с ротацией, BCrypt; ADR токенов/крипто | security-agent | Pending | — |
 | P4-3 | Вынос секретов из кода, чистка логов, путь к ГОСТ TLS | security-agent + devops-agent | Pending | — |
 | P4-4 | OWASP Dependency-Check + SAST в CI, фейл на High/Critical | security-agent + devops-agent | Pending | — |
@@ -101,9 +101,9 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 772 зелёных (JaCoCo gate пройден).
-- Последняя миграция: V34 (`folders` + `sequences.folder_id` + `event_handlers` + `notification_deliveries`).
-- **Фазы P1, P2 и P3 завершены** (P3-1..P3-4 все reviewer-PASS). Следующая фаза — P4 (безопасность).
+- Тестов: 782 зелёных (JaCoCo gate пройден).
+- Последняя миграция: V34 (`folders` + `sequences.folder_id` + `event_handlers` + `notification_deliveries`). P4-1 — без миграции (RBAC кодовый).
+- **Фазы P1, P2, P3 завершены.** P4 в работе: P4-1 — Done; осталось P4-2..P4-5.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
 

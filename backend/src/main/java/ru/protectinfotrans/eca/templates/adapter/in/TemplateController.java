@@ -46,7 +46,7 @@ public class TemplateController {
     @ApiResponse(responseCode = "201", description = "Шаблон создан")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_TEMPLATES')")
     public TemplateResponse create(@Valid @RequestBody TemplateCreateRequest request) {
         return templateUseCase.create(request);
     }
@@ -54,7 +54,7 @@ public class TemplateController {
     @Operation(summary = "Список шаблонов",
                description = "Список шаблонов с пагинацией, опциональной фильтрацией по типу/категории/активности")
     @GetMapping
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_TEMPLATES')")
     public PageResponse<TemplateResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -68,7 +68,7 @@ public class TemplateController {
     @ApiResponse(responseCode = "200", description = "Шаблон найден")
     @ApiResponse(responseCode = "404", description = "Шаблон не найден")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_TEMPLATES')")
     public TemplateResponse get(@PathVariable Long id) {
         return templateUseCase.get(id);
     }
@@ -76,7 +76,7 @@ public class TemplateController {
     @Operation(summary = "Получить шаблон по имени",
                description = "Используется для предпросмотра/проверки шаблона, на который ссылается ACTION-шаг или критерий")
     @GetMapping("/by-name/{name}")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_TEMPLATES')")
     public TemplateResponse getByName(@PathVariable String name) {
         return templateUseCase.getByName(name);
     }
@@ -84,7 +84,7 @@ public class TemplateController {
     @Operation(summary = "Обновить шаблон",
                description = "Обновляет тело/категорию/origin/активность. Имя неизменяемо.")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_TEMPLATES')")
     public TemplateResponse update(@PathVariable Long id, @Valid @RequestBody TemplateUpdateRequest request) {
         return templateUseCase.update(id, request);
     }
@@ -93,7 +93,7 @@ public class TemplateController {
     @ApiResponse(responseCode = "204", description = "Шаблон удалён")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_TEMPLATES')")
     public void delete(@PathVariable Long id) {
         templateUseCase.delete(id);
     }
@@ -101,7 +101,7 @@ public class TemplateController {
     @Operation(summary = "Пробный рендеринг шаблона",
                description = "Подставляет переданные переменные в тело шаблона — предпросмотр в UI перед сохранением ACTION-шага")
     @PostMapping("/render")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_TEMPLATES')")
     public TemplateRenderResponse render(@Valid @RequestBody TemplateRenderRequest request) {
         String rendered = renderUseCase.render(request.templateName(), request.variables());
         return new TemplateRenderResponse(request.templateName(), rendered);

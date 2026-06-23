@@ -21,7 +21,7 @@ public class ExecutionController {
 
     @Operation(summary = "Список экземпляров выполнения", description = "Получить список всех экземпляров с фильтрацией по статусу, ВС и последовательности")
     @GetMapping
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_EXECUTIONS')")
     public ResponseEntity<PageResponse<ExecutionInstanceResponse>> listExecutions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -37,7 +37,7 @@ public class ExecutionController {
 
     @Operation(summary = "Детали экземпляра", description = "Получить полную информацию об экземпляре выполнения включая историю шагов")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_EXECUTIONS')")
     public ResponseEntity<ExecutionInstanceResponse> getExecution(@PathVariable Long id) {
         ExecutionInstanceResponse result = executionManagement.getExecution(id);
         return ResponseEntity.ok(result);

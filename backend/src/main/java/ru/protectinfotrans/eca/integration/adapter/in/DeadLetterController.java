@@ -24,7 +24,7 @@ import ru.protectinfotrans.eca.integration.dto.DeadLetterReprocessResponse;
  * это не приём от внешней ACARS-машины (которая физически не умеет в JWT, см. CLAUDE.md
  * "Жёсткие правила" — открытый только сам ingestion-путь), а АДМИНСКАЯ операция оператора над
  * уже принятыми (и сбойными) сообщениями — защищена так же, как {@code /api/v1/executions/**}
- * и {@code /api/v1/sequences/**} ({@code hasAnyRole('OPERATOR', 'ADMIN')} в
+ * и {@code /api/v1/sequences/**} ({@code hasAuthority('MANAGE_DLQ')} в
  * {@code SecurityConfig}, методно через {@code @PreAuthorize} здесь — тот же стиль, что
  * {@code ExecutionController}).
  */
@@ -32,7 +32,7 @@ import ru.protectinfotrans.eca.integration.dto.DeadLetterReprocessResponse;
 @RestController
 @RequestMapping("/api/v1/dlq")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+@PreAuthorize("hasAuthority('MANAGE_DLQ')")
 public class DeadLetterController {
 
     private final DeadLetterQueueService deadLetterQueueService;

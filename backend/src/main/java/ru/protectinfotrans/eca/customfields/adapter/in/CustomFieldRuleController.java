@@ -43,14 +43,14 @@ public class CustomFieldRuleController {
     @ApiResponse(responseCode = "201", description = "Правило создано")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_CUSTOM_FIELDS')")
     public CustomFieldRuleResponse create(@Valid @RequestBody CustomFieldRuleCreateRequest request) {
         return ruleUseCase.create(request);
     }
 
     @Operation(summary = "Список правил", description = "Список правил с пагинацией, опциональной фильтрацией по типу сообщения/активности")
     @GetMapping
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_CUSTOM_FIELDS')")
     public PageResponse<CustomFieldRuleResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -63,14 +63,14 @@ public class CustomFieldRuleController {
     @ApiResponse(responseCode = "200", description = "Правило найдено")
     @ApiResponse(responseCode = "404", description = "Правило не найдено")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_CUSTOM_FIELDS')")
     public CustomFieldRuleResponse get(@PathVariable Long id) {
         return ruleUseCase.get(id);
     }
 
     @Operation(summary = "Обновить правило", description = "Обновляет описание/тип сообщения/шаблон/паттерн/активность. Имя неизменяемо.")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_CUSTOM_FIELDS')")
     public CustomFieldRuleResponse update(@PathVariable Long id, @Valid @RequestBody CustomFieldRuleUpdateRequest request) {
         return ruleUseCase.update(id, request);
     }
@@ -79,7 +79,7 @@ public class CustomFieldRuleController {
     @ApiResponse(responseCode = "204", description = "Правило удалено")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_CUSTOM_FIELDS')")
     public void delete(@PathVariable Long id) {
         ruleUseCase.delete(id);
     }

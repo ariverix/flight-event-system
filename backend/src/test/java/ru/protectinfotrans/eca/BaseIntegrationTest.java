@@ -128,4 +128,24 @@ public abstract class BaseIntegrationTest {
             throw new IllegalStateException("Expected 2xx but got: " + response.getStatusCode());
         }
     }
+
+    /**
+     * P4-1: JWT-токен для свежесозданного пользователя с ролью OPERATOR. Регистрирует оператора
+     * через admin-эндпоинт (требует право MANAGE_USERS) и логинит его. Схема пересоздаётся перед
+     * каждым тестом, поэтому пользователь создаётся заново; повторная регистрация в одном тесте не
+     * нужна.
+     */
+    protected String getOperatorToken() {
+        String adminToken = getAdminToken();
+        var register = new ru.protectinfotrans.eca.user.dto.RegisterRequest(
+                "op_test", "op_password", "Оператор Тест", ru.protectinfotrans.eca.user.domain.Role.OPERATOR);
+        HttpHeaders headers = authHeaders(adminToken);
+        restTemplate.postForEntity("/api/v1/auth/register", new HttpEntity<>(register, headers), String.class);
+
+        LoginRequest login = new LoginRequest("op_test", "op_password");
+        ResponseEntity<LoginResponse> response = restTemplate.postForEntity(
+                "/api/v1/auth/login", login, LoginResponse.class);
+        assertOk(response);
+        return response.getBody().token();
+    }
 }

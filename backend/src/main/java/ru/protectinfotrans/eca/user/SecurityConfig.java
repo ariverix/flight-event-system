@@ -36,6 +36,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // P4-1: авторизация по гранулярным user-rights (authorities), а не по роли.
+                // Роль раскрывается в права в JwtAuthenticationFilter (Role.getPermissions()).
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/login").permitAll()
                         // внешние ACARS-системы и OOOI-источники не имеют JWT —
@@ -44,30 +46,29 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/flights/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers("/api/v1/auth/register").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/audit-log/**").hasRole("ADMIN")
-                        .requestMatchers("/actuator/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/sequences/**").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/executions/**").hasAnyRole("OPERATOR", "ADMIN")
-                        // P2-6: DLQ — админская операция оператора над сбойными входящими (ручной
-                        // reprocess/discard), НЕ открытый ingestion-путь (тот остаётся /messages/**)
-                        .requestMatchers("/api/v1/dlq/**").hasAnyRole("OPERATOR", "ADMIN")
-                        // P3-1: CRUD шаблонов сообщений — админ/оператор операция, НЕ открытый
-                        // эндпоинт (явное правило ДО catch-all anyRequest().permitAll() ниже)
-                        .requestMatchers("/api/v1/templates/**").hasAnyRole("OPERATOR", "ADMIN")
-                        // P3-2: CRUD правил извлечения custom fields — тот же принцип, что у
-                        // /api/v1/templates/** выше (явное правило ДО catch-all)
-                        .requestMatchers("/api/v1/custom-field-rules/**").hasAnyRole("OPERATOR", "ADMIN")
-                        // P3-3: обзор активных custom conditions — тот же принцип, что у
-                        // /api/v1/custom-field-rules/** выше (явное правило ДО catch-all)
-                        .requestMatchers("/api/v1/conditions/**").hasAnyRole("OPERATOR", "ADMIN")
-                        // P3-4: папки и обработчики событий (event handling) — админ/оператор,
-                        // тот же принцип явного правила ДО catch-all
-                        .requestMatchers("/api/v1/folders/**").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/event-handlers/**").hasAnyRole("OPERATOR", "ADMIN")
+                        .requestMatchers("/api/v1/auth/register").hasAuthority("MANAGE_USERS")
+                        .requestMatchers("/api/v1/users/**").hasAuthority("MANAGE_USERS")
+                        .requestMatchers("/api/v1/audit-log/**").hasAuthority("VIEW_AUDIT_LOG")
+                        .requestMatchers("/actuator/**").hasAuthority("SYSTEM_ADMIN")
+                        // путь требует право чтения; запись (POST/PUT/DELETE) дополнительно гейтится
+                        // @PreAuthorize('MANAGE_SEQUENCES') на методах контроллера
+                        .requestMatchers("/api/v1/sequences/**").hasAuthority("VIEW_SEQUENCES")
+                        .requestMatchers("/api/v1/executions/**").hasAuthority("MANAGE_EXECUTIONS")
+                        // P2-6: DLQ — ручной reprocess/discard сбойных входящих, НЕ открытый
+                        // ingestion-путь (тот остаётся /messages/**)
+                        .requestMatchers("/api/v1/dlq/**").hasAuthority("MANAGE_DLQ")
+                        // путь — право чтения; запись дополнительно гейтится @PreAuthorize MANAGE_* на методах
+                        .requestMatchers("/api/v1/templates/**").hasAuthority("VIEW_TEMPLATES")
+                        .requestMatchers("/api/v1/custom-field-rules/**").hasAuthority("VIEW_CUSTOM_FIELDS")
+                        .requestMatchers("/api/v1/conditions/**").hasAuthority("VIEW_CONDITIONS")
+                        .requestMatchers("/api/v1/folders/**").hasAuthority("MANAGE_EVENT_HANDLING")
+                        .requestMatchers("/api/v1/event-handlers/**").hasAuthority("MANAGE_EVENT_HANDLING")
                         .requestMatchers("/api/v1/auth/me").authenticated()
-                        // статика и SPA — без защиты, закрываем только /api/**
+                        // P4-1 (закрытие backlog P0-3): default-DENY для всех прочих /api/** —
+                        // будущий контроллер без явного matcher НЕ окажется открытым (раньше
+                        // цепочка заканчивалась anyRequest().permitAll() = default-allow).
+                        .requestMatchers("/api/**").authenticated()
+                        // статика и SPA — без защиты (это уже не /api/**)
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))

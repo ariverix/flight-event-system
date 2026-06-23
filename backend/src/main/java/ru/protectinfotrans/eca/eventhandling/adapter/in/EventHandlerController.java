@@ -25,14 +25,14 @@ public class EventHandlerController {
     @Operation(summary = "Создать обработчик событий")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_EVENT_HANDLING')")
     public EventHandlerResponse create(@Valid @RequestBody EventHandlerCreateRequest request) {
         return handlerUseCase.createHandler(request);
     }
 
     @Operation(summary = "Список обработчиков уровня", description = "По scope (FOLDER|SEQUENCE) и scopeId.")
     @GetMapping
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_EVENT_HANDLING')")
     public List<EventHandlerResponse> list(@RequestParam HandlerScope scope, @RequestParam Long scopeId) {
         return handlerUseCase.listHandlers(scope, scopeId);
     }
@@ -40,7 +40,7 @@ public class EventHandlerController {
     @Operation(summary = "Удалить обработчик событий")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_EVENT_HANDLING')")
     public void delete(@PathVariable Long id) {
         handlerUseCase.deleteHandler(id);
     }

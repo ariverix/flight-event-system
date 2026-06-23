@@ -30,7 +30,7 @@ public class SequenceController {
     @ApiResponse(responseCode = "201", description = "Последовательность создана")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public SequenceResponse create(@Valid @RequestBody SequenceCreateRequest request, Authentication auth) {
         return sequenceUseCase.createSequence(request, resolveUserId(auth));
     }
@@ -57,7 +57,7 @@ public class SequenceController {
     @Operation(summary = "Обновить последовательность",
                description = "UC-01: Обновить название, описание и критерии (только DRAFT)")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public SequenceResponse update(@PathVariable Long id,
                                    @Valid @RequestBody SequenceUpdateRequest request,
                                    Authentication auth) {
@@ -69,7 +69,7 @@ public class SequenceController {
     @ApiResponse(responseCode = "204", description = "Последовательность удалена")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public void delete(@PathVariable Long id, Authentication auth) {
         sequenceUseCase.deleteSequence(id, resolveUserId(auth));
     }
@@ -77,7 +77,7 @@ public class SequenceController {
     @Operation(summary = "Активировать последовательность",
                description = "UC-04: Перевести в статус ACTIVE — начинает обрабатывать события")
     @PostMapping("/{id}/activate")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public SequenceResponse activate(@PathVariable Long id, Authentication auth) {
         return sequenceUseCase.activateSequence(id, resolveUserId(auth));
     }
@@ -85,7 +85,7 @@ public class SequenceController {
     @Operation(summary = "Деактивировать последовательность",
                description = "UC-04: Перевести из ACTIVE обратно в DRAFT")
     @PostMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public SequenceResponse deactivate(@PathVariable Long id, Authentication auth) {
         return sequenceUseCase.deactivateSequence(id, resolveUserId(auth));
     }
@@ -94,7 +94,7 @@ public class SequenceController {
                description = "P3-4: организация по папкам для наследования event-handling-конфигурации. "
                        + "folderId == null снимает последовательность из папки.")
     @PutMapping("/{id}/folder")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public SequenceResponse assignFolder(@PathVariable Long id,
                                          @RequestParam(required = false) Long folderId,
                                          Authentication auth) {
@@ -106,7 +106,7 @@ public class SequenceController {
     @ApiResponse(responseCode = "201", description = "Шаг добавлен")
     @PostMapping("/{id}/steps")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public StepResponse addStep(@PathVariable Long id,
                                 @Valid @RequestBody StepCreateRequest request,
                                 Authentication auth) {
@@ -116,7 +116,7 @@ public class SequenceController {
     @Operation(summary = "Обновить шаг", tags = {"Steps"},
                description = "UC-02/UC-03: Обновить параметры шага и настроить переходы (CONTINUE/GOTO/END/ABORT)")
     @PutMapping("/{id}/steps/{stepId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public StepResponse updateStep(@PathVariable Long id,
                                    @PathVariable Long stepId,
                                    @Valid @RequestBody StepUpdateRequest request,
@@ -129,7 +129,7 @@ public class SequenceController {
     @ApiResponse(responseCode = "204", description = "Шаг удалён")
     @DeleteMapping("/{id}/steps/{stepId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public void deleteStep(@PathVariable Long id, @PathVariable Long stepId, Authentication auth) {
         sequenceUseCase.deleteStep(id, stepId, resolveUserId(auth));
     }
@@ -137,7 +137,7 @@ public class SequenceController {
     @Operation(summary = "Изменить порядок шагов", tags = {"Steps"},
                description = "UC-02: Переупорядочить шаги по списку ID")
     @PutMapping("/{id}/steps/reorder")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MANAGE_SEQUENCES')")
     public List<StepResponse> reorderSteps(@PathVariable Long id,
                                            @RequestBody List<Long> stepIds,
                                            Authentication auth) {

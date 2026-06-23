@@ -53,9 +53,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Role role = jwtService.extractRole(token);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                List<SimpleGrantedAuthority> authorities = List.of(
-                        new SimpleGrantedAuthority("ROLE_" + role.name())
-                );
+                // P4-1: роль раскрывается в гранулярные user-rights (authorities). Эндпоинты
+                // проверяют право (hasAuthority('MANAGE_SEQUENCES')), а ROLE_ оставляем для
+                // обратной совместимости/диагностики. Формат JWT не меняется (claim role).
+                List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>();
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
+                role.getPermissions().forEach(p -> authorities.add(new SimpleGrantedAuthority(p.name())));
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         username,

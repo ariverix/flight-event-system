@@ -3,6 +3,7 @@ package ru.protectinfotrans.eca;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -45,6 +46,18 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .toList());
         return problem;
+    }
+
+    /**
+     * P4-1: отказ method-security (@PreAuthorize) бросает AccessDeniedException ВНУТРИ обработчика
+     * MVC, поэтому его перехватывает этот @RestControllerAdvice раньше, чем ExceptionTranslationFilter
+     * успел бы вернуть 403 — без явного маппинга generic-handler ниже отдавал бы 500. Возвращаем 403.
+     * (Path-level отказы SecurityConfig сюда не доходят — их обрабатывает фильтр.)
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Доступ запрещён: {}", ex.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Access denied");
     }
 
     @ExceptionHandler(Exception.class)

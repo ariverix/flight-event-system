@@ -89,7 +89,10 @@ class JwtAuthenticationFilterTest {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         assertThat(auth).isNotNull();
         assertThat(auth.getName()).isEqualTo("operator1");
-        assertThat(auth.getAuthorities()).extracting("authority").containsExactly("ROLE_OPERATOR");
+        // P4-1: роль раскрывается в ROLE_ + гранулярные user-rights (authorities)
+        assertThat(auth.getAuthorities()).extracting("authority")
+                .contains("ROLE_OPERATOR", "VIEW_SEQUENCES", "MANAGE_EXECUTIONS")
+                .doesNotContain("MANAGE_SEQUENCES", "MANAGE_USERS");
         verify(filterChain).doFilter(request, response);
     }
 
@@ -104,7 +107,9 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        assertThat(auth.getAuthorities()).extracting("authority").containsExactly("ROLE_ADMIN");
+        // P4-1: ADMIN раскрывается в ROLE_ADMIN + ВСЕ user-rights
+        assertThat(auth.getAuthorities()).extracting("authority")
+                .contains("ROLE_ADMIN", "MANAGE_SEQUENCES", "MANAGE_USERS", "SYSTEM_ADMIN");
     }
 
     @Test
