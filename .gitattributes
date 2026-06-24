@@ -1,0 +1,10 @@
+# Normalize line endings to avoid cross-platform breakage.
+# The Maven wrapper and shell scripts run on Linux CI runners and MUST use LF —
+# CRLF makes `bash mvnw` fail with `$'\r': command not found` (see CI fix).
+mvnw            text eol=lf
+*.sh            text eol=lf
+
+# Windows scripts keep CRLF.
+mvnw.cmd        text eol=crlf
+*.cmd           text eol=crlf
+*.bat           text eol=crlf
