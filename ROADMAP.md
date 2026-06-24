@@ -1,0 +1,87 @@
+# ROADMAP — путь к промышленному внедрению
+
+Цель: довести flight-event-system до **полноценной промышленной замены SITA AIRCOM Sequencer** — паритет по функциям + промышленная надёжность, безопасность, масштаб, эксплуатация и приёмка заказчиком.
+
+Фазы идут по порядку. Внутри фазы `tech-lead` бьёт эпики на задачи, каждую делает профильный агент по TDD, `reviewer` — гейт. Каждая задача = вертикальный срез. Гоняем по одной (см. `RUN_PLAN.md`).
+
+---
+
+## P0 — Фундамент и гард-рейлы (без новых фич)
+**Цель:** инфраструктура качества, чтобы дальше строить безопасно.
+- CI/CD каркас (GitHub Actions): build+test+coverage gate ≥85%+Modulith-verify. — `devops-agent`
+- Тест границ модулей `ApplicationModules.verify()` в CI. — `architect`
+- OpenAPI (springdoc) + Swagger UI на текущем API. — `docs-agent`
+- Каркас аудита и структурных логов, correlationId. — `observability-agent`
+- Процесс ADR (`docs/adr/`), первый ADR: модульный монолит vs микросервисы. — `architect`
+- Threat model + чек-лист ФСТЭК (черновик), license report в CI. — `security-agent`+`compliance-agent`
+- `docs/PROGRESS.md` ledger. — `tech-lead`
+**Приёмка:** зелёный пайплайн, гейты включены, базовые доки есть.
+
+## P1 — Промышленное ядро движка
+**Цель:** движок ECA уровня прод, паритет семантики + надёжность.
+- Полный паритет 3 типов шагов и 6 типов критериев с AND/OR. — `sequence-engine-dev`
+- Решения CONTINUE/GOTO/END/ABORT + Notify; start/stop с непрерывной оценкой. — `sequence-engine-dev`
+- Персистентный стейт инстанса (`sequence_instance`) + resume после рестарта. — `sequence-engine-dev`+`db-dev`
+- Durable-планировщик WAIT/таймаутов (БД-backed). — `sequence-engine-dev`
+- Конкурентность: тысячи инстансов, оптимистические блокировки, без гонок. — `sequence-engine-dev`
+- Transactional Outbox (`event_publication`), идемпотентный приём событий. — `architect`+`sequence-engine-dev`
+- Event Log класса Tracking на завершение шагов. — `observability-agent`
+**Приёмка:** сценарные тесты всех типов шагов/критериев зелёные; тест resume-после-рестарта зелёный.
+
+## P2 — Интеграция ACARS и обмен сообщениями
+**Цель:** реальный промышленный обмен «борт-земля».
+- Входящий шлюз ACARS → событие `MessageReceived`, идемпотентность. — `integration-dev`
+- Исходящий шлюз uplink/ground по команде движка. — `integration-dev`
+- Парсеры ARINC 620/618 / Type B / AFTN. — `integration-dev`
+- Разбор позывных + таблица соответствия (`callsign_matching`). — `integration-dev`+`db-dev`
+- Источники позиций ACARS/ADS-B/radar; оценочные игнорируются. — `integration-dev`
+- DLQ + reprocess, ретраи/backoff, circuit breaker. — `integration-dev`
+**Приёмка:** e2e «сообщение → событие → реакция движка → исходящее»; сценарий DLQ; нагрузочный замер throughput.
+
+## P3 — Шаблоны, custom fields, условия/алерты, уведомления
+- Движок шаблонов (uplink/downlink/ground, computer-generated|external-user). — `templates-dev`
+- Движок custom fields (извлечение из входящих, переиспользование). — `templates-dev`
+- Условия/алерты + уровни + авто-закрытие при завершении рейса. — `alerts-dev`
+- Event Handling (folder/sequence) + Notify-каналы (email/webhook). — `alerts-dev`
+**Приёмка:** тесты рендеринга/извлечения; авто-закрытие условий; доставка уведомлений идемпотентна.
+
+## P4 — Безопасность и эксплуатация прав
+- RBAC user-rights (Manage sequences, edit Aircraft, …). — `security-agent`
+- JWT+refresh, ротация/инвалидизация, BCrypt; ADR по крипто/токенам. — `security-agent`
+- Секреты вне кода; путь к ГОСТ TLS. — `security-agent`+`devops-agent`
+- OWASP dependency-check + SAST в CI (фейл на High/Critical). — `security-agent`
+- Полный audit_log действий пользователя. — `security-agent`+`db-dev`
+**Приёмка:** тесты доступа можно/нельзя; сканы зелёные; аудит пишется.
+
+## P5 — Наблюдаемость и надёжность
+- Метрики Prometheus (бизнес+техн) + дашборды Grafana + алерт-правила. — `observability-agent`
+- Трассировка OpenTelemetry сквозная. — `observability-agent`
+- Health liveness/readiness/startup, учитывающие БД/каналы. — `observability-agent`
+- Бэкап/восстановление БД (PITR), тест восстановления. — `db-dev`+`devops-agent`
+- Chaos/failover тесты (падение канала, отказ реплики). — `test-engineer`
+**Приёмка:** дашборды/SLO как код; тест восстановления и failover зелёные.
+
+## P6 — Масштаб и производительность
+- HA: несколько реплик backend; leader election планировщика (single-fire в кластере). — `devops-agent`
+- Горизонтальное масштабирование, requests/limits, автоскейл. — `devops-agent`
+- Партиционирование/retention больших таблиц (event log, messages, audit). — `db-dev`
+- Нагрузочное тестирование до целевых чисел, профилирование, тюнинг. — `test-engineer`+`perf` (через `bug-fixer`/`sequence-engine-dev`)
+**Приёмка:** подтверждённый single-fire в 2+ репликах; нагрузочный отчёт с p95/p99 и целевым throughput.
+
+## P7 — Промышленный UX фронтенда
+- Каркас FE: структура, стор, API-клиент из OpenAPI, WebSocket-слой. — `frontend-architect`
+- Редактор React Flow: ноды шагов, рёбра-решения, drag-n-drop с авто-GOTO, панель start/stop. — `ui-agent`
+- Формы всех типов шагов/критериев с валидацией (нельзя собрать невалидное). — `ui-agent`
+- Реал-тайм статусы инстансов + Event Log + таймлайн истории. — `ui-agent`
+- i18n RU/EN, роль-зависимый UI, a11y, скелетоны/анимации. — `frontend-architect`+`ui-agent`
+**Приёмка:** редактор собирает все сценарии паритета; реал-тайм работает; i18n полный.
+
+## P8 — Упаковка, деплой, документация, соответствие
+- Kubernetes/Helm чарты, blue-green/rolling, миграции при деплое. — `devops-agent`
+- Руководство администратора (RU) по образцу SITA ASP + ранбуки эксплуатации. — `docs-agent`
+- Матрица паритета SITA→наше→тест (UAT), license report, материалы для Реестра российского ПО. — `compliance-agent`
+- Приёмочный прогон по матрице паритета. — `tech-lead`+`compliance-agent`
+**Приёмка:** деплой в k8s проходит; матрица паритета закрыта; пакет документов для заказчика готов.
+
+---
+**Глобальный Definition of Done фазы:** все эпики закрыты по DoD задач, пайплайн зелёный, доки/матрица обновлены, нет открытых High/Critical по безопасности.
