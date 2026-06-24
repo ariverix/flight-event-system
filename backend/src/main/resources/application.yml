@@ -57,7 +57,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        # P5-1: + prometheus (scrape-эндпоинт). /actuator/** за RBAC SYSTEM_ADMIN (P4-1),
+        # /actuator/health открыт (см. SecurityConfig).
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: eca-system
+    distribution:
+      # P5-1: гистограммы перцентилей для таймеров латентности обработки (p95/p99 в Prometheus).
+      percentiles-histogram:
+        eca.execution.event.duration: true
+      percentiles:
+        eca.execution.event.duration: 0.95, 0.99
   endpoint:
     health:
       show-details: always

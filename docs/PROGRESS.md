@@ -67,7 +67,7 @@
 
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
-| P5-1 | Метрики Micrometer→Prometheus (инстансы, msg/s, ошибки, DLQ, латентность, БД, JVM) | observability-agent | Pending | — |
+| P5-1 | Метрики Micrometer→Prometheus (инстансы, msg/s, ошибки, DLQ, латентность, БД, JVM) | observability-agent | Done | reviewer PASS (inline-гейт: `mvn verify` BUILD SUCCESS, JaCoCo gate, Modulith зелёные; фича проверена на реальном app — `/actuator/prometheus` HTTP 200 со всеми метриками). Добавлен `micrometer-registry-prometheus` → эндпоинт `/actuator/prometheus` (exposure + за RBAC SYSTEM_ADMIN P4-1). Новые бизнес-метрики поверх существующих (conditions/notifications/dlq/outbound): `eca.execution.instances.active` (gauge активных RUNNING/WAITING — countActive), `eca.execution.wait_timeout.fired` (counter сработавших таймаутов, только при успешном claim), `eca.execution.event.duration` (timer латентности обработки, p95/p99 через гистограмму), `eca.messages.parsed`/`eca.messages.parse_errors` (throughput msg/s + ошибки парсинга), `eca.integration.dlq.size` (gauge размера DLQ = NEW). Технические — JVM и пул БД (Hikari) — автопривязка Micrometer. Тест P5_1 (`@AutoConfigureObservability` — @SpringBootTest по умолчанию глушит экспорт метрик). Починен ExecutionServiceTest (mock ExecutionMetrics + реальный Timer). Без миграции. |
 | P5-2 | Трассировка OpenTelemetry сквозная с корреляцией борт/рейс/инстанс | observability-agent | Pending | — |
 | P5-3 | Health liveness/readiness/startup + дашборды Grafana + SLO как код | observability-agent | Pending | — |
 | P5-4 | Бэкап/восстановление БД + chaos/failover тесты | db-dev + devops-agent + test-engineer | Pending | — |
@@ -101,9 +101,9 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 794 зелёных (JaCoCo gate пройден).
-- Последняя миграция: V35 (`refresh_tokens`). P4-4/P4-5 — без миграции.
-- **Фазы P1, P2, P3, P4 завершены** (P4-1..P4-5 все reviewer-PASS). Следующая фаза — P5 (наблюдаемость и надёжность).
+- Тестов: 796 зелёных (JaCoCo gate пройден).
+- Последняя миграция: V35 (`refresh_tokens`). P4-4/P4-5/P5-1 — без миграции.
+- **Фазы P1–P4 завершены.** P5 в работе: P5-1 — Done; осталось P5-2..P5-4.
 
 ## Backlog / follow-up (отложенные, зафиксированы при ревью)
 

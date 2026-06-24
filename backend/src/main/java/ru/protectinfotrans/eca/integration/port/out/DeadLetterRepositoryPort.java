@@ -40,4 +40,7 @@ public interface DeadLetterRepositoryPort {
 
     /** Ручное решение оператора — сообщение не нужно, дальнейший reprocess не предполагается. */
     void markDiscarded(Long id);
+
+    /** P5-1: число DLQ-записей в заданном статусе — для gauge размера DLQ (NEW = ждут оператора). */
+    long countByStatus(DeadLetterStatus status);
 }

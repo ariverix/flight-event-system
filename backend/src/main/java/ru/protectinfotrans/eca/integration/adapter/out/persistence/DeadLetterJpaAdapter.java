@@ -52,6 +52,11 @@ public class DeadLetterJpaAdapter implements DeadLetterRepositoryPort {
     }
 
     @Override
+    public long countByStatus(DeadLetterStatus status) {
+        return jpaRepository.countByStatus(status);
+    }
+
+    @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markReprocessed(Long id, Long reprocessedMessageId, LocalDateTime attemptAt) {
         jpaRepository.markReprocessed(id, reprocessedMessageId, attemptAt);

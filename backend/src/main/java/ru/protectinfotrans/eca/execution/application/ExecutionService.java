@@ -95,6 +95,7 @@ public class ExecutionService {
     private final TrackingEventLogPort trackingEventLogPort;
     private final FlightStageEventRepositoryPort flightStageEventRepository;
     private final CustomFieldQueryUseCase customFieldQueryUseCase;
+    private final ExecutionMetrics executionMetrics;
 
     /**
      * P1-5: self-инъекция через {@code ObjectProvider}, а не прямое поле {@code ExecutionService},
@@ -144,9 +145,12 @@ public class ExecutionService {
         log.info("Processing event: messageId={}, aircraftId={}, type={}, template={}",
                 event.messageId(), event.aircraftId(), event.messageType(), event.templateName());
 
-        checkStartCriteria(event);
-        checkStopCriteria(event);
-        processWaitingInstances(event);
+        // P5-1: латентность обработки события движком (p95/p99 в Prometheus).
+        executionMetrics.eventProcessingTimer().record(() -> {
+            checkStartCriteria(event);
+            checkStopCriteria(event);
+            processWaitingInstances(event);
+        });
     }
 
     /**
@@ -850,6 +854,8 @@ public class ExecutionService {
                     instanceId);
             return;
         }
+        // P5-1: сработавший WAIT-таймаут — считаем только после успешного single-fire claim.
+        executionMetrics.recordWaitTimeoutFired();
 
         ExecutionInstance instance = executionRepository.findById(instanceId).orElse(null);
         if (instance == null) {

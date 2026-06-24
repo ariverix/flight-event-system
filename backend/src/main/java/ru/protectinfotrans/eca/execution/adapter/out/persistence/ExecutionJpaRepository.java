@@ -90,6 +90,10 @@ public interface ExecutionJpaRepository extends JpaRepository<ExecutionInstance,
     @Query("SELECT e FROM ExecutionInstance e WHERE e.status IN ('RUNNING', 'WAITING')")
     List<ExecutionInstance> findAllActive();
 
+    /** P5-1: число активных (RUNNING/WAITING) инстансов — для gauge eca.execution.instances.active. */
+    @Query("SELECT COUNT(e) FROM ExecutionInstance e WHERE e.status IN ('RUNNING', 'WAITING')")
+    long countActive();
+
     /**
      * Универсальный поиск с фильтрацией.
      */

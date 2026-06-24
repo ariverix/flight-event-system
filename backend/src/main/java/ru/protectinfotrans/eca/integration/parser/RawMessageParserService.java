@@ -1,5 +1,7 @@
 package ru.protectinfotrans.eca.integration.parser;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -21,10 +23,15 @@ import java.util.stream.Collectors;
 public class RawMessageParserService {
 
     private final Map<RawMessageFormat, MessageParser> parsersByFormat;
+    private final Counter parsedCounter;
+    private final Counter parseErrorsCounter;
 
-    public RawMessageParserService(List<MessageParser> parsers) {
+    public RawMessageParserService(List<MessageParser> parsers, MeterRegistry meterRegistry) {
         this.parsersByFormat = parsers.stream()
                 .collect(Collectors.toUnmodifiableMap(MessageParser::supportedFormat, Function.identity()));
+        // P5-1: throughput входящего разбора (rate = msg/s) и счётчик ошибок парсинга.
+        this.parsedCounter = meterRegistry.counter("eca.messages.parsed");
+        this.parseErrorsCounter = meterRegistry.counter("eca.messages.parse_errors");
     }
 
     /**
@@ -48,10 +55,12 @@ public class RawMessageParserService {
 
         try {
             ParsedMessage parsed = parser.parse(rawMessage);
+            parsedCounter.increment();
             log.info("Raw message parsed: format={}, aircraft={}, flight={}, template={}",
                     format, parsed.aircraftId(), parsed.flightNumber(), parsed.templateName());
             return parsed;
         } catch (MessageParsingException parsingFailed) {
+            parseErrorsCounter.increment();
             // НЕ теряем сообщение молча — лог на уровне ERROR с сырым телом (задел под DLQ, P2-6:
             // тут точка, где сырое сообщение + причина сбоя должны попасть в dead-letter очередь
             // для ручного reprocess, вместо отказа без следа).

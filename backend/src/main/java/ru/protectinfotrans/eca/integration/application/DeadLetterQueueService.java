@@ -91,6 +91,10 @@ public class DeadLetterQueueService {
         this.reprocessedCounter = meterRegistry.counter("eca.integration.dlq.reprocessed");
         this.reprocessFailedCounter = meterRegistry.counter("eca.integration.dlq.reprocess.failed");
         this.discardedCounter = meterRegistry.counter("eca.integration.dlq.discarded");
+        // P5-1: текущий размер DLQ (записи в статусе NEW — ждут решения оператора). Опрашивается
+        // на каждый scrape через countByStatus (индексируется, нечастый запрос).
+        meterRegistry.gauge("eca.integration.dlq.size", repository,
+                repo -> (double) repo.countByStatus(DeadLetterStatus.NEW));
     }
 
     /**

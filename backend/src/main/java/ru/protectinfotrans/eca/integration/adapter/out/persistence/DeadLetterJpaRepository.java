@@ -15,6 +15,8 @@ public interface DeadLetterJpaRepository extends JpaRepository<DeadLetterMessage
 
     Page<DeadLetterMessage> findByStatus(DeadLetterStatus status, Pageable pageable);
 
+    long countByStatus(DeadLetterStatus status);
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE DeadLetterMessage d SET d.status = 'REPROCESSED', d.reprocessedMessageId = :messageId, "
             + "d.lastAttemptAt = :attemptAt WHERE d.id = :id")

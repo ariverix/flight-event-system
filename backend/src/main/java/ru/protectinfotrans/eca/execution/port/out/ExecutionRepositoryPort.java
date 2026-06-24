@@ -64,6 +64,9 @@ public interface ExecutionRepositoryPort {
      */
     List<ExecutionInstance> findAllActive();
 
+    /** P5-1: число активных (RUNNING/WAITING) инстансов — для gauge активных последовательностей. */
+    long countActive();
+
     /**
      * P1-7 (часть 2b, ADR-0002): дедуп-проверка перед {@code startExecution} — существует ли
      * уже {@code ExecutionInstance} с тем же {@code (sequenceId, aircraftId, flightNumber,

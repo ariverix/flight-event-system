@@ -104,6 +104,11 @@ class ExecutionServiceTest {
     @Mock
     private CustomFieldQueryUseCase customFieldQueryUseCase;
 
+    // P5-1: метрики движка. eventProcessingTimer() должен возвращать НАСТОЯЩИЙ Timer, чтобы
+    // record(Runnable) реально выполнял тело processEvent (мок-таймер не выполнил бы лямбду).
+    @Mock
+    private ExecutionMetrics executionMetrics;
+
     @InjectMocks
     private ExecutionService service;
 
@@ -119,6 +124,8 @@ class ExecutionServiceTest {
                 .thenReturn(Optional.empty());
         lenient().when(customFieldQueryUseCase.getActiveValues(anyString(), anyString()))
                 .thenReturn(java.util.Map.of());
+        lenient().when(executionMetrics.eventProcessingTimer())
+                .thenReturn(new io.micrometer.core.instrument.simple.SimpleMeterRegistry().timer("test.event.duration"));
 
         sequence = Sequence.builder()
                 .id(100L)

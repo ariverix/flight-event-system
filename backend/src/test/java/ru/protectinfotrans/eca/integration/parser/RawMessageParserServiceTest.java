@@ -1,5 +1,6 @@
 package ru.protectinfotrans.eca.integration.parser;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,7 @@ class RawMessageParserServiceTest {
             new Arinc620Parser(new Arinc618Parser()),
             new TypeBParser(),
             new AftnParser()
-    ));
+    ), new SimpleMeterRegistry());
 
     @Nested
     @DisplayName("Диспетчеризация по каждому из 4 форматов")
@@ -91,7 +92,7 @@ class RawMessageParserServiceTest {
         @Test
         @DisplayName("формат без зарегистрированного парсера -> IllegalStateException (ошибка конфигурации)")
         void missingParserForFormatThrows() {
-            RawMessageParserService emptyService = new RawMessageParserService(List.of());
+            RawMessageParserService emptyService = new RawMessageParserService(List.of(), new SimpleMeterRegistry());
 
             assertThatThrownBy(() -> emptyService.parse(RawMessageFormat.AFTN, "ANYTHING"))
                     .isInstanceOf(IllegalStateException.class);
