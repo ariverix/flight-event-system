@@ -77,6 +77,29 @@ management:
     # сам actuator уже за RBAC SYSTEM_ADMIN, но info.env — лишняя поверхность).
     env:
       enabled: false
+  # P5-2: сквозная трассировка OpenTelemetry (входящее сообщение -> движок ECA -> исходящее).
+  tracing:
+    enabled: true
+    sampling:
+      # Доля сэмплируемых трейсов — настраиваемая (TRACING_SAMPLING_PROBABILITY), дефолт 1.0
+      # (100%) для дев/тестов и текущего масштаба нагрузки; на проде с высоким throughput
+      # понизить через env без пересборки (см. docs/perf для целевых msg/s, P2-7).
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      # Импортозамещение (CLAUDE.md): экспорт ТОЛЬКО по OTLP в самостоятельно разворачиваемый
+      # коллектор (напр. собственный OpenTelemetry Collector) — без зарубежных проприетарных
+      # SaaS. endpoint берётся из env (прод/стейджинг указывают реальный коллектор и явно
+      # включают export через OTLP_TRACING_ENABLED=true).
+      #
+      # Экспорт ВЫКЛЮЧЕН по умолчанию (export.enabled=false) — дев-машина/CI/тесты не держат
+      # локальный коллектор на 4318; без этого фоновый BatchSpanProcessor шумел бы
+      # connection-refused в логах и тянул бы внешнюю зависимость в сборку/тесты. Сам трейсинг
+      # (management.tracing.*, создание span'ов) НЕ выключается этим флагом — он управляется
+      # отдельно и виден в тестах через InMemorySpanExporter (см. observability/InMemoryTracingTestConfig).
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+      export:
+        enabled: ${OTLP_TRACING_ENABLED:false}
 
 info:
   app:

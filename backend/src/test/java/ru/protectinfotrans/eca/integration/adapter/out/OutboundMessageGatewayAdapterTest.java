@@ -1,6 +1,7 @@
 package ru.protectinfotrans.eca.integration.adapter.out;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,9 @@ class OutboundMessageGatewayAdapterTest {
 
     @BeforeEach
     void setUp() {
-        adapter = new OutboundMessageGatewayAdapter(repository, objectMapper);
+        // P5-2: ObservationRegistry.NOOP — span-код в адаптере безопасно пропускается
+        // (Observation.createNotStarted(..., NOOP) возвращает Observation.NOOP, всё no-op).
+        adapter = new OutboundMessageGatewayAdapter(repository, objectMapper, ObservationRegistry.NOOP);
         CorrelationContext.clear();
     }
 

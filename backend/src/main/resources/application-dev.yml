@@ -1,6 +1,11 @@
 # Профиль для локальной разработки: человекочитаемый текстовый лог вместо JSON.
 # Активируется через SPRING_PROFILES_ACTIVE=dev (или spring.profiles.active=dev).
 # По умолчанию (без профиля) логи структурные JSON — см. application.yml.
+#
+# P5-2: OTLP-экспорт трейсов выключен по умолчанию уже в базовом application.yml
+# (management.otlp.tracing.export.enabled, дефолт false) — никакого отдельного
+# переопределения здесь не требуется; включается явно через OTLP_TRACING_ENABLED=true
+# при локальном запуске рядом с поднятым OpenTelemetry Collector'ом.
 logging:
   structured:
     format:

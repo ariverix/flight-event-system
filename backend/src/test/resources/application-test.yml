@@ -1,3 +1,8 @@
 logging:
   level:
     ru.protectinfotrans.eca: INFO
+
+# P5-2: НЕ дублируем тут management.otlp.tracing.export.enabled=false — этот файл
+# (application-test.yml) сейчас не активируется ни одним тестом (нет @ActiveProfiles("test")),
+# поэтому он не загружается @SpringBootTest. Дефолт OTLP-экспорта = false уже в базовом
+# application.yml (always-loaded) — безопасен и без активации профиля "test".

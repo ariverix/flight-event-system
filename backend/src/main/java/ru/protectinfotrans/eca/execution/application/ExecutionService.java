@@ -1,6 +1,8 @@
 package ru.protectinfotrans.eca.execution.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -98,6 +100,16 @@ public class ExecutionService {
     private final ExecutionMetrics executionMetrics;
 
     /**
+     * P5-2: реестр Micrometer Observation API для создания доменных span'ов движка.
+     * В production — реальный ObservationRegistry (мост → OTel SdkTracerProvider).
+     * В unit-тестах — мок с {@code isNoop()=true}, что делает все Observation'ы NOOP-заглушками.
+     * В интеграционных тестах без @AutoConfigureObservability — ObservationRegistry.NOOP
+     * (ObservabilityTestAutoConfiguration), ни один span не создаётся — безвредно для
+     * существующих тестов.
+     */
+    private final ObservationRegistry observationRegistry;
+
+    /**
      * P1-5: self-инъекция через {@code ObjectProvider}, а не прямое поле {@code ExecutionService},
      * чтобы получить Spring AOP-прокси САМОГО СЕБЯ для вызова {@link #claimAndAdvanceTimeout}
      * из {@link #checkWaitTimeouts} (тот же класс). Прямой вызов {@code this.claimAndAdvanceTimeout(...)}
@@ -145,12 +157,26 @@ public class ExecutionService {
         log.info("Processing event: messageId={}, aircraftId={}, type={}, template={}",
                 event.messageId(), event.aircraftId(), event.messageType(), event.templateName());
 
+        // P5-2: span движка — точка входа @ApplicationModuleListener (может выполняться
+        // в async worker-потоке; TracingTaskDecorator восстанавливает OTel-контекст, благодаря
+        // чему этот span становится дочерним span'ом входящего HTTP-запроса).
+        Observation engineObs = Observation.createNotStarted("eca.engine.process", observationRegistry)
+                .lowCardinalityKeyValue("aircraft.id",
+                        event.aircraftId() != null ? event.aircraftId() : "unknown")
+                .lowCardinalityKeyValue("flight.id",
+                        event.flightNumber() != null ? event.flightNumber() : "unknown")
+                .start();
+
         // P5-1: латентность обработки события движком (p95/p99 в Prometheus).
-        executionMetrics.eventProcessingTimer().record(() -> {
-            checkStartCriteria(event);
-            checkStopCriteria(event);
-            processWaitingInstances(event);
-        });
+        try (Observation.Scope ignored = engineObs.openScope()) {
+            executionMetrics.eventProcessingTimer().record(() -> {
+                checkStartCriteria(event);
+                checkStopCriteria(event);
+                processWaitingInstances(event);
+            });
+        } finally {
+            engineObs.stop();
+        }
     }
 
     /**
@@ -527,6 +553,17 @@ public class ExecutionService {
 
         instance = executionRepository.save(instance);
         log.info("Started execution instance {} for sequence {} and aircraft {}", instance.getId(), sequenceId, aircraftId);
+
+        // P5-2: span-маяк с execution.instance.id для корреляции по инстансу.
+        // Выполняется внутри родительского span'а eca.engine.process (openScope активен) —
+        // образует дочерний span того же трейса, несёт атрибуты для корреляции.
+        Observation.createNotStarted("eca.execution.instance.started", observationRegistry)
+                .lowCardinalityKeyValue("aircraft.id",
+                        aircraftId != null ? aircraftId : "unknown")
+                .lowCardinalityKeyValue("sequence.id", String.valueOf(sequenceId))
+                .highCardinalityKeyValue("execution.instance.id", String.valueOf(instance.getId()))
+                .start()
+                .stop();
 
         writeTrackingEvent(sequence, instance, TrackingEventType.SEQUENCE_STARTED, null, null,
                 "{\"status\":\"RUNNING\"}");

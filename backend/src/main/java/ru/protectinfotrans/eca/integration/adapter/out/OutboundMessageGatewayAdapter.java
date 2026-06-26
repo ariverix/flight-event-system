@@ -1,6 +1,8 @@
 package ru.protectinfotrans.eca.integration.adapter.out;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -78,6 +80,12 @@ public class OutboundMessageGatewayAdapter implements MessageOutputPort {
 
     private final OutboundMessageRepositoryPort repository;
     private final ObjectMapper objectMapper;
+    /**
+     * P5-2: для span'а "eca.integration.outbound" — постановка исходящего сообщения в
+     * durable-очередь (часть сквозного трейса инбаунд → движок → аутбаунд). NOOP-безопасен:
+     * без @AutoConfigureObservability в тестах использует ObservationRegistry.NOOP.
+     */
+    private final ObservationRegistry observationRegistry;
 
     @Override
     public boolean sendUplink(String aircraftId, String templateName, Map<String, Object> params) {
@@ -92,32 +100,43 @@ public class OutboundMessageGatewayAdapter implements MessageOutputPort {
     @Override
     public boolean sendUplink(String aircraftId, String templateName, Map<String, Object> params,
                                UplinkOrigin origin, Long executionInstanceId, Integer stepOrderIndex) {
-        if (executionInstanceId != null && stepOrderIndex != null) {
-            Optional<OutboundMessage> existing = repository.findByExecutionInstanceIdAndStepOrderIndex(
-                    executionInstanceId, stepOrderIndex);
-            if (existing.isPresent()) {
-                log.info("Duplicate ACTION SEND_UPLINK detected (executionInstanceId={}, stepOrderIndex={}) — "
-                                + "already queued as outbound message id={}, skipping re-enqueue "
-                                + "(idempotent replay, e.g. resume after restart)",
-                        executionInstanceId, stepOrderIndex, existing.get().getId());
-                return true;
+        // P5-2: span исходящего сообщения — часть сквозного трейса движка (выполняется
+        // внутри scope eca.engine.process, поэтому автоматически становится дочерним span'ом).
+        Observation obs = Observation.createNotStarted("eca.integration.outbound", observationRegistry)
+                .lowCardinalityKeyValue("aircraft.id",
+                        aircraftId != null ? aircraftId : "unknown")
+                .lowCardinalityKeyValue("outbound.type", "UPLINK")
+                .start();
+        try {
+            if (executionInstanceId != null && stepOrderIndex != null) {
+                Optional<OutboundMessage> existing = repository.findByExecutionInstanceIdAndStepOrderIndex(
+                        executionInstanceId, stepOrderIndex);
+                if (existing.isPresent()) {
+                    log.info("Duplicate ACTION SEND_UPLINK detected (executionInstanceId={}, stepOrderIndex={}) — "
+                                    + "already queued as outbound message id={}, skipping re-enqueue "
+                                    + "(idempotent replay, e.g. resume after restart)",
+                            executionInstanceId, stepOrderIndex, existing.get().getId());
+                    return true;
+                }
             }
+
+            OutboundMessage message = OutboundMessage.builder()
+                    .messageType(OutboundMessageType.UPLINK)
+                    .aircraftId(aircraftId)
+                    .templateName(templateName)
+                    .paramsJson(serializeParams(params))
+                    .uplinkOrigin(origin)
+                    .executionInstanceId(executionInstanceId)
+                    .stepOrderIndex(stepOrderIndex)
+                    .correlationId(CorrelationContext.getCorrelationId())
+                    .build();
+
+            repository.save(message);
+            log.info("[UPLINK] queued durably: aircraft={}, template={}, origin={}", aircraftId, templateName, origin);
+            return true;
+        } finally {
+            obs.stop();
         }
-
-        OutboundMessage message = OutboundMessage.builder()
-                .messageType(OutboundMessageType.UPLINK)
-                .aircraftId(aircraftId)
-                .templateName(templateName)
-                .paramsJson(serializeParams(params))
-                .uplinkOrigin(origin)
-                .executionInstanceId(executionInstanceId)
-                .stepOrderIndex(stepOrderIndex)
-                .correlationId(CorrelationContext.getCorrelationId())
-                .build();
-
-        repository.save(message);
-        log.info("[UPLINK] queued durably: aircraft={}, template={}, origin={}", aircraftId, templateName, origin);
-        return true;
     }
 
     @Override
@@ -128,31 +147,40 @@ public class OutboundMessageGatewayAdapter implements MessageOutputPort {
     @Override
     public boolean sendGround(List<String> recipients, String templateName, Map<String, Object> params,
                                Long executionInstanceId, Integer stepOrderIndex) {
-        if (executionInstanceId != null && stepOrderIndex != null) {
-            Optional<OutboundMessage> existing = repository.findByExecutionInstanceIdAndStepOrderIndex(
-                    executionInstanceId, stepOrderIndex);
-            if (existing.isPresent()) {
-                log.info("Duplicate ACTION SEND_GROUND detected (executionInstanceId={}, stepOrderIndex={}) — "
-                                + "already queued as outbound message id={}, skipping re-enqueue "
-                                + "(idempotent replay, e.g. resume after restart)",
-                        executionInstanceId, stepOrderIndex, existing.get().getId());
-                return true;
+        // P5-2: span исходящего ground-сообщения (аналогично sendUplink — часть сквозного трейса).
+        Observation obs = Observation.createNotStarted("eca.integration.outbound", observationRegistry)
+                .lowCardinalityKeyValue("aircraft.id", "ground")
+                .lowCardinalityKeyValue("outbound.type", "GROUND")
+                .start();
+        try {
+            if (executionInstanceId != null && stepOrderIndex != null) {
+                Optional<OutboundMessage> existing = repository.findByExecutionInstanceIdAndStepOrderIndex(
+                        executionInstanceId, stepOrderIndex);
+                if (existing.isPresent()) {
+                    log.info("Duplicate ACTION SEND_GROUND detected (executionInstanceId={}, stepOrderIndex={}) — "
+                                    + "already queued as outbound message id={}, skipping re-enqueue "
+                                    + "(idempotent replay, e.g. resume after restart)",
+                            executionInstanceId, stepOrderIndex, existing.get().getId());
+                    return true;
+                }
             }
+
+            OutboundMessage message = OutboundMessage.builder()
+                    .messageType(OutboundMessageType.GROUND)
+                    .recipients(recipients)
+                    .templateName(templateName)
+                    .paramsJson(serializeParams(params))
+                    .executionInstanceId(executionInstanceId)
+                    .stepOrderIndex(stepOrderIndex)
+                    .correlationId(CorrelationContext.getCorrelationId())
+                    .build();
+
+            repository.save(message);
+            log.info("[GROUND] queued durably: recipients={}, template={}", recipients, templateName);
+            return true;
+        } finally {
+            obs.stop();
         }
-
-        OutboundMessage message = OutboundMessage.builder()
-                .messageType(OutboundMessageType.GROUND)
-                .recipients(recipients)
-                .templateName(templateName)
-                .paramsJson(serializeParams(params))
-                .executionInstanceId(executionInstanceId)
-                .stepOrderIndex(stepOrderIndex)
-                .correlationId(CorrelationContext.getCorrelationId())
-                .build();
-
-        repository.save(message);
-        log.info("[GROUND] queued durably: recipients={}, template={}", recipients, templateName);
-        return true;
     }
 
     private String serializeParams(Map<String, Object> params) {

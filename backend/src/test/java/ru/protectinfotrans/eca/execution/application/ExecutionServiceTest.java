@@ -1,6 +1,7 @@
 package ru.protectinfotrans.eca.execution.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -109,6 +110,11 @@ class ExecutionServiceTest {
     @Mock
     private ExecutionMetrics executionMetrics;
 
+    // P5-2: observationRegistry.isNoop()=true → Observation.createNotStarted(...) возвращает
+    // Observation.NOOP — нет реального OTel-контекста в unit-тестах, span-код безопасно пропускается.
+    @Mock
+    private ObservationRegistry observationRegistry;
+
     @InjectMocks
     private ExecutionService service;
 
@@ -126,6 +132,9 @@ class ExecutionServiceTest {
                 .thenReturn(java.util.Map.of());
         lenient().when(executionMetrics.eventProcessingTimer())
                 .thenReturn(new io.micrometer.core.instrument.simple.SimpleMeterRegistry().timer("test.event.duration"));
+        // P5-2: isNoop()=true → Observation.createNotStarted() возвращает Observation.NOOP —
+        // span-код не ломает unit-тесты (нет реального OTel SDK в Mockito-тестах).
+        lenient().when(observationRegistry.isNoop()).thenReturn(true);
 
         sequence = Sequence.builder()
                 .id(100L)

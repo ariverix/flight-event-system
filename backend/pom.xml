@@ -60,6 +60,30 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!--
+            P5-2: сквозная трассировка OpenTelemetry. Версии управляются Spring Boot BOM
+            (spring-boot-dependencies, parent этого POM) — без явных версий, как и остальные
+            Boot-управляемые зависимости.
+            - micrometer-tracing-bridge-otel: мост Micrometer Observation API -> OTel SDK
+              (Span/Tracer), приносит транзитивно io.micrometer:context-propagation
+              (ContextSnapshot — используется TracingTaskDecorator для проброса контекста
+              через @Async-границу Spring Modulith @ApplicationModuleListener, см.
+              ObservabilityAsyncConfig).
+            - opentelemetry-exporter-otlp: экспорт по OTLP в САМОСТОЯТЕЛЬНО развёртываемый
+              коллектор (импортозамещение — без зарубежных проприетарных SaaS, CLAUDE.md).
+              Endpoint берётся из management.otlp.tracing.endpoint (env), в dev/тестах экспорт
+              выключен (management.otlp.tracing.export.enabled=false) — без внешних
+              зависимостей при сборке/тестах.
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <!-- Spring Modulith -->
         <dependency>
@@ -160,6 +184,18 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+            P5-2: InMemorySpanExporter — проверка сквозной трассировки в тестах (span'ы/атрибуты/
+            связность одного traceId через @Async-границу @ApplicationModuleListener) без реального
+            OTLP-коллектора. Версия управляется тем же opentelemetry-bom, что Spring Boot
+            импортирует для opentelemetry-exporter-otlp/micrometer-tracing-bridge-otel (см. выше) —
+            без явной версии, гарантированно совместима.
+        -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-testing</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
