@@ -152,8 +152,9 @@ jobs:
         run: bash mvnw -B -Psecurity-scan -DskipTests compile spotbugs:check
 
       # Semgrep: SAST исходников, правила Java + OWASP Top Ten; --error фейлит на находках.
+      # Используем semgrep/semgrep-action (canonical имя после ребрендинга из returntocorp).
       - name: Semgrep SAST
-        uses: returntocorp/semgrep-action@v1
+        uses: semgrep/semgrep-action@v1
         with:
           config: >-
             p/java

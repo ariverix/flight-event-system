@@ -327,6 +327,16 @@
                             </suppressionFiles>
                             <!-- Тестовые/опциональные scope не входят в поставку — не сканируем. -->
                             <skipTestScope>true</skipTestScope>
+                            <!--
+                                Sonatype OSS Index отключён: без настроенных токенов OSS Index
+                                анализатор возвращает HTTP 401 и ломает сборку AnalysisException.
+                                Основным источником CVE является NVD (nvdApiKey через env.NVD_API_KEY).
+                                Правильное имя параметра (plugin.xml): ossindexAnalyzerEnabled (lowercase 'i').
+                                ossIndexWarnOnlyOnRemoteErrors не перехватывает 401 — нужен полный disable.
+                                При необходимости включить: убрать этот элемент и добавить
+                                ossIndexUsername/ossIndexPassword через секреты репозитория.
+                            -->
+                            <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
                         </configuration>
                     </plugin>
                     <!-- SpotBugs + FindSecBugs: статический анализ безопасности байткода. -->
