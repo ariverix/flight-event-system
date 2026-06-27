@@ -15,6 +15,16 @@ spring:
     username: ${DB_USERNAME:eca_user}
     password: ${DB_PASSWORD:eca_password}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      # P6-3 тюнинг по результатам нагрузочного прогона (docs/perf/P6-3-acceptance.md):
+      # на дефолтном пуле (max=10) при >220 msg/s p50 оставался ~6-7мс, но p99 взлетал
+      # (250 msg/s → p99 1.2с при 0% ошибок) — классическая КОНКУРЕНЦИЯ ЗА СОЕДИНЕНИЕ
+      # (запросы стоят в очереди за свободным connection, не CPU-bound). Поднимаем пул,
+      # чтобы сдвинуть колено пропускной способности вверх. Env-настраиваемо под прод-железо.
+      # Безопасность по Postgres max_connections (дефолт 100): 2 реплики (P6-1) × 20 = 40 < 100.
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      pool-name: eca-hikari
 
   jpa:
     hibernate:
