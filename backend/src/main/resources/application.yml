@@ -58,7 +58,8 @@ management:
     web:
       exposure:
         # P5-1: + prometheus (scrape-эндпоинт). /actuator/** за RBAC SYSTEM_ADMIN (P4-1),
-        # /actuator/health открыт (см. SecurityConfig).
+        # /actuator/health/liveness + /actuator/health/readiness + /actuator/health/startup
+        # открыты без аутентификации (k8s-пробам JWT недоступен; см. SecurityConfig P5-3).
         include: health,info,metrics,prometheus
   metrics:
     tags:
@@ -71,7 +72,36 @@ management:
         eca.execution.event.duration: 0.95, 0.99
   endpoint:
     health:
+      # P5-3: Kubernetes-style probes (liveness / readiness / startup).
+      # probes.enabled=true включает автоматический HTTP-статус-маппинг для health-групп:
+      #   UP → 200, DOWN/OUT_OF_SERVICE → 503 (k8s использует HTTP-статус для probe-решения).
+      probes:
+        enabled: true
       show-details: always
+      # Health groups (P5-3):
+      # • liveness  — только livenessState (JVM alive). НЕ включает БД/каналы: k8s не должен
+      #               рестартить pod из-за временно недоступного канала — это readiness.
+      # • readiness — readinessState + db (PostgreSQL) + integrationChannels (circuit breaker +
+      #               DLQ-порог из IntegrationChannelsHealthIndicator, P5-3).
+      # • startup   — readinessState + db: k8s startup probe ждёт завершения Flyway-миграций
+      #               и первого успешного подключения к БД перед включением pod'а.
+      #
+      # show-details: never на каждой probe-группе — пробы открыты без аутентификации
+      # (SecurityConfig P5-3), поэтому тело должно содержать ТОЛЬКО {"status":"UP|DOWN"}.
+      # Без этого probe-группы наследовали бы глобальный show-details: always и раскрывали
+      # бы анонимам тип СУБД (db→PostgreSQL), имена каналов и состояние circuit breaker
+      # (integrationChannels), а также диагностику ошибок. Глобальный always остаётся для
+      # полного /actuator/health, который за RBAC SYSTEM_ADMIN.
+      group:
+        liveness:
+          include: livenessState
+          show-details: never
+        readiness:
+          include: readinessState,db,integrationChannels
+          show-details: never
+        startup:
+          include: readinessState,db
+          show-details: never
   info:
     # P4-3: не публиковать env-производные свойства через /actuator/info (минимизация раскрытия;
     # сам actuator уже за RBAC SYSTEM_ADMIN, но info.env — лишняя поверхность).

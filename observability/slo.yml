@@ -1,0 +1,95 @@
+---
+# observability/slo.yml — определения SLO для ECA System (P5-3)
+#
+# Ориентиры из docs/perf (P2-7). Числа намеренно консервативны для MVP;
+# уточняются по мере сбора production-baseline (см. ROADMAP.md P7+).
+#
+# Связь с алертами: каждый SLO имеет ссылку на правило в observability/prometheus/alerts.yml.
+# Связь с health: нарушение SLO-1 и SLO-2 отражается в readiness probe (/actuator/health/readiness).
+
+slos:
+
+  - id: SLO-1
+    name: "Доступность приёма сообщений борт-земля"
+    description: |
+      Endpoint /api/v1/messages/incoming (открытый, без JWT, CLAUDE.md §7) и
+      /api/v1/raw-messages/incoming должны успешно принимать и персистировать
+      входящие ACARS/AFTN-телеграммы >= 99.5% времени в скользящем окне 30 дней.
+    objective:
+      ratio: 0.995          # 99.5% успешных запросов (HTTP 200)
+      window: 30d
+    error_budget:
+      minutes_per_month: 216  # 0.5% × 30 × 24 × 60 ≈ 216 мин / месяц
+    sli:
+      numerator: "rate(http_server_requests_seconds_count{uri=~\"/api/v1/(messages|raw-messages)/incoming\",status=~\"2..\"}[5m])"
+      denominator: "rate(http_server_requests_seconds_count{uri=~\"/api/v1/(messages|raw-messages)/incoming\"}[5m])"
+    alerts:
+      - EcaInstanceDown
+      - EcaDlqSizeCritical
+    health_probe: readiness
+
+  - id: SLO-2
+    name: "Доступность доставки исходящих сообщений (uplink/ground)"
+    description: |
+      Запросы дальнейшей обработки outbound-сообщений (UPLINK/GROUND в durable-очереди)
+      должны успешно доставляться конечному каналу >= 99.0% попыток за 30 дней.
+      Ретраи с exponential backoff включены; circuit breaker на канале считается
+      нарушением SLO при открытом состоянии > 5 мин.
+    objective:
+      ratio: 0.990          # 99.0% успешных доставок
+      window: 30d
+    error_budget:
+      minutes_per_month: 432  # 1% × 30 × 24 × 60 ≈ 432 мин / месяц
+    sli:
+      numerator: "rate(eca_integration_outbound_sent_total[5m])"
+      denominator: "rate(eca_integration_outbound_sent_total[5m]) + rate(eca_integration_outbound_failed_total[5m])"
+    alerts:
+      - EcaOutboundCircuitBreakerOpen
+      - EcaOutboundDeliveryFailures
+    health_probe: readiness
+
+  - id: SLO-3
+    name: "Латентность обработки события движком ECA (p95)"
+    description: |
+      95-й перцентиль времени обработки события (от получения NormalizedEvent до
+      завершения ExecutionService#processEvent, включая EVALUATE_IF / ACTION-шаги)
+      должен быть < 500 мс в скользящем окне 1 час.
+      Основание: SITA Sequencer реагирует на событие в рамках текущего цикла опроса
+      (~1 сек). Цель ECA: в 2× быстрее при типовой нагрузке (docs/perf, P2-7).
+    objective:
+      p95_ms: 500           # p95 < 500 мс
+      window: 1h
+    sli:
+      expr: "histogram_quantile(0.95, rate(eca_execution_event_duration_seconds_bucket[5m])) * 1000"
+      unit: ms
+    alerts:
+      - EcaEventProcessingLatencyHigh
+    health_probe: liveness   # латентность не влияет на readiness (pod остаётся in rotation)
+
+  - id: SLO-4
+    name: "Доля успешной доставки уведомлений (email/webhook)"
+    description: |
+      Уведомления из Event Handling (P3-4) должны доставляться успешно >= 95%
+      за 30 дней. Дублирование уведомлений (duplicate_skipped) не считается ошибкой.
+    objective:
+      ratio: 0.950          # 95% успешных уведомлений
+      window: 30d
+    sli:
+      numerator: "rate(eca_notifications_sent_total[5m])"
+      denominator: "rate(eca_notifications_sent_total[5m]) + rate(eca_notifications_failed_total[5m])"
+    alerts:
+      - EcaNotificationDeliveryFailures
+    health_probe: readiness
+
+reporting:
+  # Как измерять соответствие SLO:
+  # - Prometheus: recording rules (см. ниже) + Grafana dashboard (observability/grafana/)
+  # - Алерты: burn rate alerts на error budget (наблюдаемое нарушение в 2× быстрее window)
+  # - Ревью: ежемесячный отчёт по error budget (ops/SRE команда)
+  review_cadence: monthly
+  responsible: eca-ops
+
+# Настройка recording rules для Prometheus (добавить в отдельный файл rules/eca-recording.yml):
+# - record: job:eca_request_success_rate:5m
+#   expr: rate(http_server_requests_seconds_count{uri=~"/api/v1/(messages|raw-messages)/incoming",status=~"2.."}[5m])
+#         / rate(http_server_requests_seconds_count{uri=~"/api/v1/(messages|raw-messages)/incoming"}[5m])

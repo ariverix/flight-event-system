@@ -10,6 +10,7 @@ import ru.protectinfotrans.eca.integration.domain.OutboundMessageType;
 import ru.protectinfotrans.eca.integration.port.out.CircuitBreakerRepositoryPort;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
@@ -79,5 +80,16 @@ public class ChannelCircuitBreakerJpaAdapter implements CircuitBreakerRepository
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean claimHalfOpenProbe(OutboundMessageType channel) {
         return jpaRepository.claimHalfOpenProbe(channel) == 1;
+    }
+
+    /**
+     * P5-3: read-only список всех известных circuit breaker'ов для health readiness-индикатора.
+     * Не создаёт записи, в отличие от {@link #getOrCreate} — используется исключительно
+     * для диагностики состояния каналов в {@code IntegrationChannelsHealthIndicator}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChannelCircuitBreaker> findAll() {
+        return jpaRepository.findAll();
     }
 }

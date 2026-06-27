@@ -1,0 +1,185 @@
+---
+# observability/prometheus/alerts.yml
+#
+# Правила алертинга Prometheus для ECA System (P5-3).
+# Импортозамещение: самостоятельно развёртываемый Prometheus (без зарубежных SaaS).
+# Импорт: скопируйте файл в директорию rules/ Prometheus и добавьте в prometheus.yml:
+#   rule_files:
+#     - "/etc/prometheus/rules/eca-alerts.yml"
+#
+# Имена метрик: Micrometer добавляет суффикс _total для Counter и конвертирует точки → подчёркивания.
+# Проверка актуальных имён: GET /actuator/prometheus (SYSTEM_ADMIN).
+#
+# Аннотации severity:
+#   critical — немедленное реагирование, нарушает SLO (см. observability/slo.yml)
+#   warning  — деградация, нужно расследование
+
+groups:
+  - name: eca.dlq
+    interval: 1m
+    rules:
+      # ---------------------------------------------------------------
+      # DLQ вырос выше порога и не снижается — оператор не обрабатывает
+      # ---------------------------------------------------------------
+      - alert: EcaDlqSizeHigh
+        expr: eca_integration_dlq_size > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: eca-ops
+        annotations:
+          summary: "ECA DLQ содержит более 100 необработанных сообщений"
+          description: |
+            Размер DLQ (dead_letter_messages со статусом NEW) = {{ $value }}.
+            Превышен порог 100 на протяжении 5 минут.
+            Необходимо: проверить /api/v1/dlq?status=NEW, выполнить reprocess или discard.
+          runbook: "https://github.com/ariverix/flight-event-system/wiki/runbook-dlq"
+
+      - alert: EcaDlqSizeCritical
+        expr: eca_integration_dlq_size > 500
+        for: 2m
+        labels:
+          severity: critical
+          team: eca-ops
+        annotations:
+          summary: "ECA DLQ критически высокий — возможная потеря сообщений борт-земля"
+          description: |
+            Размер DLQ = {{ $value }} (порог: 500).
+            Нарушается SLO приёма сообщений (observability/slo.yml, SLO-1).
+          runbook: "https://github.com/ariverix/flight-event-system/wiki/runbook-dlq"
+
+  - name: eca.throughput
+    interval: 1m
+    rules:
+      # ---------------------------------------------------------------
+      # Падение throughput входящих сообщений
+      # ---------------------------------------------------------------
+      - alert: EcaMessageThroughputLow
+        # rate() по умолчанию = сообщений/сек. Порог 0.01 ≈ 1 сообщение в 100 сек.
+        # На проде скорректировать под реальный baseline (см. docs/perf, P2-7).
+        expr: rate(eca_messages_parsed_total[5m]) < 0.01
+        for: 10m
+        labels:
+          severity: warning
+          team: eca-ops
+        annotations:
+          summary: "ECA: низкий throughput входящих сообщений"
+          description: |
+            Скорость разобранных сообщений < 0.01 msg/s за последние 5 минут (10 мин подряд).
+            Возможные причины: нет соединений от бортовых систем, проблемы с сетью/парсингом.
+          runbook: "https://github.com/ariverix/flight-event-system/wiki/runbook-throughput"
+
+      - alert: EcaParseErrorRateHigh
+        expr: rate(eca_messages_parse_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: eca-ops
+        annotations:
+          summary: "ECA: высокая доля ошибок парсинга входящих сообщений"
+          description: |
+            Ошибки парсинга ACARS/AFTN: {{ printf "%.3f" $value }} ошибок/сек за 5 мин.
+            Сообщения попадают в DLQ. Проверьте формат входящих телеграмм.
+
+  - name: eca.delivery
+    interval: 1m
+    rules:
+      # ---------------------------------------------------------------
+      # Ошибки доставки уведомлений (EMAIL/WEBHOOK channel senders)
+      # ---------------------------------------------------------------
+      - alert: EcaNotificationDeliveryFailures
+        expr: rate(eca_notifications_failed_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: eca-ops
+        annotations:
+          summary: "ECA: ошибки доставки уведомлений"
+          description: |
+            Доставка уведомлений завершается ошибкой: {{ printf "%.3f" $value }} /сек.
+            Проверьте конфигурацию email/webhook каналов и доступность получателей.
+
+      # ---------------------------------------------------------------
+      # Ошибки исходящих сообщений (uplink / ground, outbound gateway)
+      # ---------------------------------------------------------------
+      - alert: EcaOutboundDeliveryFailures
+        expr: rate(eca_integration_outbound_failed_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: eca-ops
+        annotations:
+          summary: "ECA: ошибки отправки исходящих сообщений борт/земля"
+          description: |
+            Ошибки outbound-доставки: {{ printf "%.3f" $value }} /сек.
+            Circuit breaker может открыться. Проверьте состояние каналов UPLINK/GROUND.
+            Readiness probe DOWN сигнализирует об открытом circuit breaker.
+
+      - alert: EcaOutboundCircuitBreakerOpen
+        # Метрика circuit_breaker генерируется OutboundMessageDeliveryScheduler через Micrometer
+        expr: eca_integration_circuit_breaker_open == 1
+        for: 1m
+        labels:
+          severity: critical
+          team: eca-ops
+        annotations:
+          summary: "ECA: circuit breaker на исходящем канале открыт (OPEN)"
+          description: |
+            Канал {{ $labels.channel }} недоступен (circuit breaker OPEN).
+            Доставка заблокирована fail-fast. Readiness probe вернёт DOWN.
+            Проверьте доступность внешнего ACARS/AFTN шлюза.
+
+  - name: eca.latency
+    interval: 1m
+    rules:
+      # ---------------------------------------------------------------
+      # Высокая латентность обработки событий (движок ECA, p99)
+      # ---------------------------------------------------------------
+      - alert: EcaEventProcessingLatencyHigh
+        # Гистограмма eca_execution_event_duration_seconds из ExecutionMetrics (P5-1)
+        expr: |
+          histogram_quantile(0.99,
+            rate(eca_execution_event_duration_seconds_bucket[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: eca-ops
+        annotations:
+          summary: "ECA: p99 латентность обработки события > 5 секунд"
+          description: |
+            P99 латентность обработки события движком ECA: {{ printf "%.1f" $value }}s
+            (порог: 5s, SLO-3 — p95 < 500ms).
+            Проверьте нагрузку на БД и количество активных инстансов.
+
+  - name: eca.availability
+    interval: 30s
+    rules:
+      # ---------------------------------------------------------------
+      # Доступность экземпляра ECA System
+      # ---------------------------------------------------------------
+      - alert: EcaInstanceDown
+        expr: up{job="eca-system"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: eca-ops
+        annotations:
+          summary: "ECA System недоступен для Prometheus scrape"
+          description: |
+            Экземпляр {{ $labels.instance }} не отвечает на scrape-запросы Prometheus.
+            Возможно: pod упал, JVM OOM, проблемы с сетью.
+
+      - alert: EcaReadinessDown
+        # Проверяет readiness через blackbox exporter (требует настройки blackbox в Prometheus)
+        # Альтернатива: использовать Kubernetes readiness probe (встроен в kubelet).
+        expr: probe_success{job="blackbox-eca-readiness"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: eca-ops
+        annotations:
+          summary: "ECA readiness probe DOWN — трафик к pod'у прекращён"
+          description: |
+            Readiness probe {{ $labels.instance }} вернула DOWN более 2 минут.
+            k8s убрал pod из rotation. Проверьте /actuator/health/readiness (SYSTEM_ADMIN).

@@ -4,6 +4,7 @@ import ru.protectinfotrans.eca.integration.domain.ChannelCircuitBreaker;
 import ru.protectinfotrans.eca.integration.domain.OutboundMessageType;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * P2-6: выходной порт хранения durable-состояния circuit breaker на внешние каналы доставки.
@@ -14,6 +15,13 @@ public interface CircuitBreakerRepositoryPort {
 
     /** Текущее состояние канала — создаёт CLOSED-запись по умолчанию, если её ещё нет (lazy init). */
     ChannelCircuitBreaker getOrCreate(OutboundMessageType channel);
+
+    /**
+     * Список текущих состояний всех зарегистрированных circuit breaker'ов.
+     * Используется {@code IntegrationChannelsHealthIndicator} (P5-3) для health readiness-группы —
+     * read-only, не создаёт новых записей (в отличие от {@link #getOrCreate}).
+     */
+    List<ChannelCircuitBreaker> findAll();
 
     /** Успех -> CLOSED, счётчик сбоев сброшен. */
     void recordSuccess(OutboundMessageType channel);

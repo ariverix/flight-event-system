@@ -47,7 +47,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/messages/**").permitAll()
                         .requestMatchers("/api/v1/flights/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
+                        // P5-3: Kubernetes health probes — без аутентификации (k8s-пробам JWT недоступен).
+                        // Только специфичные probe-пути; полный /actuator/health и остальной /actuator/**
+                        // остаются за RBAC SYSTEM_ADMIN (правило ниже).
+                        .requestMatchers(
+                                "/actuator/health/liveness",
+                                "/actuator/health/readiness",
+                                "/actuator/health/startup"
+                        ).permitAll()
                         .requestMatchers("/api/v1/auth/register").hasAuthority("MANAGE_USERS")
                         .requestMatchers("/api/v1/users/**").hasAuthority("MANAGE_USERS")
                         .requestMatchers("/api/v1/audit-log/**").hasAuthority("VIEW_AUDIT_LOG")
