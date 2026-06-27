@@ -18,6 +18,7 @@ const DemoPage         = lazy(() => import('./components/demo/DemoPage').then(m 
 const UserManagement   = lazy(() => import('./components/user/UserManagement').then(m => ({ default: m.UserManagement })));
 const ProfilePage      = lazy(() => import('./components/user/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const TimelinePage     = lazy(() => import('./pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
+const SequenceEditor   = lazy(() => import('./components/editor/SequenceEditor').then(m => ({ default: m.SequenceEditor })));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
@@ -44,6 +45,7 @@ function App() {
           <Route path="sequences" element={<Suspense fallback={<PageLoader />}><SequenceList /></Suspense>} />
           <Route path="sequences/:id" element={<Suspense fallback={<PageLoader />}><SequenceForm /></Suspense>} />
           <Route path="sequences/:id/edit" element={<Suspense fallback={<PageLoader />}><SequenceForm /></Suspense>} />
+          <Route path="sequences/:id/editor" element={<Suspense fallback={<PageLoader />}><SequenceEditor /></Suspense>} />
           <Route path="executions" element={<Suspense fallback={<PageLoader />}><ExecutionList /></Suspense>} />
           <Route path="executions/:id" element={<Suspense fallback={<PageLoader />}><ExecutionDetail /></Suspense>} />
           <Route path="messages" element={<Suspense fallback={<PageLoader />}><MessageLog /></Suspense>} />

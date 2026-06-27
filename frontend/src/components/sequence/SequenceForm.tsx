@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Form, Input, Button, Space, Card, Modal, Table, Tag, Tooltip } from 'antd';
 import { useNotification } from '../../hooks/useNotification';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PlusOutlined, DeleteOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined, ApartmentOutlined } from '@ant-design/icons';
 import { sequenceApi } from '../../api/sequenceApi';
 import { SequenceResponse, StepResponse, StepCreateRequest } from '../../types/sequence';
 import { CriteriaEditor } from './CriteriaEditor';
@@ -289,6 +289,14 @@ export const SequenceForm: React.FC = () => {
               {isAdmin && (
                 <Button type="primary" htmlType="submit" loading={loading}>
                   {isEditMode ? 'Сохранить' : 'Создать'} последовательность
+                </Button>
+              )}
+              {isEditMode && id && (
+                <Button
+                  icon={<ApartmentOutlined />}
+                  onClick={() => navigate(`/sequences/${id}/editor`)}
+                >
+                  Открыть в редакторе
                 </Button>
               )}
               <Button onClick={() => navigate('/sequences')}>

@@ -1,0 +1,489 @@
+/**
+ * Страница визуального редактора последовательности (P7-2).
+ *
+ * Маршрут: /sequences/:id/editor
+ *
+ * Компоновка:
+ *  ┌─────────────────────────────────────────────────────────────┐
+ *  │ Header: [← Назад] [Название] [Unsaved badge] [Сохранить]   │
+ *  ├───────────────────────────┬─────────────────────────────────┤
+ *  │                           │ ┌─────────────────────────────┐ │
+ *  │   React Flow (граф)       │ │  Start/Stop критерии        │ │
+ *  │                           │ └─────────────────────────────┘ │
+ *  │   - Click node → select   │ ┌─────────────────────────────┐ │
+ *  │   - Canvas drag → repos.  │ │  Список шагов               │ │
+ *  │                           │ │  (drag-and-drop reorder)    │ │
+ *  │                           │ └─────────────────────────────┘ │
+ *  │                           │ ┌─────────────────────────────┐ │
+ *  │                           │ │  Детали выбранного шага     │ │
+ *  │                           │ └─────────────────────────────┘ │
+ *  └───────────────────────────┴─────────────────────────────────┘
+ *
+ * Реализует:
+ *  1. Загрузку последовательности через sequenceEditorStore
+ *  2. Интерактивный граф (SequenceEditorGraph)
+ *  3. Drag-n-drop перестановку шагов с GOTO-пересчётом (EditorStepList)
+ *  4. Панель start/stop-критериев (StartStopPanel)
+ *  5. Сохранение через sequenceEditorStore.saveToServer()
+ *  6. Модал добавления/редактирования шагов (StepForm, P7-3 заменит)
+ */
+
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Button,
+  Spin,
+  Alert,
+  Modal,
+  Tag,
+  Divider,
+  Tooltip,
+} from 'antd';
+import {
+  ArrowLeftOutlined,
+  SaveOutlined,
+  WarningOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
+import { useNavigate, useParams } from 'react-router-dom';
+
+import { useSequenceEditorStore } from '../../store/sequenceEditorStore';
+import { SequenceEditorGraph } from './SequenceEditorGraph';
+import { EditorStepList } from './EditorStepList';
+import { StartStopPanel } from './StartStopPanel';
+import { StepForm } from '../sequence/StepForm';
+import { useEditorI18n } from '../../i18n/useEditorI18n';
+import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useNotification } from '../../hooks/useNotification';
+import type { StepResponse, StepCreateRequest } from '../../types/sequence';
+import { sequenceApi } from '../../api/sequenceApi';
+
+// ── Панель деталей выбранного шага ───────────────────────────────────────────
+
+interface SelectedStepPanelProps {
+  step: StepResponse | null;
+  isDark: boolean;
+}
+
+// Метки типов конфигурации берутся из d.configLabels (dict.ts)
+
+const TYPE_ACCENT: Record<string, string> = {
+  ACTION: '#1677ff',
+  EVALUATE: '#d48806',
+  WAIT: '#7c3aed',
+};
+
+const SelectedStepPanel: React.FC<SelectedStepPanelProps> = ({ step, isDark }) => {
+  const d = useEditorI18n();
+  const t1 = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.82)';
+  const t2 = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.50)';
+  const t3 = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)';
+  const bd = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+  const bg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
+
+  if (!step) {
+    return (
+      <div style={{
+        background: bg,
+        border: `1px solid ${bd}`,
+        borderRadius: 10,
+        padding: '14px',
+        textAlign: 'center',
+      }}>
+        <InfoCircleOutlined style={{ fontSize: 20, color: t3, marginBottom: 6 }} />
+        <div style={{ fontSize: 12, color: t3 }}>{d.clickNodeHint}</div>
+      </div>
+    );
+  }
+
+  const accent = TYPE_ACCENT[step.stepType] ?? '#888';
+
+  let configSummary = '—';
+  try {
+    const cfg = JSON.parse(step.configJson) as Record<string, unknown>;
+    const key = (cfg.actionType ?? cfg.type ?? cfg.criterionType) as string | undefined;
+    configSummary = key ? (d.configLabels[key] ?? key) : '—';
+    if (typeof cfg.templateName === 'string') configSummary += `: ${cfg.templateName}`;
+    else if (typeof cfg.conditionName === 'string') configSummary += `: ${cfg.conditionName}`;
+    else if (typeof cfg.targetStage === 'string') configSummary += `: ${cfg.targetStage}`;
+    else if (typeof cfg.durationSeconds === 'number') configSummary += `: ${cfg.durationSeconds}s`;
+  } catch {
+    configSummary = '—';
+  }
+
+  const decisionText = (action: string, gotoStep: number | null): string => {
+    if (action === 'GOTO' && gotoStep !== null) return `GOTO ${d.gotoPrefix} ${gotoStep}`;
+    return action;
+  };
+
+  return (
+    <div style={{
+      background: bg,
+      border: `1px solid ${bd}`,
+      borderRadius: 10,
+      padding: '12px 14px',
+    }}>
+      {/* Заголовок */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <div style={{
+          width: 3, height: 36, borderRadius: 2,
+          background: accent, flexShrink: 0,
+        }} />
+        <div>
+          <div style={{ fontSize: 10, color: t3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {d.selectedStep} · {d.stepLabel} #{step.orderIndex}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t1 }}>
+            {configSummary}
+          </div>
+        </div>
+        <Tag style={{
+          marginLeft: 'auto',
+          color: accent,
+          borderColor: `${accent}44`,
+          background: `${accent}14`,
+          fontSize: 10,
+          flexShrink: 0,
+        }}>
+          {step.stepType}
+        </Tag>
+      </div>
+
+      <Divider style={{ margin: '8px 0', borderColor: bd }} />
+
+      {/* Решения */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#22c55e', marginBottom: 4 }}>
+            {d.onSuccess}
+            {step.onSuccessNotify && (
+              <span style={{ marginLeft: 4, color: t3 }}>{d.notifyLabel}</span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: t2 }}>
+            {decisionText(step.onSuccessAction, step.onSuccessGotoStep)}
+          </div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#ef4444', marginBottom: 4 }}>
+            {d.onFailure}
+            {step.onFailureNotify && (
+              <span style={{ marginLeft: 4, color: t3 }}>{d.notifyLabel}</span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: t2 }}>
+            {decisionText(step.onFailureAction, step.onFailureGotoStep)}
+          </div>
+        </div>
+      </div>
+
+      {/* configJson (свёрнутый) */}
+      <Divider style={{ margin: '8px 0', borderColor: bd }} />
+      <details style={{ cursor: 'pointer' }}>
+        <summary style={{ fontSize: 10, color: t3, userSelect: 'none' }}>
+          {d.configJson}
+        </summary>
+        <pre style={{
+          marginTop: 6,
+          fontSize: 10,
+          color: isDark ? '#a5d6a7' : '#2e7d32',
+          background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.04)',
+          borderRadius: 6,
+          padding: '8px 10px',
+          overflow: 'auto',
+          maxHeight: 120,
+        }}>
+          {(() => {
+            try {
+              return JSON.stringify(JSON.parse(step.configJson), null, 2);
+            } catch {
+              return step.configJson;
+            }
+          })()}
+        </pre>
+      </details>
+    </div>
+  );
+};
+
+// ── Главный компонент ─────────────────────────────────────────────────────────
+
+export const SequenceEditor: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const d = useEditorI18n();
+  const { isDark } = useTheme();
+  const { isAdmin } = useAuth();
+  const notification = useNotification();
+
+  // ─ Стор ──────────────────────────────────────────────────────────────────
+  const {
+    sequenceName,
+    steps,
+    startCriteriaJson,
+    stopCriteriaJson,
+    selectedStepId,
+    isDirty,
+    isLoading,
+    isSaving,
+    loadError,
+    saveError,
+    loadSequence,
+    reorderStepsLocally,
+    selectStep,
+    updateCriteria,
+    reloadAfterStepChange,
+    deleteStep,
+    saveToServer,
+    reset,
+  } = useSequenceEditorStore();
+
+  // ─ Модал StepForm ─────────────────────────────────────────────────────────
+  const [isStepModalOpen, setIsStepModalOpen] = useState(false);
+  const [editingStep, setEditingStep] = useState<StepResponse | null>(null);
+
+  // ─ Загрузка ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!id || id === 'new') {
+      navigate('/sequences');
+      return;
+    }
+    const numId = parseInt(id, 10);
+    if (Number.isNaN(numId)) {
+      navigate('/sequences');
+      return;
+    }
+    void loadSequence(numId);
+    return () => { reset(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // ─ Показ ошибки сохранения ────────────────────────────────────────────────
+  useEffect(() => {
+    if (saveError) {
+      notification.error({ message: d.saveError, description: saveError });
+    }
+  }, [saveError, d.saveError, notification]);
+
+  // ─ Колбэки ───────────────────────────────────────────────────────────────
+  const handleSave = useCallback(async () => {
+    await saveToServer();
+    notification.success({ message: d.saveSuccess });
+  }, [saveToServer, notification, d.saveSuccess]);
+
+  const handleAddStep = useCallback(() => {
+    setEditingStep(null);
+    setIsStepModalOpen(true);
+  }, []);
+
+  const handleEditStep = useCallback((step: StepResponse) => {
+    setEditingStep(step);
+    setIsStepModalOpen(true);
+  }, []);
+
+  const handleStepSubmit = useCallback(async (stepData: StepCreateRequest) => {
+    if (!id) return;
+    const numId = parseInt(id, 10);
+    try {
+      if (editingStep) {
+        await sequenceApi.updateStep(numId, editingStep.id, stepData);
+        notification.success({ message: d.stepUpdated });
+      } else {
+        await sequenceApi.addStep(numId, stepData);
+        notification.success({ message: d.stepAdded });
+      }
+      setIsStepModalOpen(false);
+      setEditingStep(null);
+      await reloadAfterStepChange();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notification.error({ message: d.stepSaveError, description: msg });
+    }
+  }, [id, editingStep, reloadAfterStepChange, notification, d]);
+
+  const handleDeleteStep = useCallback(async (stepId: number) => {
+    await deleteStep(stepId);
+    if (selectedStepId === stepId) selectStep(null);
+    notification.success({ message: d.stepDeleted });
+  }, [deleteStep, selectedStepId, selectStep, notification, d]);
+
+  // ─ Выбранный шаг для деталей ─────────────────────────────────────────────
+  const selectedStep = steps.find(s => s.id === selectedStepId) ?? null;
+
+  // ─ Цвета темы ────────────────────────────────────────────────────────────
+  const headerBg = isDark ? 'rgba(6,7,16,0.95)' : 'rgba(255,255,255,0.96)';
+  const headerBd = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const panelBg  = isDark ? 'rgba(6,7,16,0.92)' : 'rgba(255,255,255,0.96)';
+  const panelBd  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const t1       = isDark ? 'rgba(255,255,255,0.90)' : 'rgba(0,0,0,0.85)';
+  const t2       = isDark ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.45)';
+
+  // ─ Состояния загрузки ─────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+      }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Alert
+          type="error"
+          message={d.loadError}
+          description={loadError}
+          action={
+            <Button onClick={() => navigate('/sequences')}>
+              {d.back}
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // ─ Рендер ────────────────────────────────────────────────────────────────
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+
+      {/* ── Заголовок ── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 16px',
+        background: headerBg,
+        borderBottom: `1px solid ${headerBd}`,
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        flexShrink: 0,
+        zIndex: 10,
+      }}>
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(`/sequences/${id ?? ''}`)}
+          style={{ padding: '0 8px', color: t2 }}
+        >
+          {d.back}
+        </Button>
+
+        <div style={{ width: 1, height: 20, background: headerBd }} />
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: t1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {sequenceName || d.title}
+          </div>
+          <div style={{ fontSize: 11, color: t2 }}>
+            {d.title}
+          </div>
+        </div>
+
+        {isDirty && (
+          <Tooltip title={d.unsavedBadge}>
+            <Tag
+              icon={<WarningOutlined />}
+              color="warning"
+              style={{ cursor: 'default', flexShrink: 0 }}
+            >
+              {d.unsavedBadge}
+            </Tag>
+          </Tooltip>
+        )}
+
+        {isAdmin && (
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={isSaving}
+            disabled={!isDirty}
+            onClick={() => { void handleSave(); }}
+            style={{ flexShrink: 0 }}
+          >
+            {isSaving ? d.saving : d.save}
+          </Button>
+        )}
+      </div>
+
+      {/* ── Основная область ── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* ── Граф (левая часть) ── */}
+        <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+          <SequenceEditorGraph
+            steps={steps}
+            selectedStepId={selectedStepId}
+            onNodeSelect={selectStep}
+            height="100%"
+          />
+        </div>
+
+        {/* ── Правая панель ── */}
+        <div style={{
+          width: 320,
+          flexShrink: 0,
+          borderLeft: `1px solid ${panelBd}`,
+          background: panelBg,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px' }}>
+
+            {/* Start/Stop критерии */}
+            <StartStopPanel
+              startCriteriaJson={startCriteriaJson}
+              stopCriteriaJson={stopCriteriaJson}
+              readOnly={!isAdmin}
+              onSave={updateCriteria}
+            />
+
+            {/* Список шагов */}
+            <EditorStepList
+              steps={steps}
+              selectedStepId={selectedStepId}
+              readOnly={!isAdmin}
+              onSelectStep={stepId => selectStep(stepId)}
+              onReorder={reorderStepsLocally}
+              onEditStep={handleEditStep}
+              onDeleteStep={stepId => { void handleDeleteStep(stepId); }}
+              onAddStep={handleAddStep}
+            />
+
+            {/* Детали выбранного шага */}
+            <div style={{ marginTop: 12 }}>
+              <SelectedStepPanel step={selectedStep} isDark={isDark} />
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* ── Модал StepForm ── */}
+      <Modal
+        title={editingStep ? d.editStepTitle : d.addStepTitle}
+        open={isStepModalOpen}
+        onCancel={() => { setIsStepModalOpen(false); setEditingStep(null); }}
+        footer={null}
+        width={820}
+        styles={{ body: { maxHeight: '75vh', overflowY: 'auto', paddingRight: 4 } }}
+        destroyOnClose
+      >
+        <StepForm
+          onSubmit={stepData => { void handleStepSubmit(stepData); }}
+          onCancel={() => { setIsStepModalOpen(false); setEditingStep(null); }}
+          initialValues={editingStep}
+        />
+      </Modal>
+    </div>
+  );
+};
