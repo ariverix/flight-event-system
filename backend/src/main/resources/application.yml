@@ -156,3 +156,18 @@ app:
     # P4-2: короткоживущий access-токен (15 мин) + долгоживущий refresh с ротацией (7 дней)
     expiration-ms: ${JWT_EXPIRATION_MS:900000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+
+  # P6-2: Retention (удержание данных) — пороги без пересборки через env.
+  # RetentionService (@Scheduled, daily 03:00) удаляет / создаёт партиции tracking_event_log
+  # и чистит messages/audit_log по дате. Гейтирован leader election: чистит только лидер.
+  retention:
+    # Хранить именованные партиции tracking_event_log N месяцев. Дефолт: 6.
+    tracking-event-log-months: ${RETENTION_TEL_MONTHS:6}
+    # Хранить записи messages N дней (retention-by-deletion). Дефолт: 90.
+    messages-days: ${RETENTION_MESSAGES_DAYS:90}
+    # Хранить записи audit_log N дней (retention-by-deletion). Дефолт: 365.
+    audit-log-days: ${RETENTION_AUDIT_DAYS:365}
+    # Создавать партиции tracking_event_log вперёд на N месяцев. Дефолт: 3.
+    create-ahead-months: ${RETENTION_CREATE_AHEAD_MONTHS:3}
+    # Cron-расписание retention (Spring cron: сек мин час д м дн). Дефолт: 03:00 каждый день.
+    cron: ${RETENTION_CRON:0 0 3 * * *}

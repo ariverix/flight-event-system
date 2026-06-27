@@ -77,7 +77,7 @@
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
 | P6-1 | HA: реплики backend + leader election планировщика (single-fire в кластере) | devops-agent (реализовано оркестратором — суб-агент уперся в лимит сессии) | Done | reviewer PASS (1 цикл фикса: @Autowired на public-конструкторе — два конструктора ломали выбор бина). Lease-based leader election на PostgreSQL (новый модуль `cluster`: `LeaderElection`/`LeaderElectionService`), V36 `leader_election` (lock_name PK, holder_id, lease_until). Захват/продление — атомарный `INSERT ... ON CONFLICT DO UPDATE ... WHERE lease_until<now OR holder=me` (из N реплик лидер ровно один); heartbeat@10s, acquireOnStartup@ApplicationReadyEvent, releaseOnShutdown@PreDestroy. @Scheduled-тики гейтятся `isLeader()` (WaitTimeoutScheduler.pollWaitTimeouts; OutboundMessageDeliveryScheduler.scheduledPoll→pollPendingMessages, последний оставлен public/ungated — его зовут IT-тесты напрямую). DB-claim (P1-5/P2-3) — defense-in-depth, корректность single-fire от лидерства НЕ зависит. Импортозамещение: без ShedLock/Quartz/ZooKeeper, только PostgreSQL (ADR-0004). k8s `deploy/k8s/backend-deployment.yaml` (replicas:2, P5-3-пробы, graceful shutdown server.shutdown=graceful + lifecycle.timeout 25s + preStop). Тест P6_1_LeaderElectionIntTest (5, изолирован своим lock_name): один лидер из двух, renew, failover при протухании, release→перехват, isLeader=false при истёкшей локальной аренде. P5_4_BackupRestoreIntTest future-proofed (сверка TARGET↔SOURCE + floor>=36). 825 тестов, JaCoCo gate, Modulith зелёные. |
-| P6-2 | Горизонтальное масштабирование + партиционирование/retention больших таблиц | devops-agent + db-dev | Pending | — |
+| P6-2 | Горизонтальное масштабирование + партиционирование/retention больших таблиц | db-dev | Done | reviewer PASS (1 цикл фикса: добавлены Micrometer-метрики retention). **Партиционирование:** V37 переводит `tracking_event_log` на нативное `PARTITION BY RANGE (created_at)` помесячно (INSERT...SELECT с сохранением id/IDENTITY, DEFAULT-партиция, индексы на родителе, PK стал составным (id, created_at) — JPA `@Id Long id`/findById работают; FK на таблицу нет). `messages`/`audit_log` — НЕ нативно (составной PK сломал бы JPA-критерии/cross-module writers/>10 тестов), вместо этого **retention-by-deletion** по received_at/created_at. **Retention:** `RetentionService` (корневой пакет, JdbcTemplate) — create-ahead будущих партиций + DROP старых + DELETE старых строк; @Scheduled (cron, дефолт 03:00), **гейтуется P6-1 LeaderElection** (чистит только лидер); пороги из `app.retention.*` (env). Метрики `eca.retention.partitions.dropped` / `eca.retention.rows.deleted{table}`. **Масштабирование:** `deploy/k8s/backend-hpa.yaml` (HPA autoscaling/v2, CPU 70%, min 2 / max 8; requests из P6-1 deployment) + README. Тесты P6_2_PartitioningRetentionIntTest (18): роутинг строк по партициям (tableoid), cross-partition чтение, составной PK + findById, create-ahead, DROP старой партиции с данными, retention messages/audit (граница порога), leader-гейт (no-op на не-лидере), метрики. 843 теста, JaCoCo gate, Modulith зелёные. |
 | P6-3 | Полный нагрузочный прогон + профилирование + тюнинг, отчёт p95/p99 | test-engineer | Pending | — |
 
 ## P7 — Промышленный фронтенд
@@ -101,9 +101,9 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 825 зелёных (JaCoCo gate пройден).
-- Последняя миграция: V36 (`leader_election`, P6-1). P5-1..P5-4 — без миграции.
-- **Фазы P1–P5 завершены.** P6 в работе: P6-1 — Done; осталось P6-2 (партиционирование/retention), P6-3 (нагрузочный прогон).
+- Тестов: 843 зелёных (JaCoCo gate пройден).
+- Последняя миграция: V37 (`partition_tracking_event_log`, P6-2). P5-1..P5-4 — без миграции.
+- **Фазы P1–P5 завершены.** P6 в работе: P6-1, P6-2 — Done; осталось P6-3 (нагрузочный прогон/профилирование/тюнинг).
 
 ### CI зелёный (2026-06-26): доведён до зелёного на всех джобах
 - После починки CRLF в mvnw (28c1170) OWASP-скан впервые реально запустился и валил

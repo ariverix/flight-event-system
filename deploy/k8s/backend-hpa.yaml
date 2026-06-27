@@ -1,0 +1,60 @@
+# P6-2: HorizontalPodAutoscaler для eca-backend.
+#
+# Масштабирует Deployment eca-backend по загрузке CPU (target 70%).
+# При росте нагрузки (входящий поток ACARS, движок ECA) k8s добавляет реплики
+# вплоть до maxReplicas; при спаде — уменьшает до minReplicas.
+#
+# Ключевые свойства горизонтального масштабирования:
+#   • minReplicas: 2 — HA-минимум (одна реплика не создаёт SPOF, Deployment в P6-1 уже replicas:2);
+#     при одной реплике rolling-update без downtime невозможен (maxUnavailable:0 в Deployment).
+#   • maxReplicas: 8 — потолок для первого прод-деплоя; настраивается под реальные SLO (P6-3).
+#   • CPU target 70%: оставляет 30% запаса до перегрева pod'а; согласован с requests.cpu=500m
+#     (backend-deployment.yaml). HPA сравнивает фактическое CPU с requests (не limits) и
+#     масштабирует, когда avg > 70% от 500m = 350m на pod.
+#
+# Почему leader election гарантирует single-fire при N репликах (см. также backend-deployment.yaml):
+#   @Scheduled-поллеры (WaitTimeoutScheduler, OutboundMessageDeliveryScheduler, RetentionService)
+#   гейтируются через LeaderElection.isLeader() — при N репликах только одна выполняет
+#   периодические задачи. Кроме того, сами планировщики используют атомарный DB-claim
+#   (UPDATE ... WHERE, P1-5/P2-3) как defense-in-depth: даже при кратковременном «раздвоении»
+#   лидерства двойной срабатывания таймаута/доставки не будет.
+#   RetentionService (P6-2): использует тот же isLeader() → в кластере чистку ведёт только лидер;
+#   идемпотентность (IF NOT EXISTS / IF EXISTS / WHERE) делает двойной запуск безопасным.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: eca-backend-hpa
+  labels:
+    app: eca-backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: eca-backend
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # 70% от requests.cpu (500m) = 350m среднего CPU на pod → scale-out.
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      # Быстрое масштабирование вверх: разрешить добавлять до 2 реплик каждые 60 с
+      # (не резкий spike, но и не медленное «жди 5 мин»).
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      # Консервативное уменьшение: ждём 5 мин стабильного снижения нагрузки перед scale-down
+      # (избегаем «пилы» при кратковременных спадах).
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
