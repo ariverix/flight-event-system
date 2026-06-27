@@ -1,0 +1,160 @@
+/**
+ * WsClient — WebSocket-клиент с автоматическим переподключением.
+ *
+ * Поведение:
+ * - URL берётся из VITE_WS_URL (env). Если переменная не задана — режим «нет-оп»:
+ *   соединение не открывается, подписки молча игнорируются (приложение не падает).
+ * - Переподключение: экспоненциальный backoff 1 → 2 → 4 → 8 → 16 → 32 с (потолок).
+ * - Ping/pong-цикл каждые 30 с для детекции «тихих» разрывов.
+ * - Multiplexed подписки: множество обработчиков на один канал.
+ *
+ * Синглтон: экспортируется единственный экземпляр `wsClient`.
+ * Инициализируется в main.tsx после монтирования приложения.
+ */
+import type { WsChannel, WsMessage, WsPayload } from './types';
+
+// Внутренний тип — стёртый listener без привязки к конкретному каналу.
+// Используется только внутри Map; публичный API типобезопасен через generics.
+type AnyListener = (payload: unknown) => void;
+
+const BACKOFF_CAP_MS = 32_000;
+const PING_INTERVAL_MS = 30_000;
+
+export class WsClient {
+  private readonly url: string | null;
+  private socket: WebSocket | null = null;
+  private readonly listeners = new Map<WsChannel, Set<AnyListener>>();
+  private retryCount = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private destroyed = false;
+
+  constructor(url: string | null) {
+    this.url = url;
+  }
+
+  /** Открыть соединение. Нет-оп, если URL не задан. */
+  connect(): void {
+    if (!this.url || this.destroyed) return;
+    if (this.socket && this.socket.readyState <= WebSocket.OPEN) return;
+
+    try {
+      const token = localStorage.getItem('jwt');
+      // TODO P7-4(security): не слать JWT в URL — токен попадает в сервер-логи и историю.
+      // Аутентификация должна происходить первым сообщением после установки соединения
+      // (send { channel: 'auth', payload: { token } } после onopen).
+      // Реализовать совместно с бэкенд WS-эндпоинтом в P7-4. См. ADR-0005 п. 4.
+      const wsUrl = token ? `${this.url}?token=${encodeURIComponent(token)}` : this.url;
+      this.socket = new WebSocket(wsUrl);
+    } catch {
+      this.scheduleReconnect();
+      return;
+    }
+
+    this.socket.onopen = () => {
+      this.retryCount = 0;
+      this.startPing();
+    };
+
+    this.socket.onmessage = (ev: MessageEvent<unknown>) => {
+      this.handleRawMessage(ev.data);
+    };
+
+    this.socket.onclose = () => {
+      this.stopPing();
+      this.scheduleReconnect();
+    };
+
+    this.socket.onerror = () => {
+      // onclose будет вызван после onerror браузером
+    };
+  }
+
+  /** Закрыть соединение и освободить ресурсы. */
+  disconnect(): void {
+    this.destroyed = true;
+    this.stopPing();
+    if (this.retryTimer !== null) clearTimeout(this.retryTimer);
+    this.socket?.close();
+    this.socket = null;
+  }
+
+  /**
+   * Подписаться на канал.
+   * @returns Функция отписки — вызвать при размонтировании компонента.
+   */
+  subscribe<C extends WsChannel>(
+    channel: C,
+    listener: (payload: WsPayload<C>) => void,
+  ): () => void {
+    if (!this.listeners.has(channel)) {
+      this.listeners.set(channel, new Set());
+    }
+    // Внутри хранится стёртый тип; при dispatch payload приведён к нужному типу через канал.
+    const erased = listener as AnyListener;
+    this.listeners.get(channel)!.add(erased);
+    return () => {
+      this.listeners.get(channel)?.delete(erased);
+    };
+  }
+
+  // ── Приватные методы ────────────────────────────────────────────────────────
+
+  private handleRawMessage(raw: unknown): void {
+    if (typeof raw !== 'string') return;
+    let msg: WsMessage;
+    try {
+      msg = JSON.parse(raw) as WsMessage;
+    } catch {
+      return;
+    }
+    if (typeof msg !== 'object' || msg === null || !('channel' in msg)) return;
+
+    if (msg.channel === 'ping') {
+      this.send({ channel: 'pong', payload: { ts: Date.now() } });
+      return;
+    }
+
+    const handlers = this.listeners.get(msg.channel);
+    if (!handlers) return;
+    handlers.forEach((h) => h(msg.payload));
+  }
+
+  private send(msg: WsMessage): void {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(msg));
+    }
+  }
+
+  private startPing(): void {
+    this.pingTimer = setInterval(() => {
+      this.send({ channel: 'ping', payload: { ts: Date.now() } });
+    }, PING_INTERVAL_MS);
+  }
+
+  private stopPing(): void {
+    if (this.pingTimer !== null) {
+      clearInterval(this.pingTimer);
+      this.pingTimer = null;
+    }
+  }
+
+  private scheduleReconnect(): void {
+    if (this.destroyed || !this.url) return;
+    const delay = Math.min(1_000 * 2 ** this.retryCount, BACKOFF_CAP_MS);
+    this.retryCount++;
+    this.retryTimer = setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+}
+
+/**
+ * Синглтон WS-клиента.
+ * URL из VITE_WS_URL. Если переменная не задана — клиент работает в нет-оп режиме.
+ *
+ * Пример .env.local:
+ *   VITE_WS_URL=ws://localhost:8080/ws/eca
+ */
+const WS_URL: string | null = (import.meta.env['VITE_WS_URL'] as string | undefined) ?? null;
+export const wsClient = new WsClient(WS_URL);

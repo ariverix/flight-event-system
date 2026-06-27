@@ -1,45 +1,51 @@
-import { useState, useEffect, useCallback } from 'react';
+/**
+ * useAuth — тонкий React-hook поверх authStore (Zustand).
+ *
+ * Сигнатура намеренно совпадает со старым hook-ом, чтобы не ломать
+ * существующие компоненты (ProtectedRoute, AppLayout, LoginPage …).
+ * Состояние теперь синглтон: все потребители видят одни данные реактивно.
+ *
+ * Миграция: P7-1. Следующий шаг: заменить прямые localStorage-чтения
+ * в axiosConfig на store.getState().user?.token (P7-5).
+ */
+import { useCallback } from 'react';
 import { authApi } from '../api/authApi';
-import { LoginResponse } from '../types/auth';
+import { useAuthStore, type AuthUser } from '../store/authStore';
 
 export const useAuth = () => {
-  const [user, setUser] = useState<LoginResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, setUser, clear } = useAuthStore();
 
-  useEffect(() => {
-    const token = localStorage.getItem('jwt');
-    const savedUser = localStorage.getItem('user');
+  const login = useCallback(
+    async (username: string, password: string) => {
+      const response = await authApi.login({ username, password });
 
-    if (token && savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        localStorage.removeItem('jwt');
-        localStorage.removeItem('user');
-      }
-    }
-    setLoading(false);
-  }, []);
+      // Синхронизируем JWT в localStorage — axios-интерсептор читает его напрямую
+      localStorage.setItem('jwt', response.token);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const response = await authApi.login({ username, password });
-    localStorage.setItem('jwt', response.token);
-    localStorage.setItem('user', JSON.stringify(response));
-    setUser(response);
-  }, []);
+      const authUser: AuthUser = {
+        token:        response.token,
+        refreshToken: response.refreshToken,
+        username:     response.username,
+        role:         response.role,
+        fullName:     response.fullName,
+      };
+      setUser(authUser);
+    },
+    [setUser],
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem('jwt');
-    localStorage.removeItem('user');
-    setUser(null);
+    clear();
     window.location.href = '/login';
-  }, []);
+  }, [clear]);
 
   return {
     user,
     login,
     logout,
-    loading,
+    /** С Zustand/persist гидратация синхронная → loading всегда false */
+    loading: false,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'ADMIN',
   };

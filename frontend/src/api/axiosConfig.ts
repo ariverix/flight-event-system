@@ -1,4 +1,19 @@
+/**
+ * Singleton axios instance + интерсепторы.
+ *
+ * Токен читается из localStorage напрямую — не из store — чтобы избежать
+ * циклических зависимостей (store → axios → store).
+ * При переходе на refresh-flow (P7-5) интерсептор ответа добавит /auth/refresh.
+ */
 import axios from 'axios';
+
+// ── Расширение глобального window для dev-утилит ──────────────────────────────
+declare global {
+  interface Window {
+    /** Dev-only: DebugOverlay подписывается через этот callback. */
+    __ecaError?: (msg: string) => void;
+  }
+}
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -34,23 +49,26 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
-    const status = error.response?.status;
-    const url    = error.config?.url;
-    const msg    = error.response?.data?.message ?? error.message;
+  (error: unknown) => {
+    const err = error as {
+      response?: { status?: number; data?: { message?: string } };
+      config?: { url?: string };
+      message?: string;
+    };
+    const status = err.response?.status;
+    const url    = err.config?.url;
+    const msg    = err.response?.data?.message ?? err.message;
 
     if (import.meta.env.DEV) {
       console.error(`%c✗ ${status} ${url}: ${msg}`, 'color:#ef4444;font-weight:bold');
     }
 
-    // Передаём в DebugOverlay если инициализирован
-    if (typeof (window as any).__ecaError === 'function') {
-      (window as any).__ecaError(`API ${status}: ${url} — ${msg}`);
+    if (typeof window.__ecaError === 'function') {
+      window.__ecaError(`API ${status}: ${url} — ${msg}`);
     }
 
     if (status === 401) {
       localStorage.removeItem('jwt');
-      localStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

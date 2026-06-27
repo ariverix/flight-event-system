@@ -8,6 +8,7 @@ export interface AuditLogEntry {
   entityType: string | null;
   entityId: number | null;
   detailsJson: string | null;
+  correlationId: string | null;
   createdAt: string;
 }
 
@@ -18,9 +19,9 @@ export const auditApi = {
     entityType?: string,
     action?: string,
   ): Promise<PageResponse<AuditLogEntry>> => {
-    const params: Record<string, any> = { page, size };
+    const params: { page: number; size: number; entityType?: string; action?: string } = { page, size };
     if (entityType) params.entityType = entityType;
-    if (action) params.action = action;
+    if (action)     params.action     = action;
     const response = await api.get<PageResponse<AuditLogEntry>>('/audit-log', { params });
     return response.data;
   },

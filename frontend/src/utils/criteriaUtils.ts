@@ -1,13 +1,17 @@
-export const parseCriteria = (json: string | null): any => {
+/**
+ * Утилиты для работы с JSON-критериями последовательностей.
+ * Типизированы без `any`: JSON-значение представлено как `unknown`.
+ */
+export const parseCriteria = (json: string | null): unknown => {
   if (!json) return null;
   try {
-    return JSON.parse(json);
+    return JSON.parse(json) as unknown;
   } catch {
     return null;
   }
 };
 
-export const stringifyCriteria = (criteria: any): string => {
+export const stringifyCriteria = (criteria: unknown): string => {
   try {
     return JSON.stringify(criteria, null, 2);
   } catch {
@@ -20,7 +24,7 @@ export const validateCriteriaJson = (json: string): boolean => {
   try {
     JSON.parse(json);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 };

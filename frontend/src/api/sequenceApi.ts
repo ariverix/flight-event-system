@@ -12,9 +12,9 @@ export const sequenceApi = {
   getSequences: async (
     page: number = 0,
     size: number = 10,
-    status?: SequenceStatus
+    status?: SequenceStatus,
   ): Promise<PageResponse<SequenceResponse>> => {
-    const params: Record<string, any> = { page, size };
+    const params: { page: number; size: number; status?: SequenceStatus } = { page, size };
     if (status) params.status = status;
     const response = await api.get<PageResponse<SequenceResponse>>('/sequences', { params });
     return response.data;
@@ -62,7 +62,7 @@ export const sequenceApi = {
   updateStep: async (
     sequenceId: number,
     stepId: number,
-    request: StepCreateRequest
+    request: StepCreateRequest,
   ): Promise<StepResponse> => {
     const response = await api.put<StepResponse>(`/sequences/${sequenceId}/steps/${stepId}`, request);
     return response.data;

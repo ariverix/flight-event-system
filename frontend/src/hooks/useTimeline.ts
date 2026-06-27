@@ -125,8 +125,9 @@ export const useTimeline = (aircraftId: string | null) => {
       setVisible(events);
       setIdx(events.length);
       setPlaying(false);
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? e.message ?? 'Ошибка загрузки');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(e?.response?.data?.message ?? e?.message ?? 'Ошибка загрузки');
     } finally {
       setLoading(false);
     }

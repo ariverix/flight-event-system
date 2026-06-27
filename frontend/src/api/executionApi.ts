@@ -8,10 +8,16 @@ export const executionApi = {
     size: number = 10,
     status?: ExecutionStatus,
     aircraftId?: string,
-    sequenceId?: number
+    sequenceId?: number,
   ): Promise<PageResponse<ExecutionInstanceResponse>> => {
-    const params: Record<string, any> = { page, size };
-    if (status) params.status = status;
+    const params: {
+      page: number;
+      size: number;
+      status?: ExecutionStatus;
+      aircraftId?: string;
+      sequenceId?: number;
+    } = { page, size };
+    if (status)     params.status     = status;
     if (aircraftId) params.aircraftId = aircraftId;
     if (sequenceId) params.sequenceId = sequenceId;
     const response = await api.get<PageResponse<ExecutionInstanceResponse>>('/executions', { params });

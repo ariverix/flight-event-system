@@ -18,13 +18,20 @@ export const messageApi = {
     aircraftId?: string,
     messageType?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
   ): Promise<PageResponse<MessageResponse>> => {
-    const params: Record<string, any> = { page, size };
-    if (aircraftId) params.aircraftId = aircraftId;
+    const params: {
+      page: number;
+      size: number;
+      aircraftId?: string;
+      messageType?: string;
+      startDate?: string;
+      endDate?: string;
+    } = { page, size };
+    if (aircraftId)  params.aircraftId  = aircraftId;
     if (messageType) params.messageType = messageType;
-    if (startDate) params.startDate = startDate;
-    if (endDate) params.endDate = endDate;
+    if (startDate)   params.startDate   = startDate;
+    if (endDate)     params.endDate     = endDate;
     const response = await api.get<PageResponse<MessageResponse>>('/messages', { params });
     return response.data;
   },

@@ -5,6 +5,8 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
+  /** Refresh-token добавлен в P4-2; может отсутствовать у старых клиентов. */
+  refreshToken?: string;
   username: string;
   role: 'OPERATOR' | 'ADMIN';
   fullName: string;

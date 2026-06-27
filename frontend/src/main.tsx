@@ -6,11 +6,15 @@ import App from './App.tsx';
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx';
 import { DARK_THEME, LIGHT_THEME } from './theme/darkTheme.ts';
 import { setupHMRLogging } from './hooks/useHMRStatus.ts';
+import { wsClient } from './api/ws/WsClient.ts';
 import './index.css';
 
 if (import.meta.env.DEV) {
   setupHMRLogging();
 }
+
+// Инициализируем WS-клиент. Нет-оп, если VITE_WS_URL не задан (нет бэкенд-WS в P7-1).
+wsClient.connect();
 
 function ThemedApp() {
   const { isDark } = useTheme();
