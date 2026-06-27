@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.integration.domain.ChannelCircuitBreaker;
 import ru.protectinfotrans.eca.integration.domain.OutboundMessage;
 import ru.protectinfotrans.eca.integration.domain.OutboundMessageType;
+import ru.protectinfotrans.eca.cluster.LeaderElection;
 import ru.protectinfotrans.eca.integration.port.out.CircuitBreakerRepositoryPort;
 import ru.protectinfotrans.eca.integration.port.out.OutboundMessageRepositoryPort;
 import ru.protectinfotrans.eca.templates.port.in.MissingTemplateVariableException;
@@ -78,6 +79,7 @@ public class OutboundMessageDeliveryScheduler {
     private final OutboundMessageRepositoryPort repository;
     private final CircuitBreakerRepositoryPort circuitBreakerRepository;
     private final ObjectProvider<OutboundMessageDeliveryScheduler> self;
+    private final LeaderElection leaderElection;
     private final OutboundBackoffPolicy backoffPolicy;
     private final CircuitBreakerPolicy circuitBreakerPolicy;
     private final ObjectMapper objectMapper;
@@ -90,12 +92,14 @@ public class OutboundMessageDeliveryScheduler {
     public OutboundMessageDeliveryScheduler(OutboundMessageRepositoryPort repository,
                                              CircuitBreakerRepositoryPort circuitBreakerRepository,
                                              ObjectProvider<OutboundMessageDeliveryScheduler> self,
+                                             LeaderElection leaderElection,
                                              ObjectMapper objectMapper,
                                              TemplateRenderUseCase templateRenderUseCase,
                                              MeterRegistry meterRegistry) {
         this.repository = repository;
         this.circuitBreakerRepository = circuitBreakerRepository;
         this.self = self;
+        this.leaderElection = leaderElection;
         this.backoffPolicy = new OutboundBackoffPolicy();
         this.circuitBreakerPolicy = new CircuitBreakerPolicy();
         this.objectMapper = objectMapper;
@@ -107,8 +111,22 @@ public class OutboundMessageDeliveryScheduler {
                 "eca.integration.outbound.render_missing_variable", new AtomicLong(0));
     }
 
-    /** Каждые 5 сек опрашиваем PENDING исходящие сообщения (durable claim в БД). */
+    /**
+     * P6-1: автоматический {@code @Scheduled}-тик доставки — ТОЛЬКО на реплике-лидере (leader election
+     * на PostgreSQL, {@link LeaderElection}), чтобы в кластере не опрашивали все реплики сразу.
+     * Делегирует в {@link #pollPendingMessages()} (публичный, негейтуемый — его напрямую вызывают
+     * интеграционные тесты). Корректность single-fire не зависит от лидерства: атомарный
+     * {@code claimPending} в БД — defense-in-depth даже при кратком раздвоении лидерства.
+     */
     @Scheduled(fixedRate = 5000)
+    public void scheduledPoll() {
+        if (!leaderElection.isLeader()) {
+            return;
+        }
+        pollPendingMessages();
+    }
+
+    /** Опрашивает PENDING исходящие сообщения (durable claim в БД). Вызывается тиком {@link #scheduledPoll()}. */
     public void pollPendingMessages() {
         try {
             List<OutboundMessage> candidates = repository.findPendingCandidates(LocalDateTime.now(), BATCH_SIZE);

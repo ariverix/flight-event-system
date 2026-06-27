@@ -76,7 +76,7 @@
 
 | ID | Описание | Ответственный агент | Статус | Доказательство |
 |---|---|---|---|---|
-| P6-1 | HA: реплики backend + leader election планировщика (single-fire в кластере) | devops-agent | Pending | — |
+| P6-1 | HA: реплики backend + leader election планировщика (single-fire в кластере) | devops-agent (реализовано оркестратором — суб-агент уперся в лимит сессии) | Done | reviewer PASS (1 цикл фикса: @Autowired на public-конструкторе — два конструктора ломали выбор бина). Lease-based leader election на PostgreSQL (новый модуль `cluster`: `LeaderElection`/`LeaderElectionService`), V36 `leader_election` (lock_name PK, holder_id, lease_until). Захват/продление — атомарный `INSERT ... ON CONFLICT DO UPDATE ... WHERE lease_until<now OR holder=me` (из N реплик лидер ровно один); heartbeat@10s, acquireOnStartup@ApplicationReadyEvent, releaseOnShutdown@PreDestroy. @Scheduled-тики гейтятся `isLeader()` (WaitTimeoutScheduler.pollWaitTimeouts; OutboundMessageDeliveryScheduler.scheduledPoll→pollPendingMessages, последний оставлен public/ungated — его зовут IT-тесты напрямую). DB-claim (P1-5/P2-3) — defense-in-depth, корректность single-fire от лидерства НЕ зависит. Импортозамещение: без ShedLock/Quartz/ZooKeeper, только PostgreSQL (ADR-0004). k8s `deploy/k8s/backend-deployment.yaml` (replicas:2, P5-3-пробы, graceful shutdown server.shutdown=graceful + lifecycle.timeout 25s + preStop). Тест P6_1_LeaderElectionIntTest (5, изолирован своим lock_name): один лидер из двух, renew, failover при протухании, release→перехват, isLeader=false при истёкшей локальной аренде. P5_4_BackupRestoreIntTest future-proofed (сверка TARGET↔SOURCE + floor>=36). 825 тестов, JaCoCo gate, Modulith зелёные. |
 | P6-2 | Горизонтальное масштабирование + партиционирование/retention больших таблиц | devops-agent + db-dev | Pending | — |
 | P6-3 | Полный нагрузочный прогон + профилирование + тюнинг, отчёт p95/p99 | test-engineer | Pending | — |
 
@@ -101,9 +101,9 @@
 
 ## Сводные метрики на момент последнего обновления
 
-- Тестов: 820 зелёных (JaCoCo gate пройден).
-- Последняя миграция: V35 (`refresh_tokens`). P5-1..P5-4 — без миграции.
-- **Фазы P1–P5 завершены.** Далее P6 (масштаб): P6-1 HA/leader election, P6-2 партиционирование/retention, P6-3 нагрузочный прогон.
+- Тестов: 825 зелёных (JaCoCo gate пройден).
+- Последняя миграция: V36 (`leader_election`, P6-1). P5-1..P5-4 — без миграции.
+- **Фазы P1–P5 завершены.** P6 в работе: P6-1 — Done; осталось P6-2 (партиционирование/retention), P6-3 (нагрузочный прогон).
 
 ### CI зелёный (2026-06-26): доведён до зелёного на всех джобах
 - После починки CRLF в mvnw (28c1170) OWASP-скан впервые реально запустился и валил

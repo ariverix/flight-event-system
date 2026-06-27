@@ -42,8 +42,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *             совпадает с SOURCE.</li>
  *         <li>Конкретная запись {@code sequences.name = 'P5-4 Restore Test'} присутствует.</li>
  *         <li>Конкретное сообщение {@code aircraft_id = 'VP-BQR'} присутствует.</li>
- *         <li>{@code flyway_schema_history} содержит ровно 35 успешных миграций
- *             (V35 — последняя).</li>
+ *         <li>{@code flyway_schema_history} в TARGET совпадает с SOURCE по числу успешных
+ *             миграций и последней версии (целостность истории; число не хардкодим).</li>
  *       </ul>
  *   </li>
  * </ol>
@@ -274,9 +274,10 @@ class P5_4_BackupRestoreIntTest {
     }
 
     @Test
-    @DisplayName("Flyway schema_history: V35 — последняя миграция (35 успешных миграций в TARGET)")
-    void flywaySchemaHistoryReflectsV35AfterRestore() {
-        // Проверяем количество успешных миграций — должно быть 35 (V1..V35)
+    @DisplayName("Flyway schema_history: восстановлены ВСЕ миграции SOURCE (целостность истории)")
+    void flywaySchemaHistoryReflectsAllMigrationsAfterRestore() {
+        // Целостность: TARGET после restore содержит столько же успешных миграций, сколько SOURCE,
+        // и ту же последнюю версию. Не хардкодим число миграций (растёт с каждой Vxx) — сверяем с SOURCE.
         Long migrationsInSource = sourceJdbc.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = true", Long.class);
         Long migrationsInTarget = targetJdbc.queryForObject(
@@ -285,17 +286,22 @@ class P5_4_BackupRestoreIntTest {
         assertThat(migrationsInTarget)
                 .as("TARGET: flyway_schema_history должна содержать столько же успешных миграций, сколько SOURCE")
                 .isEqualTo(migrationsInSource);
+        // Floor-проверка: миграции реально накатились (а не пустая схема). Растёт с проектом — не ломается
+        // при добавлении новой Vxx (в отличие от строгого равенства).
         assertThat(migrationsInSource)
-                .as("Должно быть 35 успешных миграций (V1..V35)")
-                .isEqualTo(35L);
+                .as("Должно быть как минимум 36 успешных миграций (V1..V36 на момент P6-1)")
+                .isGreaterThanOrEqualTo(36L);
 
-        // Последняя миграция по installed_rank — версия '35'
+        // Последняя миграция по installed_rank в TARGET совпадает с SOURCE (целостность восстановления).
+        String lastVersionInSource = sourceJdbc.queryForObject(
+                "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1",
+                String.class);
         String lastVersionInTarget = targetJdbc.queryForObject(
                 "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1",
                 String.class);
         assertThat(lastVersionInTarget)
-                .as("Последняя миграция в TARGET — V35")
-                .isEqualTo("35");
+                .as("Последняя миграция в TARGET совпадает с SOURCE")
+                .isEqualTo(lastVersionInSource);
     }
 
     @Test

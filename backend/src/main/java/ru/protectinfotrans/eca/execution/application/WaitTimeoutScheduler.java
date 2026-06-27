@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import ru.protectinfotrans.eca.cluster.LeaderElection;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,16 +31,29 @@ import java.util.concurrent.atomic.AtomicLong;
 public class WaitTimeoutScheduler {
 
     private final ExecutionService executionService;
+    private final LeaderElection leaderElection;
     private final AtomicLong lastPollDurationMs;
 
-    public WaitTimeoutScheduler(ExecutionService executionService, MeterRegistry meterRegistry) {
+    public WaitTimeoutScheduler(ExecutionService executionService, LeaderElection leaderElection,
+                                MeterRegistry meterRegistry) {
         this.executionService = executionService;
+        this.leaderElection = leaderElection;
         this.lastPollDurationMs = meterRegistry.gauge("eca.execution.wait_timeout_poll.duration_ms", new AtomicLong(0));
     }
 
-    /** каждые 10 сек опрашиваем просроченные WAIT-шаги (durable claim в БД, см. ExecutionService) */
+    /**
+     * каждые 10 сек опрашиваем просроченные WAIT-шаги (durable claim в БД, см. ExecutionService).
+     *
+     * <p>P6-1: автоматический тик выполняется ТОЛЬКО на реплике-лидере (leader election на PostgreSQL,
+     * {@link LeaderElection}) — чтобы в кластере не опрашивали все реплики сразу. Корректность
+     * single-fire от этого не зависит: атомарный claim в БД ({@code claimAndAdvanceTimeout}) — это
+     * defense-in-depth даже при кратком раздвоении лидерства.
+     */
     @Scheduled(fixedRate = 10000)
     public void pollWaitTimeouts() {
+        if (!leaderElection.isLeader()) {
+            return;
+        }
         long start = System.currentTimeMillis();
         try {
             executionService.checkWaitTimeouts();

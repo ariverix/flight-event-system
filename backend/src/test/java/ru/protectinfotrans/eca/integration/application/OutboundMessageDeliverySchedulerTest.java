@@ -70,8 +70,10 @@ class OutboundMessageDeliverySchedulerTest {
 
     @BeforeEach
     void setUp() {
+        // P6-1: pollPendingMessages() негейтуем (его и тестируем напрямую); лидер-заглушка нужна
+        // только для конструктора — для прямого вызова pollPendingMessages значение isLeader не важно.
         scheduler = new OutboundMessageDeliveryScheduler(repository, circuitBreakerRepository, self,
-                new ObjectMapper(), templateRenderUseCase, new SimpleMeterRegistry());
+                () -> true, new ObjectMapper(), templateRenderUseCase, new SimpleMeterRegistry());
         org.mockito.Mockito.lenient().when(self.getObject()).thenReturn(scheduler);
         org.mockito.Mockito.lenient().when(circuitBreakerRepository.getOrCreate(any()))
                 .thenReturn(closedBreaker(OutboundMessageType.UPLINK));

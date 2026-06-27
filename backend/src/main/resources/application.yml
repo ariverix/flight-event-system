@@ -2,6 +2,11 @@ spring:
   application:
     name: eca-system
 
+  # P6-1: сколько ждём завершения in-flight работы при graceful shutdown
+  # (server.shutdown=graceful ниже). Держим < terminationGracePeriodSeconds в k8s (deploy/k8s).
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
+
   datasource:
     # P4-3: секреты вынесены в окружение. Значения после ':' — ТОЛЬКО dev-дефолты для
     # локального запуска/тестов; в проде ОБЯЗАТЕЛЬНО переопределяются env/secret-manager'ом
@@ -47,6 +52,11 @@ spring:
 
 server:
   port: 8080
+  # P6-1: graceful shutdown — при остановке (SIGTERM/rolling-update) дать докрутить in-flight
+  # HTTP-запросы и @Scheduled-обработку перед закрытием. Совместно с k8s preStop+terminationGrace
+  # (deploy/k8s) и LeaderElectionService.releaseOnShutdown (быстрый перехват лидерства репликой).
+  # Длительность ожидания — spring.lifecycle.timeout-per-shutdown-phase (см. spring-блок выше).
+  shutdown: graceful
 
 logging:
   structured:

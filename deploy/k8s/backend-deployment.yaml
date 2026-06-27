@@ -1,0 +1,107 @@
+# P6-1: HA-развёртывание backend в несколько реплик с leader election планировщика.
+#
+# Полноценный Helm-чарт (параметризация, values, ConfigMap/Secret-шаблоны, blue-green/rolling) —
+# зона P8-1. Здесь — минимальный рабочий Deployment+Service, демонстрирующий HA-цель P6-1:
+#   • replicas: 2 — несколько экземпляров backend одновременно;
+#   • @Scheduled-поллеры (WAIT-таймауты, доставка outbound) тикают ТОЛЬКО на реплике-лидере
+#     (leader election на PostgreSQL, таблица leader_election, V36) — без избыточного опроса
+#     всеми репликами; корректность single-fire дополнительно защищена DB-claim'ом (P1-5/P2-3).
+#   • k8s-пробы используют health-группы P5-3 (liveness/readiness), открытые без JWT.
+#
+# Импортозамещение: самостоятельный кластер (любой сертифицированный k8s-дистрибутив),
+# без привязки к зарубежным managed-облакам.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eca-backend
+  labels:
+    app: eca-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: eca-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: eca-backend
+    spec:
+      # Graceful shutdown: дать приложению время докрутить in-flight обработку и отпустить
+      # лидерство (LeaderElectionService.releaseOnShutdown ускоряет перехват другой репликой).
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: eca-backend
+          image: eca-backend:latest      # тег подставляет CI/CD (P8-1)
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # Секреты/конфиг — из Secret/ConfigMap (значения здесь не хранятся; см. .env.example, P4-3).
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef: { name: eca-db, key: url }
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef: { name: eca-db, key: username }
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: eca-db, key: password }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: eca-jwt, key: secret }
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "768Mi"
+            limits:
+              cpu: "2"
+              memory: "1536Mi"
+          # Startup probe: ждём завершения Flyway-миграций и первого подключения к БД (P5-3).
+          startupProbe:
+            httpGet:
+              path: /actuator/health/startup
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          # Liveness: только «JVM жива» — НЕ зависит от БД/каналов (k8s не рестартит pod зря, P5-3).
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          # Readiness: учитывает БД + критичные каналы (circuit breaker/DLQ, P5-3) — при деградации
+          # k8s выводит pod из ротации сервиса, не убивая его.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # Небольшая пауза перед SIGTERM, чтобы k8s успел снять pod с endpoints сервиса
+              # (исключить гонку «трафик ещё идёт, а приложение уже останавливается»).
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eca-backend
+  labels:
+    app: eca-backend
+spec:
+  selector:
+    app: eca-backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+  type: ClusterIP
