@@ -341,6 +341,44 @@ const EDITOR_RU = {
     SEQUENCE_STOPPED:  'Остановка последовательности',
     SEQUENCE_ABORTED:  'Прерывание последовательности',
   } as Record<string, string>,
+
+  // ── P7-5: AppLayout — навигация, шапка ──────────────────────────────────────
+
+  sysName:            'СИСТЕМА ЕСА',
+  sysTagline:         'Авиационная система мониторинга событий',
+  sysOnline:          'Система онлайн · v1.0.0',
+
+  navDashboard:       'Панель управления',
+  navSequences:       'Последовательности',
+  navExecutions:      'Выполнения',
+  navMonitoring:      'Мониторинг',
+  navMessages:        'Журнал сообщений',
+  navTimeline:        'Хронология',
+  navSimulator:       'Симулятор',
+  navDemo:            'Демонстрация',
+  navAuditLog:        'Журнал аудита',
+  navUsers:           'Пользователи',
+
+  themeLight:         'Светлая тема',
+  themeDark:          'Тёмная тема',
+
+  notifTitle:         'Активные выполнения',
+  notifNActive:       'активных',
+  notifEmpty:         'Нет активных выполнений',
+  notifViewAll:       'Открыть все выполнения →',
+  notifAircraftLabel: 'ВС',
+  notifFlightLabel:   'Рейс',
+
+  headerProfileBtn:   'Профиль пользователя',
+  headerLogoutBtn:    'Выйти из системы',
+
+  expandDetails:      'Развернуть детали',
+  collapseDetails:    'Свернуть детали',
+
+  roles: {
+    ADMIN:    'Администратор',
+    OPERATOR: 'Оператор',
+  } as Record<string, string>,
 };
 
 const EDITOR_EN = {
@@ -669,6 +707,44 @@ const EDITOR_EN = {
     STEP_COMPLETED:    'Step completed',
     SEQUENCE_STOPPED:  'Sequence stopped',
     SEQUENCE_ABORTED:  'Sequence aborted',
+  } as Record<string, string>,
+
+  // ── P7-5: AppLayout — navigation, header ────────────────────────────────────
+
+  sysName:            'ECA SYSTEM',
+  sysTagline:         'Aviation Event Monitoring System',
+  sysOnline:          'System online · v1.0.0',
+
+  navDashboard:       'Dashboard',
+  navSequences:       'Sequences',
+  navExecutions:      'Executions',
+  navMonitoring:      'Monitoring',
+  navMessages:        'Message Log',
+  navTimeline:        'Timeline',
+  navSimulator:       'Simulator',
+  navDemo:            'Demo',
+  navAuditLog:        'Audit Log',
+  navUsers:           'Users',
+
+  themeLight:         'Light theme',
+  themeDark:          'Dark theme',
+
+  notifTitle:         'Active Executions',
+  notifNActive:       'active',
+  notifEmpty:         'No active executions',
+  notifViewAll:       'View all executions →',
+  notifAircraftLabel: 'Aircraft',
+  notifFlightLabel:   'Flight',
+
+  headerProfileBtn:   'User Profile',
+  headerLogoutBtn:    'Log out',
+
+  expandDetails:      'Expand details',
+  collapseDetails:    'Collapse details',
+
+  roles: {
+    ADMIN:    'Administrator',
+    OPERATOR: 'Operator',
   } as Record<string, string>,
 };
 

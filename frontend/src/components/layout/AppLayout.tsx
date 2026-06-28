@@ -23,21 +23,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { executionApi } from '../../api/executionApi';
 import { ExecutionInstanceResponse } from '../../types/execution';
 import { ConnectionStatus } from '../dashboard/ConnectionStatus';
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
-
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'Администратор',
-  OPERATOR: 'Оператор',
-};
-
-const STATUS_LABEL_RU: Record<string, string> = {
-  RUNNING:   'Выполняется',
-  WAITING:   'Ожидание',
-  COMPLETED: 'Завершено',
-  ABORTED:   'Прервано',
-};
 
 const STATUS_COLORS: Record<string, string> = {
   RUNNING:   '#1677ff',
@@ -51,6 +40,7 @@ export const AppLayout: React.FC = () => {
   const location = useLocation();
   const { user, logout, isAdmin } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const d = useEditorI18n();
 
   const [activeExecutions, setActiveExecutions] = useState<ExecutionInstanceResponse[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -94,18 +84,18 @@ export const AppLayout: React.FC = () => {
   }, []);
 
   const menuItems = [
-    { key: '/', icon: <DashboardOutlined />, label: 'Панель управления' },
-    { key: '/sequences', icon: <OrderedListOutlined />, label: 'Последовательности' },
-    { key: '/executions', icon: <PlayCircleOutlined />, label: 'Выполнения' },
-    { key: '/monitoring', icon: <RocketOutlined />,     label: 'Мониторинг' },
-    { key: '/messages',  icon: <MessageOutlined />,     label: 'Журнал сообщений' },
-    { key: '/timeline',  icon: <RadarChartOutlined />,  label: 'Хронология' },
-    { key: '/simulator', icon: <ExperimentOutlined />,  label: 'Симулятор' },
-    { key: '/demo', icon: <PlaySquareOutlined />, label: 'Демонстрация' },
+    { key: '/', icon: <DashboardOutlined />, label: d.navDashboard },
+    { key: '/sequences', icon: <OrderedListOutlined />, label: d.navSequences },
+    { key: '/executions', icon: <PlayCircleOutlined />, label: d.navExecutions },
+    { key: '/monitoring', icon: <RocketOutlined />,     label: d.navMonitoring },
+    { key: '/messages',  icon: <MessageOutlined />,     label: d.navMessages },
+    { key: '/timeline',  icon: <RadarChartOutlined />,  label: d.navTimeline },
+    { key: '/simulator', icon: <ExperimentOutlined />,  label: d.navSimulator },
+    { key: '/demo', icon: <PlaySquareOutlined />, label: d.navDemo },
     ...(isAdmin
       ? [
-          { key: '/audit-log', icon: <SafetyCertificateOutlined />, label: 'Журнал аудита' },
-          { key: '/users', icon: <UserOutlined />, label: 'Пользователи' },
+          { key: '/audit-log', icon: <SafetyCertificateOutlined />, label: d.navAuditLog },
+          { key: '/users', icon: <UserOutlined />, label: d.navUsers },
         ]
       : []),
   ];
@@ -137,13 +127,13 @@ export const AppLayout: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <Text strong style={{ color: c.text }}>Активные выполнения</Text>
-        <Text style={{ color: c.textMuted, fontSize: 12 }}>{activeExecutions.length} активных</Text>
+        <Text strong style={{ color: c.text }}>{d.notifTitle}</Text>
+        <Text style={{ color: c.textMuted, fontSize: 12 }}>{activeExecutions.length} {d.notifNActive}</Text>
       </div>
 
       {activeExecutions.length === 0 ? (
         <div style={{ padding: '24px 16px' }}>
-          <Empty description={<Text style={{ color: c.textMuted }}>Нет активных выполнений</Text>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={<Text style={{ color: c.textMuted }}>{d.notifEmpty}</Text>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </div>
       ) : (
         <List
@@ -165,12 +155,12 @@ export const AppLayout: React.FC = () => {
                       fontWeight: 500,
                     }}
                   >
-                    {STATUS_LABEL_RU[exec.status] ?? exec.status}
+                    {d.instanceStatuses[exec.status] ?? exec.status}
                   </span>
                 </div>
                 <Text style={{ color: c.textMuted, fontSize: 12 }}>
-                  ВС: {exec.aircraftId}
-                  {exec.flightNumber ? ` · Рейс: ${exec.flightNumber}` : ''}
+                  {d.notifAircraftLabel}: {exec.aircraftId}
+                  {exec.flightNumber ? ` · ${d.notifFlightLabel}: ${exec.flightNumber}` : ''}
                 </Text>
               </div>
             </List.Item>
@@ -186,7 +176,7 @@ export const AppLayout: React.FC = () => {
         }}
       >
         <Button type="link" size="small" onClick={() => { navigate('/executions'); setNotifOpen(false); }}>
-          Открыть все выполнения →
+          {d.notifViewAll}
         </Button>
       </div>
     </div>
@@ -212,7 +202,7 @@ export const AppLayout: React.FC = () => {
           <div className="sidebar-logo-inner">
             <RocketOutlined className="sidebar-logo-icon" />
             <div className="sidebar-logo-text">
-              <span className="sidebar-logo-name">СИСТЕМА ЕСА</span>
+              <span className="sidebar-logo-name">{d.sysName}</span>
               <span className="sidebar-logo-sub">Event Control Automation</span>
             </div>
           </div>
@@ -238,7 +228,7 @@ export const AppLayout: React.FC = () => {
           }}
         >
           <span className="online-dot" />
-          <Text style={{ fontSize: 11, color: c.textDimmer }}>Система онлайн · v1.0.0</Text>
+          <Text style={{ fontSize: 11, color: c.textDimmer }}>{d.sysOnline}</Text>
         </div>
       </Sider>
 
@@ -264,7 +254,7 @@ export const AppLayout: React.FC = () => {
             color="#00c853"
             text={
               <Text style={{ fontSize: 12, color: c.textMuted }}>
-                Авиационная система мониторинга событий
+                {d.sysTagline}
               </Text>
             }
           />
@@ -274,11 +264,12 @@ export const AppLayout: React.FC = () => {
             {/* P7-4: WS connection indicator */}
             <ConnectionStatus />
             {/* Theme toggle */}
-            <Tooltip title={isDark ? 'Светлая тема' : 'Тёмная тема'}>
+            <Tooltip title={isDark ? d.themeLight : d.themeDark}>
               <Button
                 type="text"
                 icon={isDark ? <SunOutlined style={{ fontSize: 16 }} /> : <MoonOutlined style={{ fontSize: 16 }} />}
                 onClick={toggleTheme}
+                aria-label={isDark ? d.themeLight : d.themeDark}
                 style={{ color: c.textMuted }}
               />
             </Tooltip>
@@ -291,11 +282,12 @@ export const AppLayout: React.FC = () => {
               trigger={['click']}
               placement="bottomRight"
             >
-              <Tooltip title="Активные выполнения">
+              <Tooltip title={d.notifTitle}>
                 <Badge count={activeExecutions.length} size="small" offset={[-2, 2]}>
                   <Button
                     type="text"
                     icon={<BellOutlined style={{ fontSize: 16 }} />}
+                    aria-label={d.notifTitle}
                     style={{ color: activeExecutions.length > 0 ? '#faad14' : c.textMuted }}
                   />
                 </Badge>
@@ -305,7 +297,11 @@ export const AppLayout: React.FC = () => {
             {/* User info — показываем полное имя, Tooltip как запасной вариант */}
             <Tooltip title={user?.fullName}>
               <div
+                role="button"
+                tabIndex={0}
+                aria-label={d.headerProfileBtn}
                 onClick={() => navigate('/profile')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/profile'); }}
                 style={{
                   textAlign: 'right',
                   cursor: 'pointer',
@@ -331,25 +327,27 @@ export const AppLayout: React.FC = () => {
                   whiteSpace: 'nowrap',
                   lineHeight: '16px',
                 }}>
-                  {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
+                  {d.roles[user?.role ?? ''] ?? user?.role}
                 </div>
               </div>
             </Tooltip>
 
-            <Tooltip title="Профиль пользователя">
+            <Tooltip title={d.headerProfileBtn}>
               <Button
                 type="text"
                 icon={<ProfileOutlined />}
                 onClick={() => navigate('/profile')}
+                aria-label={d.headerProfileBtn}
                 style={{ color: c.textMuted }}
               />
             </Tooltip>
 
-            <Tooltip title="Выйти из системы">
+            <Tooltip title={d.headerLogoutBtn}>
               <Button
                 type="text"
                 icon={<LogoutOutlined />}
                 onClick={logout}
+                aria-label={d.headerLogoutBtn}
                 style={{ color: c.textMuted }}
               />
             </Tooltip>

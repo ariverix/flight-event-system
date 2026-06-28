@@ -17,6 +17,7 @@ import { SequenceResponse } from '../../types/sequence';
 import { ExecutionFlow } from './ExecutionFlow';
 import { usePolling } from '../../hooks/usePolling';
 import { useTheme } from '../../context/ThemeContext';
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 const { Text } = Typography;
 
@@ -68,6 +69,7 @@ const STEP_ICON: Record<string, React.ReactNode> = {
 
 const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecutionResponse; isDark: boolean }> = ({ se, prevSe, isDark }) => {
   const [open, setOpen] = useState(false);
+  const d = useEditorI18n();
   const c = isDark
     ? { bg: '#1c2128', border: '#21262d', text: '#e6edf3', muted: '#848d97' }
     : { bg: '#f6f8fa', border: '#d8dee4', text: '#1f2328', muted: '#636c76' };
@@ -115,6 +117,7 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
             size="small"
             icon={open ? <UpOutlined /> : <DownOutlined />}
             onClick={() => setOpen(o => !o)}
+            aria-label={open ? d.collapseDetails : d.expandDetails}
             style={{ height: 24, padding: '0 6px' }}
           />
         )}

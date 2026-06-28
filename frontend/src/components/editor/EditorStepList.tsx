@@ -272,6 +272,7 @@ const StepItem: React.FC<StepItemProps> = ({
               size="small"
               icon={<EditOutlined />}
               onClick={() => onEdit(step)}
+              aria-label={d.editStep}
               style={{ padding: '0 4px', height: 22, fontSize: 11 }}
             />
           </Tooltip>
@@ -289,6 +290,7 @@ const StepItem: React.FC<StepItemProps> = ({
                 size="small"
                 danger
                 icon={<DeleteOutlined />}
+                aria-label={d.deleteStep}
                 style={{ padding: '0 4px', height: 22, fontSize: 11 }}
               />
             </Tooltip>

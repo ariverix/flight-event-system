@@ -3,7 +3,6 @@
  *
  * Отображается в хедере. Читает флаг `connected` из useInstancesStore.
  * Флаг является оптимистичным: true после вызова connect(), false после disconnect().
- * TODO P7-5: заменить на точный ping/pong heartbeat с таймаутом для детекции тихих разрывов.
  */
 import React from 'react';
 import { Tooltip, Badge } from 'antd';
