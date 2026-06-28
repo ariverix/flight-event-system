@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "eca-system.backendServiceName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "eca-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  annotations:
+    # Параметризованная версия deploy/k8s/backend-deployment.yaml (P8-1).
+    # Оригинальный файл оставлен как deprecated-reference.
+    deployment.kubernetes.io/source: "deploy/k8s/backend-deployment.yaml (deprecated)"
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "eca-system.backend.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: {{ .Values.backend.strategy.type }}
+    {{- if eq .Values.backend.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      # maxUnavailable:0 — всегда доступно replicaCount pod'ов (zero-downtime deploy)
+      maxUnavailable: {{ .Values.backend.strategy.rollingUpdate.maxUnavailable }}
+      # maxSurge:1 — одновременно один «лишний» pod во время обновления
+      maxSurge: {{ .Values.backend.strategy.rollingUpdate.maxSurge }}
+    {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "eca-system.backend.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # Принудительный рестарт при изменении ConfigMap/Secret (контрольные суммы)
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "eca-system.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Non-root: образ создаёт пользователя app (uid 1000) — Dockerfile Stage 3
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      # Graceful shutdown: дать приложению время докрутить in-flight обработку
+      # и отпустить лидерство (LeaderElectionService.releaseOnShutdown → быстрый
+      # перехват leader election другой репликой).
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # Non-secret конфигурация из ConfigMap
+          envFrom:
+            - configMapRef:
+                name: {{ include "eca-system.appConfigMapName" . }}
+          env:
+            # DB credentials из Secret (секрет не виден в describe pod)
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eca-system.dbSecretName" . }}
+                  key: url
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eca-system.dbSecretName" . }}
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eca-system.dbSecretName" . }}
+                  key: password
+            # JWT-ключ из отдельного Secret
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eca-system.jwtSecretName" . }}
+                  key: secret
+            # POD_NAME: используется LeaderElectionService для идентификации
+            # текущей реплики в таблице leader_election (V36).
+            # При N репликах только pod с leader_id=POD_NAME выполняет @Scheduled.
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # POD_NAMESPACE: для будущей интеграции с K8s lease leader election
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          # ── Health probes (P5-3) ───────────────────────────────────────────
+          # Startup probe: ждём завершения Flyway-миграций + установки Hikari pool.
+          # failureThreshold × periodSeconds = max startup time.
+          # Пока startup не пройден, liveness/readiness не проверяются.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/startup
+              port: http
+            failureThreshold: {{ .Values.backend.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values.backend.startupProbe.periodSeconds }}
+          # Liveness: только «JVM жива» — НЕ зависит от БД/каналов.
+          # k8s перезапустит pod только при зависании JVM (deadlock, OOM),
+          # а не при временной недоступности БД — что исключает «пилу» рестартов.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: {{ .Values.backend.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.backend.livenessProbe.failureThreshold }}
+          # Readiness: учитывает БД + критичные каналы (circuit breaker/DLQ, P5-3).
+          # При деградации БД pod выводится из ротации сервиса (не убивается).
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: {{ .Values.backend.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.backend.readinessProbe.failureThreshold }}
+          lifecycle:
+            preStop:
+              # Пауза перед SIGTERM: k8s успевает снять pod с endpoints Service
+              # до того как приложение начнёт отказывать на новые запросы.
+              # Устраняет race condition «трафик ещё идёт, pod уже останавливается».
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          # tmpfs для Spring Boot temp files (readOnlyRootFilesystem: true)
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      # Распределить реплики по разным узлам для HA
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "eca-system.backend.selectorLabels" . | nindent 14 }}

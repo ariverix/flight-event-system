@@ -1,0 +1,243 @@
+# =============================================================================
+# ECA System — Helm values (dev defaults)
+#
+# Все параметры задокументированы. Для переопределения используйте:
+#   helm upgrade --install eca . -f values-prod.yaml --set key=value
+# =============================================================================
+
+# Переопределение имени чарта (обычно не нужно)
+nameOverride: ""
+fullnameOverride: ""
+
+# Секреты pull для приватных реестров образов.
+# Пример для отечественного реестра:
+#   imagePullSecrets:
+#     - name: harbor-regcred
+imagePullSecrets: []
+
+# ServiceAccount для pod'ов приложения.
+# Отдельный SA изолирует права (RBAC) и упрощает аудит.
+serviceAccount:
+  # Создать SA автоматически (рекомендуется)
+  create: true
+  # Если пусто — имя формируется как: {{ fullname }}-sa
+  name: ""
+  # Аннотации для интеграции с IRSA/Workload Identity (облачные провайдеры)
+  annotations: {}
+
+# Дополнительные аннотации и метки для всех pod'ов.
+# Пример: prometheus.io/scrape: "true"
+podAnnotations: {}
+podLabels: {}
+
+# =============================================================================
+# Backend — Spring Boot 3.5 / Java 21
+# Модульный монолит (Spring Modulith), движок правил Easy Rules.
+# Leader election через PostgreSQL (таблица leader_election, V36) гарантирует
+# single-fire планировщика при N репликах.
+# =============================================================================
+backend:
+  image:
+    # CI/CD подставляет registry/org/eca-backend при публикации
+    repository: eca-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Количество реплик. Минимум 2 для HA + RollingUpdate без downtime.
+  # HPA (hpa.*) может увеличивать до hpa.maxReplicas при нагрузке.
+  replicaCount: 2
+
+  # Стратегия обновления деплоймента.
+  # RollingUpdate (default): maxUnavailable:0 гарантирует, что в любой момент
+  #   доступно не менее replicaCount pod'ов — zero-downtime rolling deploy.
+  # Recreate: использовать только для blue-green (2 Deployment управляются вручную).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  # Spring-профиль активируется через SPRING_PROFILES_ACTIVE.
+  # Влияет на application-{profile}.yml (уровень логов, datasource pool и т.д.)
+  springProfile: dev
+
+  # Имена K8s Secret с credentials (db, jwt).
+  # Если пусто — Secret создаётся в templates/secret.yaml с именем:
+  #   {{ fullname }}-db  и  {{ fullname }}-jwt
+  # Для внешнего Secret Manager (Vault, External Secrets Operator) задайте
+  # имя уже существующего Secret и исключите templates/secret.yaml.
+  dbSecretName: ""
+  jwtSecretName: ""
+
+  # Запросы и лимиты ресурсов pod'а backend.
+  # HPA ориентируется на requests.cpu (не limits) при расчёте utilization.
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "768Mi"
+    limits:
+      cpu: "2"
+      memory: "1536Mi"
+
+  # Startup probe: ждёт завершения Flyway-миграций и установки соединения с БД.
+  # failureThreshold × periodSeconds = максимальное время старта = 150 с.
+  startupProbe:
+    failureThreshold: 30
+    periodSeconds: 5
+
+  # Liveness: только «JVM жива» — НЕ зависит от состояния БД.
+  # k8s перезапустит pod только при зависании JVM, а не при временной недоступности БД.
+  livenessProbe:
+    periodSeconds: 10
+    failureThreshold: 3
+
+  # Readiness: учитывает БД + критичные каналы.
+  # При деградации БД pod выводится из ротации Service без убийства.
+  readinessProbe:
+    periodSeconds: 10
+    failureThreshold: 3
+
+# =============================================================================
+# Frontend — React 18 / TypeScript 5 / Ant Design 5
+# Собирается Vite, отдаётся nginx:alpine. SPA с клиентским роутингом.
+# =============================================================================
+frontend:
+  image:
+    # CI/CD подставляет registry/org/eca-frontend
+    repository: eca-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Обычно 1 реплика (статика stateless). В prod увеличить для HA фронта.
+  replicaCount: 1
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "64Mi"
+    limits:
+      cpu: "500m"
+      memory: "128Mi"
+
+  # Runtime env-переменные инжектируются через entrypoint.sh → window.__env__
+  # и доступны фронтенду как window.__env__.VITE_WS_URL.
+  # VITE_WS_URL: WebSocket-URL для WsClient (ADR-0005, экспоненциальный backoff).
+  env:
+    VITE_WS_URL: "ws://eca.local/ws/eca"
+
+# =============================================================================
+# PostgreSQL — встроенный StatefulSet (ТОЛЬКО для dev/test)
+# В staging/prod: postgresql.enabled=false, внешняя управляемая БД.
+# StatefulSet с одной репликой — только primary, без streaming replication.
+# Бэкапы: ops/backup/pg_backup.sh / pg_restore.sh
+# =============================================================================
+postgresql:
+  # Включить встроенный PostgreSQL. ОТКЛЮЧИТЬ в staging/prod.
+  enabled: true
+
+  image:
+    repository: postgres
+    # Пинование версии — обязательное правило (не latest)
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+
+  auth:
+    database: eca_db
+    username: eca_user
+    # ВНИМАНИЕ: обязательно сменить в staging/prod через --set или внешний Secret Manager.
+    # В prod этот параметр игнорируется (postgresql.enabled=false).
+    password: eca_password
+
+  storage:
+    # Размер PVC для данных PostgreSQL
+    size: 10Gi
+    # StorageClass. Пусто = default StorageClass кластера.
+    # Пример для Ceph/Rook: storageClass: "rook-ceph-block"
+    storageClass: ""
+
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "512Mi"
+
+# =============================================================================
+# Внешняя БД (используется когда postgresql.enabled=false)
+# Заполнить в values-staging.yaml / values-prod.yaml.
+# Пароль лучше передавать через --set externalDatabase.password=SECRET
+# или через External Secrets Operator (не хранить в values-prod.yaml в git).
+# =============================================================================
+externalDatabase:
+  # Полный JDBC URL: jdbc:postgresql://hostname:5432/dbname
+  url: ""
+  username: ""
+  password: ""
+
+# =============================================================================
+# JWT (JSON Web Token)
+# =============================================================================
+jwt:
+  # Ключ подписи токенов. Минимум 256 бит (32 ASCII-символа).
+  # ЗАМЕНИТЬ В STAGING/PROD! Передавать через --set jwt.secret=VALUE
+  # или через External Secrets Operator.
+  secret: "REPLACE_ME_WITH_256BIT_SECRET_KEY_MIN_32_CHARS!!"
+
+# =============================================================================
+# Ingress (nginx-ingress-controller)
+# =============================================================================
+ingress:
+  enabled: true
+  # IngressClass. Стандарт для nginx-ingress-controller.
+  className: nginx
+  # Хост. В prod — реальный FQDN (eca.example.ru).
+  host: eca.local
+
+  annotations:
+    # WebSocket требует увеличенного proxy-timeout.
+    # WsClient (ADR-0005) reconnect backoff ≤32 с → 3600 с с запасом.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    # Буферизация WebSocket-апгрейда
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+
+  # Экспонировать /actuator публично.
+  # true в dev (удобно для отладки health/metrics).
+  # false в prod — actuator доступен только внутри кластера (kubectl port-forward).
+  exposeActuator: true
+
+  # TLS. Пусто → HTTP (для dev).
+  # В prod заполнить (cert-manager аннотации + secretName):
+  # annotations:
+  #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  # tls:
+  #   - secretName: eca-tls
+  #     hosts:
+  #       - eca.example.ru
+  tls: []
+
+# =============================================================================
+# HPA — HorizontalPodAutoscaler для backend
+# =============================================================================
+hpa:
+  enabled: true
+  # Минимум = replicaCount. Не меньше 2 — иначе RollingUpdate (maxUnavailable:0) невозможен.
+  minReplicas: 2
+  maxReplicas: 8
+  # CPU target utilization (% от requests.cpu).
+  # 70% × 500m = 350m avg CPU на pod → scale-out trigger.
+  targetCPUUtilizationPercentage: 70
+
+  scaleUp:
+    # Быстрый рост при ACARS-всплеске: до 2 реплик за 60 с
+    stabilizationWindowSeconds: 60
+    maxPodsPerPeriod: 2
+    periodSeconds: 60
+
+  scaleDown:
+    # Консервативное уменьшение: стабильный спад 5 мин → убрать 1 реплику
+    stabilizationWindowSeconds: 300
+    maxPodsPerPeriod: 1
+    periodSeconds: 120

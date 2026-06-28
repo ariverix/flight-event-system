@@ -1,0 +1,67 @@
+{{- if .Values.ingress.enabled -}}
+# Ingress маршрутизирует трафик:
+#   /api/*        → backend:8080  (REST API)
+#   /ws/eca       → backend:8080  (WebSocket, ADR-0005)
+#   /actuator/*   → backend:8080  (только если ingress.exposeActuator=true)
+#   /*            → frontend:80   (React SPA, catch-all)
+#
+# WebSocket требует специальных аннотаций: proxy-read-timeout, proxy-http-version.
+# TLS termination: cert-manager + Let's Encrypt (или внутренний CA).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "eca-system.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "eca-system.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          # REST API backend
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "eca-system.backendServiceName" . }}
+                port:
+                  name: http
+          # WebSocket endpoint (P7-4: WsClient, ADR-0005)
+          # Ingress аннотации proxy-read-timeout обеспечивают длинное соединение.
+          - path: /ws/eca
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "eca-system.backendServiceName" . }}
+                port:
+                  name: http
+          {{- if .Values.ingress.exposeActuator }}
+          # /actuator — только для dev/staging.
+          # В prod (exposeActuator=false) доступ только через kubectl port-forward.
+          - path: /actuator
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "eca-system.backendServiceName" . }}
+                port:
+                  name: http
+          {{- end }}
+          # Frontend SPA — catch-all (должен быть последним)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "eca-system.frontendServiceName" . }}
+                port:
+                  name: http
+{{- end }}

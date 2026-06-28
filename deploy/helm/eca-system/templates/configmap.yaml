@@ -1,0 +1,62 @@
+# ConfigMap с non-secret конфигурацией приложения.
+# Credentials (DB_URL/USERNAME/PASSWORD, JWT_SECRET) хранятся в templates/secret.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "eca-system.appConfigMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "eca-system.labels" . | nindent 4 }}
+data:
+  # ── Spring ────────────────────────────────────────────────────────────────
+  # Активный профиль: dev / staging / prod
+  SPRING_PROFILES_ACTIVE: {{ .Values.backend.springProfile | quote }}
+
+  # HTTP-порт приложения (совпадает с containerPort в Deployment)
+  SERVER_PORT: "8080"
+
+  # Graceful shutdown: дать in-flight запросам время завершиться (≤30 с, P5-3)
+  SERVER_SHUTDOWN: "graceful"
+  SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: "30s"
+
+  # ── Flyway ────────────────────────────────────────────────────────────────
+  # Миграции применяются при старте каждого pod'а.
+  # Rolling update гарантирует, что миграция применится ОДИН раз:
+  #   maxUnavailable:0 → новый pod стартует и применяет миграцию, только после
+  #   перехода в Ready старый pod останавливается.
+  # Для обратно несовместимых миграций — сначала выкатить backward-compatible
+  # миграцию, затем деплоить приложение (expand/contract pattern).
+  SPRING_FLYWAY_ENABLED: "true"
+  SPRING_FLYWAY_LOCATIONS: "classpath:db/migration"
+
+  # ── HikariCP (P6-3: pool tuning) ──────────────────────────────────────────
+  # Пул соединений согласован с ресурсами pod'а и размером кластера PostgreSQL.
+  # max_pool_size × N_replicas должен быть < max_connections PostgreSQL.
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "10"
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "2"
+  SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "30000"
+  SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: "600000"
+  SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "1800000"
+  SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME: "60000"
+  # Имя пула = имя pod'а (удобно в pg_stat_activity)
+  SPRING_DATASOURCE_HIKARI_POOL_NAME: "eca-hikari"
+
+  # ── Actuator ──────────────────────────────────────────────────────────────
+  # Health groups (P5-3): liveness, readiness, startup — без JWT.
+  # /actuator/health/liveness  → JVM alive check (livenessProbe)
+  # /actuator/health/readiness → DB + channels (readinessProbe)
+  # /actuator/health/startup   → Flyway done (startupProbe)
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "when_authorized"
+  MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED: "true"
+  MANAGEMENT_HEALTH_READINESSSTATE_ENABLED: "true"
+  # Metrics для Prometheus (observability stack)
+  MANAGEMENT_PROMETHEUS_METRICS_EXPORT_ENABLED: "true"
+
+  # ── Logging ───────────────────────────────────────────────────────────────
+  # Structured JSON logging в prod (парсится Loki/ELK).
+  # В dev — human-readable через default pattern.
+  LOGGING_LEVEL_RU_PROTECTINFOTRANS: "INFO"
+  LOGGING_LEVEL_ORG_SPRINGFRAMEWORK: "WARN"
+  LOGGING_LEVEL_ORG_FLYWAYDB: "INFO"
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: "WARN"

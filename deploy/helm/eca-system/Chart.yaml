@@ -1,0 +1,25 @@
+apiVersion: v2
+name: eca-system
+description: >
+  ECA System — промышленная замена SITA AIRCOM Sequencer.
+  Движок обработки авиационных событий ECA (Event-Condition-Action) по сообщениям
+  «борт-земля» (ACARS). Заказчик: ФГУП «ЗащитаИнфоТранс».
+
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - eca
+  - acars
+  - aviation
+  - event-processing
+
+maintainers:
+  - name: Denis
+    email: denischnv21@gmail.com
+
+annotations:
+  # Импортозамещение: чарт не привязан к конкретному облаку.
+  # Поддерживает любой сертифицированный k8s-дистрибутив (Deckhouse, ROSA, Kubernetes Vanilla).
+  source: ariverix/flight-event-system

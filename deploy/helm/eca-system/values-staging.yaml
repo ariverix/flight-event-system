@@ -1,0 +1,52 @@
+# =============================================================================
+# ECA System — Helm values override для staging
+#
+# Применяется поверх values.yaml:
+#   helm upgrade --install eca deploy/helm/eca-system \
+#     -f deploy/helm/eca-system/values-staging.yaml \
+#     --set externalDatabase.password=SECRET \
+#     --set jwt.secret=SECRET
+# =============================================================================
+
+# Встроенная БД отключена — staging использует внешнюю управляемую PostgreSQL
+postgresql:
+  enabled: false
+
+# Параметры внешней БД. Пароль передавать через --set, не коммитить в git.
+externalDatabase:
+  url: "jdbc:postgresql://STAGING_DB_HOST:5432/eca_db"
+  username: "eca_user"
+  password: ""  # Передать через: --set externalDatabase.password=...
+
+jwt:
+  # Отдельный ключ для staging. Передать через: --set jwt.secret=...
+  secret: ""  # ОБЯЗАТЕЛЬНО задать при деплое
+
+backend:
+  springProfile: staging
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "768Mi"
+    limits:
+      cpu: "2"
+      memory: "1536Mi"
+
+frontend:
+  replicaCount: 1
+  env:
+    VITE_WS_URL: "wss://staging.eca.example.ru/ws/eca"
+
+ingress:
+  host: staging.eca.example.ru
+  # Actuator открыт для staging-команды
+  exposeActuator: true
+  tls:
+    - secretName: staging-eca-tls
+      hosts:
+        - staging.eca.example.ru
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 6

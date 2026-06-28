@@ -1,0 +1,20 @@
+{{- if .Values.postgresql.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "eca-system.postgresServiceName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "eca-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  # ClusterIP: PostgreSQL доступен только внутри кластера (не снаружи)
+  type: ClusterIP
+  selector:
+    {{- include "eca-system.postgres.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+      protocol: TCP
+{{- end }}

@@ -1,0 +1,95 @@
+# =============================================================================
+# ECA System — Helm values override для production
+#
+# Применяется поверх values.yaml:
+#   helm upgrade --install eca deploy/helm/eca-system \
+#     -f deploy/helm/eca-system/values-prod.yaml \
+#     --set externalDatabase.password=PROD_SECRET \
+#     --set jwt.secret=PROD_JWT_SECRET
+#
+# КРИТИЧЕСКИ ВАЖНО:
+#   - НЕ коммитить реальные пароли/ключи в git
+#   - Использовать External Secrets Operator или Vault для prod secrets
+#   - cert-manager аннотации добавить перед деплоем
+# =============================================================================
+
+# Встроенная БД НЕДОПУСТИМА в prod — только внешняя управляемая PostgreSQL
+postgresql:
+  enabled: false
+
+# Параметры внешней БД (prod).
+# Пароль ТОЛЬКО через --set или External Secrets Operator.
+externalDatabase:
+  url: "jdbc:postgresql://PROD_DB_HOST:5432/eca_db"
+  username: "eca_user"
+  password: ""  # ОБЯЗАТЕЛЬНО задать при деплое: --set externalDatabase.password=...
+
+jwt:
+  # Prod JWT-ключ. Минимум 32 символа, уникален для prod.
+  # ТОЛЬКО через --set: --set jwt.secret=...
+  secret: ""  # ОБЯЗАТЕЛЬНО задать при деплое
+
+backend:
+  springProfile: prod
+  # 3 реплики: HA-минимум для prod (одна на обслуживании + leader election активен)
+  replicaCount: 3
+  # Увеличенные ресурсы для prod-нагрузки
+  resources:
+    requests:
+      cpu: "1"
+      memory: "1Gi"
+    limits:
+      cpu: "4"
+      memory: "2Gi"
+  # Startup-таймаут для prod (больше данных, длиннее Flyway-миграции)
+  startupProbe:
+    failureThreshold: 36
+    periodSeconds: 5
+
+frontend:
+  # 2 реплики для HA фронтенда
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "128Mi"
+    limits:
+      cpu: "1"
+      memory: "256Mi"
+  env:
+    VITE_WS_URL: "wss://eca.example.ru/ws/eca"
+
+ingress:
+  host: eca.example.ru
+  # Actuator закрыт публично в prod: доступ только внутри кластера
+  exposeActuator: false
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    # TLS termination + HSTS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "31536000"
+    # Раскомментировать при использовании cert-manager:
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  # Placeholder TLS — заменить secretName после настройки cert-manager
+  tls:
+    - secretName: eca-tls
+      hosts:
+        - eca.example.ru
+
+hpa:
+  # Минимум = replicaCount в prod
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 70
+  scaleUp:
+    stabilizationWindowSeconds: 60
+    maxPodsPerPeriod: 2
+    periodSeconds: 60
+  scaleDown:
+    stabilizationWindowSeconds: 300
+    maxPodsPerPeriod: 1
+    periodSeconds: 120

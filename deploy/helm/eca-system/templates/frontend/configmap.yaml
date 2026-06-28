@@ -1,0 +1,82 @@
+# ConfigMap для frontend:
+#   nginx.conf   — конфигурация nginx (SPA-роутинг, cache headers, healthz)
+#   env.js       — runtime env-переменные, монтируются поверх статики
+#                  (window.__env__ для WsClient и других runtime-значений)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "eca-system.nginxConfigMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "eca-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name _;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # ── SPA-роутинг ───────────────────────────────────────────────────────
+        # Все unknown-пути отдают index.html (React Router обрабатывает на клиенте).
+        # Статические файлы (js/css/images) обслуживаются напрямую.
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # ── env.js — runtime environment ──────────────────────────────────────
+        # Монтируется из ConfigMap (subPath). Не кешируется.
+        location = /env.js {
+            add_header Cache-Control "no-store, no-cache, must-revalidate";
+            add_header Pragma "no-cache";
+        }
+
+        # ── Cache control для статических ассетов Vite ─────────────────────────
+        # Vite добавляет content hash в имена файлов → можно кешировать вечно.
+        location ~* \.(js|css|woff|woff2|ttf|eot|otf)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+
+        location ~* \.(png|jpg|jpeg|gif|ico|svg|webp)$ {
+            expires 30d;
+            add_header Cache-Control "public";
+            access_log off;
+        }
+
+        # ── Health check для K8s probes ────────────────────────────────────────
+        location = /healthz {
+            access_log off;
+            return 200 "ok\n";
+            add_header Content-Type text/plain;
+        }
+
+        # ── Security headers ──────────────────────────────────────────────────
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # ── Gzip-сжатие ──────────────────────────────────────────────────────
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_types
+            text/plain
+            text/css
+            text/javascript
+            application/javascript
+            application/json
+            image/svg+xml;
+    }
+
+  env.js: |
+    // Runtime environment — генерируется Helm из values.yaml.
+    // В Docker Compose замещается entrypoint.sh (frontend/entrypoint.sh).
+    // Фронтенд читает window.__env__ как fallback к import.meta.env (Vite build-time).
+    window.__env__ = {
+      VITE_WS_URL: {{ .Values.frontend.env.VITE_WS_URL | quote }}
+    };

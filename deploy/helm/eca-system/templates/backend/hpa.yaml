@@ -1,0 +1,47 @@
+{{- if .Values.hpa.enabled -}}
+# HPA — параметризованная версия deploy/k8s/backend-hpa.yaml (P8-1).
+# Масштабирует Deployment backend по загрузке CPU.
+# Leader election (таблица leader_election, V36) гарантирует single-fire планировщика:
+# при N репликах @Scheduled-поллеры (WAIT-таймауты, outbound delivery) работают
+# только на реплике-лидере. HPA не влияет на корректность — только на пропускную
+# способность обработки входящего потока ACARS.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "eca-system.backendServiceName" . }}-hpa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "eca-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "eca-system.backendServiceName" . }}
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # target% × requests.cpu = trigger threshold.
+          # 70% × 500m = 350m avg CPU на pod → scale-out.
+          averageUtilization: {{ .Values.hpa.targetCPUUtilizationPercentage }}
+  behavior:
+    scaleUp:
+      # Быстрая реакция на ACARS-всплеск
+      stabilizationWindowSeconds: {{ .Values.hpa.scaleUp.stabilizationWindowSeconds }}
+      policies:
+        - type: Pods
+          value: {{ .Values.hpa.scaleUp.maxPodsPerPeriod }}
+          periodSeconds: {{ .Values.hpa.scaleUp.periodSeconds }}
+    scaleDown:
+      # Консервативное уменьшение: исключаем «пилу» при кратковременных спадах
+      stabilizationWindowSeconds: {{ .Values.hpa.scaleDown.stabilizationWindowSeconds }}
+      policies:
+        - type: Pods
+          value: {{ .Values.hpa.scaleDown.maxPodsPerPeriod }}
+          periodSeconds: {{ .Values.hpa.scaleDown.periodSeconds }}
+{{- end }}

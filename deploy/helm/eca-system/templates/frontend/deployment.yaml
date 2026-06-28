@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "eca-system.frontendServiceName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "eca-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "eca-system.frontend.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "eca-system.frontend.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # Пересоздать pod при изменении nginx.conf / env.js
+        checksum/nginx-config: {{ include (print $.Template.BasePath "/frontend/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "eca-system.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # nginx master запускается как root (нужен для bind :80), worker — как nginx (uid 101).
+      # Это стандартное поведение nginx:alpine (master/worker разделение привилегий).
+      securityContext:
+        fsGroup: 101
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          # VITE_WS_URL нужен entrypoint.sh (Docker Compose режим).
+          # В K8s значение берётся из env.js ConfigMap (subPath mount ниже).
+          env:
+            - name: VITE_WS_URL
+              value: {{ .Values.frontend.env.VITE_WS_URL | quote }}
+          volumeMounts:
+            # nginx конфигурация
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: nginx.conf
+              readOnly: true
+            # env.js монтируется поверх файла в html-root (subPath, не скрывает остальные файлы)
+            - name: nginx-config
+              mountPath: /usr/share/nginx/html/env.js
+              subPath: env.js
+              readOnly: true
+            # nginx cache и pid
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 15
+            failureThreshold: 3
+            initialDelaySeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 3
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "eca-system.nginxConfigMapName" . }}
+        # emptyDir для nginx cache и pid (нужны при ограниченном root filesystem)
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}

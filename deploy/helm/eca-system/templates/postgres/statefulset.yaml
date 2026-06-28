@@ -1,0 +1,96 @@
+{{- if .Values.postgresql.enabled -}}
+# PostgreSQL StatefulSet — только для dev/test.
+# В prod/staging: postgresql.enabled=false, используется внешняя управляемая БД.
+#
+# StatefulSet монтирует PVC из postgres/pvc.yaml (не через volumeClaimTemplates):
+# это позволяет сохранять данные при пересоздании StatefulSet.
+#
+# Бэкапы: ops/backup/pg_backup.sh / pg_restore.sh (pg_dump → S3/NFS)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "eca-system.fullname" . }}-postgres
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "eca-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  # Одна реплика: только primary, без streaming replication.
+  # Для HA PostgreSQL использовать управляемую БД (staging/prod).
+  replicas: 1
+  serviceName: {{ include "eca-system.postgresServiceName" . }}
+  selector:
+    matchLabels:
+      {{- include "eca-system.postgres.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "eca-system.postgres.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "eca-system.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        # postgres image запускается от uid 999 (postgres user)
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eca-system.dbSecretName" . }}
+                  key: password
+            # Данные PostgreSQL на примонтированном PVC
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U {{ .Values.postgresql.auth.username | quote }} -d {{ .Values.postgresql.auth.database | quote }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U {{ .Values.postgresql.auth.username | quote }} -d {{ .Values.postgresql.auth.database | quote }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        # Используем PVC из postgres/pvc.yaml (не volumeClaimTemplates).
+        # Данные сохраняются при пересоздании StatefulSet.
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: {{ include "eca-system.fullname" . }}-postgres-data
+{{- end }}
