@@ -39,19 +39,20 @@ export class WsClient {
     if (this.socket && this.socket.readyState <= WebSocket.OPEN) return;
 
     try {
-      const token = localStorage.getItem('jwt');
-      // TODO P7-4(security): не слать JWT в URL — токен попадает в сервер-логи и историю.
-      // Аутентификация должна происходить первым сообщением после установки соединения
-      // (send { channel: 'auth', payload: { token } } после onopen).
-      // Реализовать совместно с бэкенд WS-эндпоинтом в P7-4. См. ADR-0005 п. 4.
-      const wsUrl = token ? `${this.url}?token=${encodeURIComponent(token)}` : this.url;
-      this.socket = new WebSocket(wsUrl);
+      // ADR-0005 п. 4: JWT НЕ передаётся в URL (оседает в сервер-логах и браузерной истории).
+      // Аутентификация — первым сообщением после открытия соединения (см. onopen ниже).
+      this.socket = new WebSocket(this.url);
     } catch {
       this.scheduleReconnect();
       return;
     }
 
     this.socket.onopen = () => {
+      // P7-4: аутентификация первым сообщением; сервер закроет соединение, если токен невалиден.
+      const token = localStorage.getItem('jwt');
+      if (token) {
+        this.send({ channel: 'auth', payload: { token } });
+      }
       this.retryCount = 0;
       this.startPing();
     };

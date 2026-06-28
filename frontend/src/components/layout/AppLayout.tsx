@@ -22,6 +22,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 import { executionApi } from '../../api/executionApi';
 import { ExecutionInstanceResponse } from '../../types/execution';
+import { ConnectionStatus } from '../dashboard/ConnectionStatus';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -96,6 +97,7 @@ export const AppLayout: React.FC = () => {
     { key: '/', icon: <DashboardOutlined />, label: 'Панель управления' },
     { key: '/sequences', icon: <OrderedListOutlined />, label: 'Последовательности' },
     { key: '/executions', icon: <PlayCircleOutlined />, label: 'Выполнения' },
+    { key: '/monitoring', icon: <RocketOutlined />,     label: 'Мониторинг' },
     { key: '/messages',  icon: <MessageOutlined />,     label: 'Журнал сообщений' },
     { key: '/timeline',  icon: <RadarChartOutlined />,  label: 'Хронология' },
     { key: '/simulator', icon: <ExperimentOutlined />,  label: 'Симулятор' },
@@ -267,8 +269,10 @@ export const AppLayout: React.FC = () => {
             }
           />
 
-          {/* Right: theme toggle + notifications + user */}
+          {/* Right: WS status + theme toggle + notifications + user */}
           <Space size={8}>
+            {/* P7-4: WS connection indicator */}
+            <ConnectionStatus />
             {/* Theme toggle */}
             <Tooltip title={isDark ? 'Светлая тема' : 'Тёмная тема'}>
               <Button

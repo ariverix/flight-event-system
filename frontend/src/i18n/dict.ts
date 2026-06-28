@@ -302,6 +302,45 @@ const EDITOR_RU = {
     CONDITION_ACTIVE:  'Условие активно',
     COMPOUND:          'Составное',
   } as Record<string, string>,
+
+  // ── P7-4: Dashboard реал-тайм статусы ───────────────────────────────────────
+
+  dashboardTitle:    'Реал-тайм мониторинг',
+  dashboardSubtitle: 'Инстансы последовательностей',
+  colSequence:  'Последовательность',
+  colAircraft:  'Борт',
+  colFlight:    'Рейс',
+  colStep:      'Текущий шаг',
+  colStatus:    'Статус',
+  colStarted:   'Начало',
+  colActions:   'Действия',
+  detailsBtn:   'Детали',
+  closeBtn:     'Закрыть',
+  noInstances:  'Нет активных инстансов',
+  refreshBtn:   'Обновить',
+
+  eventLogTitle: 'Журнал событий',
+  noEvents:      'Нет событий для этого инстанса',
+  eventStep:     'Шаг',
+  correlationId: 'Correlation ID',
+
+  wsConnected:    'WS подключён',
+  wsDisconnected: 'WS отключён',
+  wsConnecting:   'WS подключение...',
+
+  instanceStatuses: {
+    RUNNING:   'Выполняется',
+    WAITING:   'Ожидание',
+    COMPLETED: 'Завершено',
+    ABORTED:   'Прервано',
+  } as Record<string, string>,
+
+  eventTypes: {
+    SEQUENCE_STARTED:  'Запуск последовательности',
+    STEP_COMPLETED:    'Завершение шага',
+    SEQUENCE_STOPPED:  'Остановка последовательности',
+    SEQUENCE_ABORTED:  'Прерывание последовательности',
+  } as Record<string, string>,
 };
 
 const EDITOR_EN = {
@@ -591,6 +630,45 @@ const EDITOR_EN = {
     TIME_COMPARISON:   'Time',
     CONDITION_ACTIVE:  'Condition active',
     COMPOUND:          'Compound',
+  } as Record<string, string>,
+
+  // ── P7-4: Dashboard real-time statuses ──────────────────────────────────────
+
+  dashboardTitle:    'Real-time Monitoring',
+  dashboardSubtitle: 'Sequence Instances',
+  colSequence:  'Sequence',
+  colAircraft:  'Aircraft',
+  colFlight:    'Flight',
+  colStep:      'Current Step',
+  colStatus:    'Status',
+  colStarted:   'Started',
+  colActions:   'Actions',
+  detailsBtn:   'Details',
+  closeBtn:     'Close',
+  noInstances:  'No active instances',
+  refreshBtn:   'Refresh',
+
+  eventLogTitle: 'Event Log',
+  noEvents:      'No events for this instance',
+  eventStep:     'Step',
+  correlationId: 'Correlation ID',
+
+  wsConnected:    'WS connected',
+  wsDisconnected: 'WS disconnected',
+  wsConnecting:   'WS connecting...',
+
+  instanceStatuses: {
+    RUNNING:   'Running',
+    WAITING:   'Waiting',
+    COMPLETED: 'Completed',
+    ABORTED:   'Aborted',
+  } as Record<string, string>,
+
+  eventTypes: {
+    SEQUENCE_STARTED:  'Sequence started',
+    STEP_COMPLETED:    'Step completed',
+    SEQUENCE_STOPPED:  'Sequence stopped',
+    SEQUENCE_ABORTED:  'Sequence aborted',
   } as Record<string, string>,
 };
 

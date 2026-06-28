@@ -23,23 +23,29 @@ export interface InstanceStatusPayload {
 
 // ── Запись Event Log ───────────────────────────────────────────────────────────
 export interface EventLogPayload {
-  id:           number;
-  eventType:    'SEQUENCE_STARTED' | 'STEP_COMPLETED' | 'SEQUENCE_STOPPED' | 'SEQUENCE_ABORTED';
-  instanceId:   number;
-  sequenceId:   number | null;
-  aircraftId:   string;
-  flightNumber: string | null;
-  stepIndex:    number | null;
-  detailsJson:  string | null;
-  createdAt:    string;
+  id:            number;
+  eventType:     'SEQUENCE_STARTED' | 'STEP_COMPLETED' | 'SEQUENCE_STOPPED' | 'SEQUENCE_ABORTED';
+  instanceId:    number;
+  sequenceId:    number | null;
+  aircraftId:    string;
+  flightNumber:  string | null;
+  stepIndex:     number | null;
+  detailsJson:   string | null;
+  /** Сквозной идентификатор запроса/сообщения (может отсутствовать). */
+  correlationId: string | null;
+  createdAt:     string;
 }
 
 // ── Ping / Pong ────────────────────────────────────────────────────────────────
 export interface PingPayload { ts: number }
 export interface PongPayload { ts: number }
 
+// ── Аутентификация (клиент → сервер, первое сообщение, ADR-0005) ───────────────
+export interface AuthPayload { token: string }
+
 // ── Дискриминированный union всех каналов ─────────────────────────────────────
 export type WsMessage =
+  | { channel: 'auth';            payload: AuthPayload }
   | { channel: 'instance-status'; payload: InstanceStatusPayload }
   | { channel: 'event-log';       payload: EventLogPayload }
   | { channel: 'ping';            payload: PingPayload }

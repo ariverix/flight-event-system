@@ -18,7 +18,8 @@ const DemoPage         = lazy(() => import('./components/demo/DemoPage').then(m 
 const UserManagement   = lazy(() => import('./components/user/UserManagement').then(m => ({ default: m.UserManagement })));
 const ProfilePage      = lazy(() => import('./components/user/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const TimelinePage     = lazy(() => import('./pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
-const SequenceEditor   = lazy(() => import('./components/editor/SequenceEditor').then(m => ({ default: m.SequenceEditor })));
+const SequenceEditor    = lazy(() => import('./components/editor/SequenceEditor').then(m => ({ default: m.SequenceEditor })));
+const InstancesDashboard = lazy(() => import('./components/dashboard/InstancesDashboard').then(m => ({ default: m.InstancesDashboard })));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
@@ -48,6 +49,7 @@ function App() {
           <Route path="sequences/:id/editor" element={<Suspense fallback={<PageLoader />}><SequenceEditor /></Suspense>} />
           <Route path="executions" element={<Suspense fallback={<PageLoader />}><ExecutionList /></Suspense>} />
           <Route path="executions/:id" element={<Suspense fallback={<PageLoader />}><ExecutionDetail /></Suspense>} />
+          <Route path="monitoring" element={<Suspense fallback={<PageLoader />}><InstancesDashboard /></Suspense>} />
           <Route path="messages" element={<Suspense fallback={<PageLoader />}><MessageLog /></Suspense>} />
           <Route path="timeline" element={<Suspense fallback={<PageLoader />}><TimelinePage /></Suspense>} />
           <Route path="simulator" element={<Suspense fallback={<PageLoader />}><MessageSimulator /></Suspense>} />
