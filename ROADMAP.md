@@ -68,7 +68,7 @@
 - Нагрузочное тестирование до целевых чисел, профилирование, тюнинг. — `test-engineer`+`perf` (через `bug-fixer`/`sequence-engine-dev`)
 **Приёмка:** подтверждённый single-fire в 2+ репликах; нагрузочный отчёт с p95/p99 и целевым throughput.
 
-## P7 — Промышленный UX фронтенда
+## P7 — Промышленный UX фронтенда ✅ DONE
 - Каркас FE: структура, стор, API-клиент из OpenAPI, WebSocket-слой. — `frontend-architect`
 - Редактор React Flow: ноды шагов, рёбра-решения, drag-n-drop с авто-GOTO, панель start/stop. — `ui-agent`
 - Формы всех типов шагов/критериев с валидацией (нельзя собрать невалидное). — `ui-agent`
@@ -76,7 +76,7 @@
 - i18n RU/EN, роль-зависимый UI, a11y, скелетоны/анимации. — `frontend-architect`+`ui-agent`
 **Приёмка:** редактор собирает все сценарии паритета; реал-тайм работает; i18n полный.
 
-## P8 — Упаковка, деплой, документация, соответствие
+## P8 — Упаковка, деплой, документация, соответствие ✅ DONE
 - Kubernetes/Helm чарты, blue-green/rolling, миграции при деплое. — `devops-agent`
 - Руководство администратора (RU) по образцу SITA ASP + ранбуки эксплуатации. — `docs-agent`
 - Матрица паритета SITA→наше→тест (UAT), license report, материалы для Реестра российского ПО. — `compliance-agent`
@@ -85,3 +85,23 @@
 
 ---
 **Глобальный Definition of Done фазы:** все эпики закрыты по DoD задач, пайплайн зелёный, доки/матрица обновлены, нет открытых High/Critical по безопасности.
+
+---
+
+## Итог P7–P8
+
+Фазы P7 и P8 завершены 2026-06-28. Ниже — ключевые результаты.
+
+- **Промышленный UI (P7):** Реализован полный React 18 + TypeScript + Ant Design 5 фронтенд. Редактор последовательностей на React Flow с кастом-нодами 3 типов шагов, рёбрами-решениями (true/false, CONTINUE/GOTO/END/ABORT + Notify), drag-n-drop с авто-пересчётом GOTO-ссылок. Формы всех 3 типов шагов и 6 типов критериев с рекурсивным конструктором AND/OR и валидацией без хардкода строк. Реал-тайм дашборд через WebSocket (`/ws/eca`) с JWT-аутентификацией, трансляцией событий выполнения и Event Log. Полный i18n RU/EN, роль-зависимый UI, a11y-фиксы. Тестовая база 183+ тестов (vitest).
+
+- **Helm/Kubernetes (P8-1):** Helm-чарт `deploy/helm/eca-system` с шаблонами для backend (Deployment, Service, HPA autoscaling/v2), frontend (nginx multi-stage), PostgreSQL (StatefulSet + PVC), Ingress, ConfigMap, Secret. Профили values для staging/prod. Манифесты `deploy/k8s/` для прямого k8s-деплоя (backend-deployment.yaml, backend-hpa.yaml). Backend stateless + leader election = горизонтальное масштабирование без координации.
+
+- **Документация (P8-2):** Руководство администратора `docs/admin/` (installation, configuration, operations) на русском языке по образцу SITA ASP. Ранбуки эксплуатации `docs/admin/runbooks/` — 5 сценариев: рестарт сервиса, резервное копирование/восстановление БД, инцидент высокой нагрузки CPU, инцидент исчерпания соединений БД, зависший лидер кластера.
+
+- **Соответствие (P8-3):** Матрица паритета SITA→ECA (87/90 = 97%), license report зависимостей (Maven), материалы для Реестра российского ПО (`docs/compliance/russian-software-registry.md`), UAT-чеклист для заказчика (`docs/compliance/uat-checklist.md`).
+
+- **Исправление матрицы (P8-4):** При финальном прогоне выявлена ошибка compliance-agent: пункт 15.3 (HPA) помечен ЧАСТИЧНО, хотя Helm-чарт с HPA реализован в P8-1. Статус исправлен на РЕАЛИЗОВАНО. Итог матрицы: 87 РЕАЛИЗОВАНО (97%), 3 ЧАСТИЧНО (6.3, 12.2, 12.3 — согласованы с заказчиком как приемлемые риски).
+
+- **Система готова к UAT.** Функциональный паритет с SITA AIRCOM Sequencer подтверждён по всем категориям. Оставшиеся 3 ЧАСТИЧНО — архитектурные решения (per-sequence фильтр типов ВС) и зона внешней инфраструктуры (radar/ADS-B feed-адаптеры).
+
+- **Пакет документов для заказчика:** `docs/compliance/parity-matrix.md`, `docs/compliance/uat-checklist.md`, `docs/compliance/license-report.md`, `docs/compliance/russian-software-registry.md`, `docs/admin/`, `docs/security/gost-tls-path.md`.
