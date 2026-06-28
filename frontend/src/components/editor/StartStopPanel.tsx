@@ -18,7 +18,7 @@ import {
   InfoCircleOutlined,
   EditOutlined,
 } from '@ant-design/icons';
-import { CriteriaEditor } from '../sequence/CriteriaEditor';
+import { CriteriaBuilder } from './CriteriaBuilder';
 import { useEditorI18n } from '../../i18n/useEditorI18n';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -230,7 +230,7 @@ export const StartStopPanel: React.FC<StartStopPanelProps> = ({
         />
       </div>
 
-      {/* Модальный JSON-редактор (P7-3 заменит на конструктор) */}
+      {/* Конструктор критериев (P7-3) */}
       <Modal
         title={editTarget === 'start' ? d.startCriteria : d.stopCriteria}
         open={editTarget !== null}
@@ -238,25 +238,13 @@ export const StartStopPanel: React.FC<StartStopPanelProps> = ({
         onCancel={handleCancel}
         okText={d.save}
         cancelText={d.cancel}
-        width={640}
+        width={680}
         destroyOnClose
       >
-        <div style={{ marginBottom: 8, fontSize: 12, color: t2 }}>
+        <div style={{ marginBottom: 10, fontSize: 12, color: t2 }}>
           {d.criteriaHint}
         </div>
-        <div style={{
-          display: 'inline-block',
-          fontSize: 11,
-          padding: '2px 6px',
-          borderRadius: 4,
-          background: isDark ? 'rgba(251,191,36,0.12)' : 'rgba(251,191,36,0.18)',
-          border: '1px solid rgba(251,191,36,0.35)',
-          color: isDark ? '#fbbf24' : '#92400e',
-          marginBottom: 10,
-        }}>
-          {d.criteriaP73Note}
-        </div>
-        <CriteriaEditor
+        <CriteriaBuilder
           value={draftJson}
           onChange={setDraftJson}
         />

@@ -80,6 +80,189 @@ const EDITOR_RU = {
   autoLayout: 'Авто-расстановка',
   fullscreen: 'Полный экран',
 
+  // ── P7-3: Форма шага ────────────────────────────────────────────────────────
+
+  stepTypePick: 'Выберите тип шага',
+  actionTypeLabel: 'Тип действия',
+  actionTypePick: 'Выберите тип действия',
+  conditionNameLabel: 'Имя условия',
+  conditionNamePlaceholder: 'Например: WEATHER_ALERT',
+  alertLevelLabel: 'Уровень алерта',
+  alertLevelPick: 'Выберите уровень',
+  templateLabel: 'Шаблон сообщения',
+  templatePick: 'Выберите шаблон…',
+  templateLoading: 'Загрузка шаблонов…',
+  uplinkOriginLabel: 'Источник сообщения',
+  originComputerGenerated: 'Компьютер (auto)',
+  originExternalUser: 'Оператор (manual)',
+  originTagAuto: 'АВТО',
+  originTagUser: 'ПОЛЬЗ.',
+  recipientsLabel: 'Получатели',
+  recipientsPlaceholder: 'Введите получателя…',
+  recipientsHelp: 'Enter — добавить. Удалить — крестик.',
+  durationLabel: 'Длительность',
+  durationUnitLabel: 'Единица',
+  durationUnitSec: 'секунды',
+  durationUnitMin: 'минуты',
+  durationUnitHour: 'часы',
+  timeoutSecondsLabel: 'Тайм-аут (сек, 0 — без лимита)',
+  fromThisPointOnly: 'Только с этой точки (from this point only)',
+  transitionsTitle: 'Переходы',
+  decisionActionLabel: 'Действие',
+  decisionGotoStepLabel: 'Номер шага',
+  notifyOnSuccess: 'Уведомить при успехе',
+  notifyOnFailure: 'Уведомить при ошибке',
+  onSuccessTitle: 'При успехе (true)',
+  onFailureTitle: 'При ошибке / false',
+  submitAddStep: 'Добавить шаг',
+  submitSaveStep: 'Сохранить шаг',
+
+  // ── P7-3: Уровни алертов ────────────────────────────────────────────────────
+
+  alertLevels: {
+    NO:       'Нет',
+    LOW:      'Низкий',
+    MEDIUM:   'Средний',
+    HIGH:     'Высокий',
+    CRITICAL: 'Критический',
+  } as Record<string, string>,
+
+  // ── P7-3: Конструктор критериев ─────────────────────────────────────────────
+
+  criteriaBuilderTitle: 'Конструктор критериев',
+  groupTagLabel: 'ГРУППА',
+  noCriteria: 'Критерий не задан',
+  addCriterion: 'Добавить критерий',
+  addGroup: 'Добавить группу AND/OR',
+  removeCriterion: 'Убрать',
+  criterionTypeLabel: 'Тип критерия',
+  criterionTypePick: 'Выберите тип…',
+  logicLabel: 'Логика объединения',
+  logicAnd: 'AND (все условия)',
+  logicOr: 'OR (хотя бы одно)',
+
+  // Критерий: MESSAGE_RECEIVED
+  msgDirectionLabel: 'Направление',
+  msgDirectionPick: 'Выберите направление',
+  msgTemplateNameLabel: 'Шаблон (необязательно)',
+  msgTemplateNamePh: 'Оставьте пустым — любой шаблон',
+  msgFromThisPointLabel: 'Только с этой точки',
+
+  // Критерий: FLIGHT_STAGE
+  stageOperatorLabel: 'Оператор',
+  targetStageLabel: 'Фаза полёта',
+
+  stageOperators: {
+    EQUALS:           '= равно',
+    NOT_EQUALS:       '≠ не равно',
+    GREATER_THAN:     '> больше',
+    LESS_THAN:        '< меньше',
+    GREATER_OR_EQUAL: '≥ больше или равно',
+    LESS_OR_EQUAL:    '≤ меньше или равно',
+  } as Record<string, string>,
+
+  flightStages: {
+    INIT:    'INIT (инициализация)',
+    OUT:     'OUT (руление от ворот)',
+    OFF:     'OFF (взлёт)',
+    ON:      'ON (посадка)',
+    IN:      'IN (заруливание)',
+    SUMMARY: 'SUMMARY (итог)',
+  } as Record<string, string>,
+
+  // Критерий: POSITION_REPORTED
+  posStatusLabel: 'Статус позиции',
+  posReported: 'Получена',
+  posNotReported: 'Не получена',
+  posInLastMinLabel: 'За последние (мин)',
+  posInLastMinPh: 'Например: 30',
+  posSourcesLabel: 'Источники позиции',
+
+  positionSources: {
+    ACARS: 'ACARS',
+    RADAR: 'Радар',
+    ADS_B: 'ADS-B',
+  } as Record<string, string>,
+
+  // Критерий: TIME_COMPARISON
+  timeOperatorLabel: 'Сравнение',
+  timeRefLabel: 'Опорное время',
+  timeOffsetLabel: 'Смещение (±мин)',
+
+  timeOperators: {
+    BEFORE: 'До (before)',
+    EQUAL:  'Равно (equal)',
+    AFTER:  'После (after)',
+  } as Record<string, string>,
+
+  timeReferences: {
+    ETD:  'ETD (вылет)',
+    ETA:  'ETA (прилёт)',
+    INIT: 'INIT',
+    OUT:  'OUT',
+    OFF:  'OFF',
+    ON:   'ON',
+    IN:   'IN',
+  } as Record<string, string>,
+
+  // Направления сообщений
+  msgDirections: {
+    DOWNLINK: 'DOWNLINK (борт → земля)',
+    UPLINK:   'UPLINK (земля → борт)',
+    GROUND:   'GROUND (наземная)',
+  } as Record<string, string>,
+
+  // ── P7-3: Ошибки валидации ──────────────────────────────────────────────────
+
+  validationErrors: {
+    errActionType:       'Выберите тип действия',
+    errCriterionType:    'Выберите тип критерия',
+    errConditionName:    'Введите имя условия',
+    errAlertLevel:       'Выберите уровень алерта',
+    errTemplate:         'Выберите шаблон',
+    errOrigin:           'Выберите источник сообщения',
+    errDuration:         'Введите длительность (> 0)',
+    errDurationUnit:     'Выберите единицу измерения',
+    errMessageDirection: 'Выберите направление сообщения',
+    errFlightStage:      'Выберите фазу полёта',
+    errFlightOperator:   'Выберите оператор сравнения',
+    errGotoMissing:      'Укажите номер шага для GOTO',
+    errGotoInvalid:      'Шаг с таким номером не существует',
+    errEmptyGroup:       'Группа AND/OR не может быть пустой',
+    errTimeReference:    'Выберите опорное время',
+    errTimeOperator:     'Выберите оператор сравнения',
+    errInLastMinutes:    'Введите количество минут (> 0)',
+    errPositionStatus:   'Укажите статус позиции (получена / не получена)',
+    errPositionSources:  'Указаны недопустимые источники позиции',
+    errOffsetMinutes:    'Смещение должно быть числом',
+    errTimeoutSeconds:   'Тайм-аут должен быть >= 0',
+    errLogic:            'Выберите логику объединения (AND/OR)',
+    errInvalidJson:      'Некорректный JSON',
+    errStepType:         'Неизвестный тип шага',
+    errTransitionAction: 'Неизвестное действие перехода',
+  } as Record<string, string>,
+
+  // ── P7-3: Свойства последовательности ───────────────────────────────────────
+
+  seqPropertiesTitle: 'Свойства последовательности',
+  seqPropertiesBtn: 'Свойства',
+  seqStatusLabel: 'Статус',
+  seqStatusDraft: 'Черновик',
+  seqStatusActive: 'Активна',
+  seqStatusInactive: 'Неактивна',
+  seqFolderLabel: 'Папка',
+  seqFolderNone: '(без папки)',
+  seqFolderIdLabel: 'ID папки',
+  seqFolderAssignBtn: 'Назначить папку',
+  seqActivateBtn: 'Активировать',
+  seqDeactivateBtn: 'Деактивировать',
+  seqActivated: 'Последовательность активирована',
+  seqDeactivated: 'Последовательность деактивирована',
+  seqActivateError: 'Ошибка активации',
+  seqDeactivateError: 'Ошибка деактивации',
+  seqFolderAssigned: 'Папка назначена',
+  seqFolderError: 'Ошибка назначения папки',
+
   // Метки типов конфигурации шага (полные — для SelectedStepPanel)
   configLabels: {
     WAIT_TIME:         'Пауза по времени',
@@ -189,6 +372,189 @@ const EDITOR_EN = {
   centerGraph: 'Center graph',
   autoLayout: 'Auto-layout',
   fullscreen: 'Fullscreen',
+
+  // ── P7-3: Step form ─────────────────────────────────────────────────────────
+
+  stepTypePick: 'Select step type',
+  actionTypeLabel: 'Action type',
+  actionTypePick: 'Select action type',
+  conditionNameLabel: 'Condition name',
+  conditionNamePlaceholder: 'e.g. WEATHER_ALERT',
+  alertLevelLabel: 'Alert level',
+  alertLevelPick: 'Select level',
+  templateLabel: 'Message template',
+  templatePick: 'Select template…',
+  templateLoading: 'Loading templates…',
+  uplinkOriginLabel: 'Message origin',
+  originComputerGenerated: 'Computer-generated (auto)',
+  originExternalUser: 'External user (manual)',
+  originTagAuto: 'AUTO',
+  originTagUser: 'USER',
+  recipientsLabel: 'Recipients',
+  recipientsPlaceholder: 'Enter recipient…',
+  recipientsHelp: 'Press Enter to add. Click × to remove.',
+  durationLabel: 'Duration',
+  durationUnitLabel: 'Unit',
+  durationUnitSec: 'seconds',
+  durationUnitMin: 'minutes',
+  durationUnitHour: 'hours',
+  timeoutSecondsLabel: 'Timeout (sec, 0 = no limit)',
+  fromThisPointOnly: 'From this point only',
+  transitionsTitle: 'Transitions',
+  decisionActionLabel: 'Action',
+  decisionGotoStepLabel: 'Step number',
+  notifyOnSuccess: 'Notify on success',
+  notifyOnFailure: 'Notify on failure',
+  onSuccessTitle: 'On success (true)',
+  onFailureTitle: 'On failure / false',
+  submitAddStep: 'Add step',
+  submitSaveStep: 'Save step',
+
+  // ── P7-3: Alert levels ──────────────────────────────────────────────────────
+
+  alertLevels: {
+    NO:       'No',
+    LOW:      'Low',
+    MEDIUM:   'Medium',
+    HIGH:     'High',
+    CRITICAL: 'Critical',
+  } as Record<string, string>,
+
+  // ── P7-3: Criteria builder ──────────────────────────────────────────────────
+
+  criteriaBuilderTitle: 'Criteria builder',
+  groupTagLabel: 'GROUP',
+  noCriteria: 'No criterion defined',
+  addCriterion: 'Add criterion',
+  addGroup: 'Add AND/OR group',
+  removeCriterion: 'Remove',
+  criterionTypeLabel: 'Criterion type',
+  criterionTypePick: 'Select type…',
+  logicLabel: 'Combining logic',
+  logicAnd: 'AND (all conditions)',
+  logicOr: 'OR (any condition)',
+
+  // Criterion: MESSAGE_RECEIVED
+  msgDirectionLabel: 'Direction',
+  msgDirectionPick: 'Select direction',
+  msgTemplateNameLabel: 'Template name (optional)',
+  msgTemplateNamePh: 'Leave empty for any template',
+  msgFromThisPointLabel: 'From this point only',
+
+  // Criterion: FLIGHT_STAGE
+  stageOperatorLabel: 'Operator',
+  targetStageLabel: 'Flight stage',
+
+  stageOperators: {
+    EQUALS:           '= equals',
+    NOT_EQUALS:       '≠ not equals',
+    GREATER_THAN:     '> greater than',
+    LESS_THAN:        '< less than',
+    GREATER_OR_EQUAL: '≥ greater or equal',
+    LESS_OR_EQUAL:    '≤ less or equal',
+  } as Record<string, string>,
+
+  flightStages: {
+    INIT:    'INIT (initial)',
+    OUT:     'OUT (push-back)',
+    OFF:     'OFF (take-off)',
+    ON:      'ON (landing)',
+    IN:      'IN (parking)',
+    SUMMARY: 'SUMMARY',
+  } as Record<string, string>,
+
+  // Criterion: POSITION_REPORTED
+  posStatusLabel: 'Position status',
+  posReported: 'Reported',
+  posNotReported: 'Not reported',
+  posInLastMinLabel: 'In last N minutes',
+  posInLastMinPh: 'e.g. 30',
+  posSourcesLabel: 'Position sources',
+
+  positionSources: {
+    ACARS: 'ACARS',
+    RADAR: 'Radar',
+    ADS_B: 'ADS-B',
+  } as Record<string, string>,
+
+  // Criterion: TIME_COMPARISON
+  timeOperatorLabel: 'Comparison',
+  timeRefLabel: 'Reference time',
+  timeOffsetLabel: 'Offset (±min)',
+
+  timeOperators: {
+    BEFORE: 'Before',
+    EQUAL:  'Equal',
+    AFTER:  'After',
+  } as Record<string, string>,
+
+  timeReferences: {
+    ETD:  'ETD (departure)',
+    ETA:  'ETA (arrival)',
+    INIT: 'INIT',
+    OUT:  'OUT',
+    OFF:  'OFF',
+    ON:   'ON',
+    IN:   'IN',
+  } as Record<string, string>,
+
+  // Message directions
+  msgDirections: {
+    DOWNLINK: 'DOWNLINK (aircraft → ground)',
+    UPLINK:   'UPLINK (ground → aircraft)',
+    GROUND:   'GROUND (ground-to-ground)',
+  } as Record<string, string>,
+
+  // ── P7-3: Validation errors ─────────────────────────────────────────────────
+
+  validationErrors: {
+    errActionType:       'Select action type',
+    errCriterionType:    'Select criterion type',
+    errConditionName:    'Enter condition name',
+    errAlertLevel:       'Select alert level',
+    errTemplate:         'Select template',
+    errOrigin:           'Select message origin',
+    errDuration:         'Enter duration (> 0)',
+    errDurationUnit:     'Select time unit',
+    errMessageDirection: 'Select message direction',
+    errFlightStage:      'Select flight stage',
+    errFlightOperator:   'Select comparison operator',
+    errGotoMissing:      'Enter GOTO target step number',
+    errGotoInvalid:      'Step with this number does not exist',
+    errEmptyGroup:       'AND/OR group cannot be empty',
+    errTimeReference:    'Select reference time',
+    errTimeOperator:     'Select comparison operator',
+    errInLastMinutes:    'Enter minutes value (> 0)',
+    errPositionStatus:   'Set position status (reported / not reported)',
+    errPositionSources:  'Invalid position sources',
+    errOffsetMinutes:    'Offset must be a number',
+    errTimeoutSeconds:   'Timeout must be >= 0',
+    errLogic:            'Select combining logic (AND/OR)',
+    errInvalidJson:      'Invalid JSON',
+    errStepType:         'Unknown step type',
+    errTransitionAction: 'Unknown transition action',
+  } as Record<string, string>,
+
+  // ── P7-3: Sequence properties ────────────────────────────────────────────────
+
+  seqPropertiesTitle: 'Sequence Properties',
+  seqPropertiesBtn: 'Properties',
+  seqStatusLabel: 'Status',
+  seqStatusDraft: 'Draft',
+  seqStatusActive: 'Active',
+  seqStatusInactive: 'Inactive',
+  seqFolderLabel: 'Folder',
+  seqFolderNone: '(no folder)',
+  seqFolderIdLabel: 'Folder ID',
+  seqFolderAssignBtn: 'Assign folder',
+  seqActivateBtn: 'Activate',
+  seqDeactivateBtn: 'Deactivate',
+  seqActivated: 'Sequence activated',
+  seqDeactivated: 'Sequence deactivated',
+  seqActivateError: 'Activation error',
+  seqDeactivateError: 'Deactivation error',
+  seqFolderAssigned: 'Folder assigned',
+  seqFolderError: 'Folder assignment error',
 
   configLabels: {
     WAIT_TIME:         'Wait time',

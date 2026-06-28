@@ -37,12 +37,14 @@ import {
   Tag,
   Divider,
   Tooltip,
+  InputNumber,
 } from 'antd';
 import {
   ArrowLeftOutlined,
   SaveOutlined,
   WarningOutlined,
   InfoCircleOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -50,13 +52,103 @@ import { useSequenceEditorStore } from '../../store/sequenceEditorStore';
 import { SequenceEditorGraph } from './SequenceEditorGraph';
 import { EditorStepList } from './EditorStepList';
 import { StartStopPanel } from './StartStopPanel';
-import { StepForm } from '../sequence/StepForm';
+import { StepFormV2 } from './StepFormV2';
 import { useEditorI18n } from '../../i18n/useEditorI18n';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotification } from '../../hooks/useNotification';
-import type { StepResponse, StepCreateRequest } from '../../types/sequence';
+import type { StepResponse, StepCreateRequest, SequenceStatus } from '../../types/sequence';
 import { sequenceApi } from '../../api/sequenceApi';
+
+// ── Панель свойств последовательности ────────────────────────────────────────
+
+interface SeqPropertiesPanelProps {
+  status: SequenceStatus;
+  folderIdInput: number | null;
+  onFolderIdChange: (v: number | null) => void;
+  onActivate: () => void;
+  onDeactivate: () => void;
+  onAssignFolder: () => void;
+  isDark: boolean;
+}
+
+const SeqPropertiesPanel: React.FC<SeqPropertiesPanelProps> = ({
+  status,
+  folderIdInput,
+  onFolderIdChange,
+  onActivate,
+  onDeactivate,
+  onAssignFolder,
+  isDark,
+}) => {
+  const d = useEditorI18n();
+  const bd  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const t2  = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.50)';
+
+  const statusLabel: Record<string, string> = {
+    DRAFT:    d.seqStatusDraft,
+    ACTIVE:   d.seqStatusActive,
+    INACTIVE: d.seqStatusInactive,
+  };
+  const statusColor: Record<string, string> = {
+    DRAFT:    'default',
+    ACTIVE:   'success',
+    INACTIVE: 'warning',
+  };
+
+  return (
+    <div style={{ padding: '4px 0' }}>
+      {/* Статус */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t2, marginBottom: 8 }}>
+          {d.seqStatusLabel}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Tag color={statusColor[status] ?? 'default'} style={{ fontSize: 12 }}>
+            {statusLabel[status] ?? status}
+          </Tag>
+          {status !== 'ACTIVE' && (
+            <Button size="small" type="primary" onClick={onActivate}>
+              {d.seqActivateBtn}
+            </Button>
+          )}
+          {status === 'ACTIVE' && (
+            <Button size="small" danger onClick={onDeactivate}>
+              {d.seqDeactivateBtn}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Divider style={{ margin: '12px 0', borderColor: bd }} />
+
+      {/* Папка */}
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t2, marginBottom: 8 }}>
+          {d.seqFolderLabel}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <InputNumber
+            min={1}
+            value={folderIdInput}
+            placeholder={d.seqFolderNone}
+            style={{ width: 140 }}
+            onChange={v => onFolderIdChange(v)}
+          />
+          <Button size="small" onClick={onAssignFolder}>
+            {d.seqFolderAssignBtn}
+          </Button>
+          {folderIdInput !== null && (
+            <Button size="small" type="text" danger onClick={() => { onFolderIdChange(null); onAssignFolder(); }}>
+              {d.seqFolderNone}
+            </Button>
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: t2, marginTop: 4 }}>{d.seqFolderIdLabel}</div>
+      </div>
+    </div>
+  );
+};
 
 // ── Панель деталей выбранного шага ───────────────────────────────────────────
 
@@ -219,6 +311,7 @@ export const SequenceEditor: React.FC = () => {
   // ─ Стор ──────────────────────────────────────────────────────────────────
   const {
     sequenceName,
+    sequenceStatus,
     steps,
     startCriteriaJson,
     stopCriteriaJson,
@@ -238,9 +331,13 @@ export const SequenceEditor: React.FC = () => {
     reset,
   } = useSequenceEditorStore();
 
-  // ─ Модал StepForm ─────────────────────────────────────────────────────────
+  // ─ Модал StepFormV2 ───────────────────────────────────────────────────────
   const [isStepModalOpen, setIsStepModalOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<StepResponse | null>(null);
+
+  // ─ Модал свойств последовательности ──────────────────────────────────────
+  const [isPropsModalOpen, setIsPropsModalOpen] = useState(false);
+  const [propsFolderIdInput, setPropsFolderIdInput] = useState<number | null>(null);
 
   // ─ Загрузка ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -306,6 +403,41 @@ export const SequenceEditor: React.FC = () => {
     if (selectedStepId === stepId) selectStep(null);
     notification.success({ message: d.stepDeleted });
   }, [deleteStep, selectedStepId, selectStep, notification, d]);
+
+  const handleActivate = useCallback(async () => {
+    if (!id) return;
+    try {
+      await sequenceApi.activateSequence(parseInt(id, 10));
+      notification.success({ message: d.seqActivated });
+      await reloadAfterStepChange();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notification.error({ message: d.seqActivateError, description: msg });
+    }
+  }, [id, reloadAfterStepChange, notification, d]);
+
+  const handleDeactivate = useCallback(async () => {
+    if (!id) return;
+    try {
+      await sequenceApi.deactivateSequence(parseInt(id, 10));
+      notification.success({ message: d.seqDeactivated });
+      await reloadAfterStepChange();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notification.error({ message: d.seqDeactivateError, description: msg });
+    }
+  }, [id, reloadAfterStepChange, notification, d]);
+
+  const handleAssignFolder = useCallback(async () => {
+    if (!id) return;
+    try {
+      await sequenceApi.assignFolder(parseInt(id, 10), propsFolderIdInput);
+      notification.success({ message: d.seqFolderAssigned });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notification.error({ message: d.seqFolderError, description: msg });
+    }
+  }, [id, propsFolderIdInput, notification, d]);
 
   // ─ Выбранный шаг для деталей ─────────────────────────────────────────────
   const selectedStep = steps.find(s => s.id === selectedStepId) ?? null;
@@ -400,6 +532,16 @@ export const SequenceEditor: React.FC = () => {
 
         {isAdmin && (
           <Button
+            icon={<SettingOutlined />}
+            onClick={() => setIsPropsModalOpen(true)}
+            style={{ flexShrink: 0 }}
+          >
+            {d.seqPropertiesBtn}
+          </Button>
+        )}
+
+        {isAdmin && (
+          <Button
             type="primary"
             icon={<SaveOutlined />}
             loading={isSaving}
@@ -468,20 +610,41 @@ export const SequenceEditor: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Модал StepForm ── */}
+      {/* ── Модал StepFormV2 ── */}
       <Modal
         title={editingStep ? d.editStepTitle : d.addStepTitle}
         open={isStepModalOpen}
         onCancel={() => { setIsStepModalOpen(false); setEditingStep(null); }}
         footer={null}
-        width={820}
-        styles={{ body: { maxHeight: '75vh', overflowY: 'auto', paddingRight: 4 } }}
+        width={860}
+        styles={{ body: { maxHeight: '80vh', overflowY: 'auto', paddingRight: 4 } }}
         destroyOnClose
       >
-        <StepForm
+        <StepFormV2
+          initialValues={editingStep}
+          availableSteps={steps.map(s => ({ id: s.id, orderIndex: s.orderIndex }))}
           onSubmit={stepData => { void handleStepSubmit(stepData); }}
           onCancel={() => { setIsStepModalOpen(false); setEditingStep(null); }}
-          initialValues={editingStep}
+        />
+      </Modal>
+
+      {/* ── Модал свойств последовательности ── */}
+      <Modal
+        title={d.seqPropertiesTitle}
+        open={isPropsModalOpen}
+        onCancel={() => setIsPropsModalOpen(false)}
+        footer={null}
+        width={480}
+        destroyOnClose
+      >
+        <SeqPropertiesPanel
+          status={sequenceStatus ?? 'DRAFT'}
+          folderIdInput={propsFolderIdInput}
+          onFolderIdChange={setPropsFolderIdInput}
+          onActivate={() => { void handleActivate(); }}
+          onDeactivate={() => { void handleDeactivate(); }}
+          onAssignFolder={() => { void handleAssignFolder(); }}
+          isDark={isDark}
         />
       </Modal>
     </div>

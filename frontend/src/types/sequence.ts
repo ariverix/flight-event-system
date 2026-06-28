@@ -24,6 +24,8 @@ export interface StepResponse {
   stepType: StepType;
   orderIndex: number;
   configJson: string;
+  /** Тайм-аут в секундах для WAIT-шагов (отдельная колонка БД, НЕ в configJson). */
+  timeoutSeconds?: number;
   onSuccessAction: TransitionAction;
   onSuccessGotoStep: number | null;
   onSuccessNotify: boolean;
@@ -42,6 +44,8 @@ export interface SequenceCreateRequest {
 export interface StepCreateRequest {
   stepType: StepType;
   configJson: string;
+  /** Тайм-аут в секундах для WAIT-шагов (соответствует полю OpenAPI StepCreateRequest). */
+  timeoutSeconds?: number;
   onSuccessAction: TransitionAction;
   onSuccessGotoStep?: number;
   onSuccessNotify: boolean;

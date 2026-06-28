@@ -58,6 +58,7 @@ interface SequenceEditorState {
   sequenceId: number | null;
   sequenceName: string;
   sequenceDescription: string;
+  sequenceStatus: SequenceResponse['status'];
   originalSteps: StepResponse[];
   originalCriteria: OriginalCriteria;
 
@@ -122,6 +123,7 @@ const INITIAL: Omit<
   sequenceId: null,
   sequenceName: '',
   sequenceDescription: '',
+  sequenceStatus: 'DRAFT',
   originalSteps: [],
   originalCriteria: { start: null, stop: null },
   steps: [],
@@ -147,6 +149,7 @@ function initFromResponse(seq: SequenceResponse) {
     sequenceId: seq.id,
     sequenceName: seq.name,
     sequenceDescription: seq.description,
+    sequenceStatus: seq.status,
     originalSteps: sorted,
     originalCriteria: { start: seq.startCriteriaJson, stop: seq.stopCriteriaJson },
     steps: sorted,

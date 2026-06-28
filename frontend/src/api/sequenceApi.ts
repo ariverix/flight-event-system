@@ -71,4 +71,12 @@ export const sequenceApi = {
   deleteStep: async (sequenceId: number, stepId: number): Promise<void> => {
     await api.delete(`/sequences/${sequenceId}/steps/${stepId}`);
   },
+
+  /**
+   * Назначить последовательность в папку (PUT /api/v1/sequences/{id}/folder).
+   * folderId === null — снять из папки.
+   */
+  assignFolder: async (sequenceId: number, folderId: number | null): Promise<void> => {
+    await api.put(`/sequences/${sequenceId}/folder`, { folderId });
+  },
 };
