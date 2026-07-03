@@ -26,8 +26,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  *    (resetDatabase() в BaseIntegrationTest гоняет flyway.clean()+migrate()
  *    поверх V9/V14 демо-сценариев перед каждым тестом).
  *  - Колонка triggering_message_id физически существует, nullable, BIGINT.
- *  - Индекс idx_exec_dedup_trigger создан по (sequence_id, aircraft_id,
- *    flight_number, triggering_message_id).
+ *  - Дедуп-индекс по (sequence_id, aircraft_id, flight_number, triggering_message_id)
+ *    существует. NB: V38 (P1-7/P6-1) заменил исходный неуникальный idx_exec_dedup_trigger на
+ *    уникальный частичный idx_exec_dedup_trigger_unique — тест проверяет финальное состояние схемы.
  *  - Entity ExecutionInstance сохраняет и читает triggeringMessageId через
  *    JPA-репозиторий (round-trip), включая NULL для инстансов без
  *    привязки к конкретному событию (обратная совместимость со старыми
@@ -56,21 +57,37 @@ class V23TriggeringMessageIdMigrationIntTest extends BaseIntegrationTest {
     }
 
     @Test
-    @DisplayName("дедуп-индекс idx_exec_dedup_trigger создан по (sequence_id, aircraft_id, flight_number, triggering_message_id)")
+    @DisplayName("дедуп-индекс по (sequence_id, aircraft_id, flight_number, triggering_message_id) существует (V38: уникальный частичный)")
     void migrationCreatesDedupIndex() {
-        List<Map<String, Object>> indexes = jdbcTemplate.queryForList("""
+        // V38 (P1-7/P6-1) заменил исходный НЕуникальный idx_exec_dedup_trigger (V23) на
+        // частичный УНИКАЛЬНЫЙ idx_exec_dedup_trigger_unique (NULLS NOT DISTINCT,
+        // WHERE triggering_message_id IS NOT NULL) — тот же дедуп-ключ, но теперь гарантия на
+        // уровне БД против конкурентного двойного старта. Финальное состояние схемы (после V1-V38)
+        // содержит именно уникальный индекс; старое имя удалено.
+        List<Map<String, Object>> oldIndex = jdbcTemplate.queryForList("""
                 SELECT indexdef FROM pg_indexes
                 WHERE tablename = 'execution_instances'
                   AND indexname = 'idx_exec_dedup_trigger'
+                """);
+        assertThat(oldIndex)
+                .as("V38 удалил исходный неуникальный индекс")
+                .isEmpty();
+
+        List<Map<String, Object>> indexes = jdbcTemplate.queryForList("""
+                SELECT indexdef FROM pg_indexes
+                WHERE tablename = 'execution_instances'
+                  AND indexname = 'idx_exec_dedup_trigger_unique'
                 """);
 
         assertThat(indexes).hasSize(1);
         String indexDef = (String) indexes.get(0).get("indexdef");
         assertThat(indexDef)
+                .contains("UNIQUE")
                 .contains("sequence_id")
                 .contains("aircraft_id")
                 .contains("flight_number")
-                .contains("triggering_message_id");
+                .contains("triggering_message_id")
+                .contains("triggering_message_id IS NOT NULL");
     }
 
     @Test

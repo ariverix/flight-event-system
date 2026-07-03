@@ -215,34 +215,6 @@ public class CriterionEvaluator {
         return activeConditions.getOrDefault(conditionName, false);
     }
 
-    /**
-     * Читает АКТИВНОЕ (не закрытое завершением рейса) значение custom field рейса из
-     * {@code context.additionalData()} — паритет с SITA Sequencer: "переиспользование данных,
-     * извлечённых из входящих сообщений, в критериях" (P3-2, см. {@code ExecutionService
-     * #putCustomFieldsIfKnown}, который кладёт сюда карту с тем же префиксом
-     * {@code "customField."}, что и плейсхолдер шаблона {@code {{customField.X}}}).
-     *
-     * <p>Публичный метод (не приватный, в отличие от {@code evaluateConditionActive}) — не
-     * привязан к конкретному {@code CriterionType}: ни один из 6 канонических типов критериев
-     * SITA не имеет отдельной формы "custom field equals/before/after" (паритет CLAUDE.md строго
-     * фиксирует 6 типов — добавление 7-го здесь было бы расхождением со спецификацией), поэтому
-     * это переиспользуемый строительный блок для БУДУЩИХ задач (P3-3 raise/close condition по
-     * значению поля и т.п.), а не отдельная ветка {@code evaluate}. Сейчас (P3-2) подтверждает
-     * сам факт ДОСТУПНОСТИ значения на момент оценки критерия — то, что требует Definition of Done.
-     *
-     * @param fieldName имя custom field БЕЗ префикса {@code "customField."} (как в
-     *                   {@code CustomFieldRule#name})
-     * @return значение поля, если оно активно для рейса данного контекста; {@code null} — поле не
-     *         извлечено, рейс/борт неизвестен в контексте, или поле уже закрыто (рейс завершён)
-     */
-    public String getCustomFieldValue(ExecutionContext context, String fieldName) {
-        @SuppressWarnings("unchecked")
-        Map<String, String> customFields = (Map<String, String>)
-                context.additionalData().getOrDefault("customFields", Map.of());
-
-        return customFields.get("customField." + fieldName);
-    }
-
     private boolean evaluateCompound(Map<String, Object> criteria, ExecutionContext context, LocalDateTime waitStartedAt) {
         String operator = (String) criteria.get("operator");
         @SuppressWarnings("unchecked")

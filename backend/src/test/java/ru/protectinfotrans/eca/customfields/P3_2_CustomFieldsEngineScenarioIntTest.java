@@ -12,9 +12,7 @@ import ru.protectinfotrans.eca.customfields.dto.CustomFieldRuleCreateRequest;
 import ru.protectinfotrans.eca.customfields.port.in.CustomFieldQueryUseCase;
 import ru.protectinfotrans.eca.customfields.port.in.CustomFieldRuleManagementUseCase;
 import ru.protectinfotrans.eca.eventprocessor.port.in.MessageInputPort;
-import ru.protectinfotrans.eca.execution.application.CriterionEvaluator;
 import ru.protectinfotrans.eca.execution.application.ExecutionService;
-import ru.protectinfotrans.eca.execution.dto.ExecutionContext;
 import ru.protectinfotrans.eca.integration.domain.OutboundMessage;
 import ru.protectinfotrans.eca.integration.port.out.OutboundMessageRepositoryPort;
 import ru.protectinfotrans.eca.sequence.domain.StepType;
@@ -40,7 +38,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li>подстановка {@code {{customField.X}}} в исходящий шаблон ACTION-шага -> извлечённое значение
  *       (через {@code ActionStepRule#mergeCustomFields} -> {@code OutboundMessage#paramsJson} ->
  *       {@code TemplateRenderUseCase#render});</li>
- *   <li>использование значения в оценке критерия ({@code CriterionEvaluator#getCustomFieldValue});</li>
+ *   <li>доступность извлечённого значения execution-контексту на момент оценки критерия
+ *       ({@code CustomFieldQueryUseCase#getActiveValues} -> {@code ExecutionContext.additionalData});</li>
  *   <li>закрытие контекста при завершении рейса (IN/SUMMARY) — поле не подставляется и не
  *       используется после закрытия;</li>
  *   <li>per-flight изоляция — разные рейсы одного борта видят разные значения одного и того же поля.</li>
@@ -71,9 +70,6 @@ class P3_2_CustomFieldsEngineScenarioIntTest extends BaseIntegrationTest {
 
     @Autowired
     private OutboundMessageRepositoryPort outboundMessageRepository;
-
-    @Autowired
-    private CriterionEvaluator criterionEvaluator;
 
     private static final String AIRCRAFT_ID = "VP-BQR";
     private static final String FLIGHT_NUMBER = "SU1234";
@@ -218,20 +214,19 @@ class P3_2_CustomFieldsEngineScenarioIntTest extends BaseIntegrationTest {
     class CriterionUsageTests {
 
         @Test
-        @DisplayName("CriterionEvaluator.getCustomFieldValue читает значение, подготовленное execution-контекстом")
-        void criterionEvaluatorReadsExtractedCustomFieldValue() {
+        @DisplayName("извлечённое значение custom field доступно execution-контексту (getActiveValues) на момент оценки критерия")
+        void extractedCustomFieldValueIsAvailableForCriterionEvaluation() {
             createGateNumberRule();
 
             messageInputPort.receiveMessage(MessageType.DOWNLINK, "STATUS", AIRCRAFT_ID, FLIGHT_NUMBER,
                     "STATUS GATE=A12 OK", Map.of());
 
+            // Активные значения custom fields рейса — ровно та карта, которую ExecutionService
+            // кладёт в ExecutionContext.additionalData("customFields") на момент оценки критерия.
+            // Значение извлечено из входящего сообщения и доступно для переиспользования (паритет SITA, P3-2).
             Map<String, String> activeValues = customFieldQueryUseCase.getActiveValues(AIRCRAFT_ID, FLIGHT_NUMBER);
 
-            ExecutionContext context = new ExecutionContext(
-                    AIRCRAFT_ID, FLIGHT_NUMBER, FlightStage.OFF, java.time.LocalDateTime.now(),
-                    Map.of("customFields", activeValues));
-
-            assertThat(criterionEvaluator.getCustomFieldValue(context, "GATE_NUMBER")).isEqualTo("A12");
+            assertThat(activeValues).containsEntry("customField.GATE_NUMBER", "A12");
         }
     }
 

@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import ru.protectinfotrans.eca.cluster.ApplicationReadiness;
 import ru.protectinfotrans.eca.cluster.LeaderElection;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,12 +33,14 @@ public class WaitTimeoutScheduler {
 
     private final ExecutionService executionService;
     private final LeaderElection leaderElection;
+    private final ApplicationReadiness applicationReadiness;
     private final AtomicLong lastPollDurationMs;
 
     public WaitTimeoutScheduler(ExecutionService executionService, LeaderElection leaderElection,
-                                MeterRegistry meterRegistry) {
+                                ApplicationReadiness applicationReadiness, MeterRegistry meterRegistry) {
         this.executionService = executionService;
         this.leaderElection = leaderElection;
+        this.applicationReadiness = applicationReadiness;
         this.lastPollDurationMs = meterRegistry.gauge("eca.execution.wait_timeout_poll.duration_ms", new AtomicLong(0));
     }
 
@@ -51,6 +54,11 @@ public class WaitTimeoutScheduler {
      */
     @Scheduled(fixedRate = 10000)
     public void pollWaitTimeouts() {
+        // P2-3: не тикаем до готовности приложения (ApplicationReadyEvent) — гигиена, чтобы поллер
+        // не обращался к схеме до её готовности на старте.
+        if (!applicationReadiness.isReady()) {
+            return;
+        }
         if (!leaderElection.isLeader()) {
             return;
         }

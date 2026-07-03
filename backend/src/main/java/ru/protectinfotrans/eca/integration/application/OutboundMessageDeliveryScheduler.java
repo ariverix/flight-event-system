@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.integration.domain.ChannelCircuitBreaker;
 import ru.protectinfotrans.eca.integration.domain.OutboundMessage;
 import ru.protectinfotrans.eca.integration.domain.OutboundMessageType;
+import ru.protectinfotrans.eca.cluster.ApplicationReadiness;
 import ru.protectinfotrans.eca.cluster.LeaderElection;
 import ru.protectinfotrans.eca.integration.port.out.CircuitBreakerRepositoryPort;
 import ru.protectinfotrans.eca.integration.port.out.OutboundMessageRepositoryPort;
@@ -80,6 +81,7 @@ public class OutboundMessageDeliveryScheduler {
     private final CircuitBreakerRepositoryPort circuitBreakerRepository;
     private final ObjectProvider<OutboundMessageDeliveryScheduler> self;
     private final LeaderElection leaderElection;
+    private final ApplicationReadiness applicationReadiness;
     private final OutboundBackoffPolicy backoffPolicy;
     private final CircuitBreakerPolicy circuitBreakerPolicy;
     private final ObjectMapper objectMapper;
@@ -93,6 +95,7 @@ public class OutboundMessageDeliveryScheduler {
                                              CircuitBreakerRepositoryPort circuitBreakerRepository,
                                              ObjectProvider<OutboundMessageDeliveryScheduler> self,
                                              LeaderElection leaderElection,
+                                             ApplicationReadiness applicationReadiness,
                                              ObjectMapper objectMapper,
                                              TemplateRenderUseCase templateRenderUseCase,
                                              MeterRegistry meterRegistry) {
@@ -100,6 +103,7 @@ public class OutboundMessageDeliveryScheduler {
         this.circuitBreakerRepository = circuitBreakerRepository;
         this.self = self;
         this.leaderElection = leaderElection;
+        this.applicationReadiness = applicationReadiness;
         this.backoffPolicy = new OutboundBackoffPolicy();
         this.circuitBreakerPolicy = new CircuitBreakerPolicy();
         this.objectMapper = objectMapper;
@@ -120,6 +124,10 @@ public class OutboundMessageDeliveryScheduler {
      */
     @Scheduled(fixedRate = 5000)
     public void scheduledPoll() {
+        // P2-3: не тикаем до готовности приложения (ApplicationReadyEvent) — гигиена старта.
+        if (!applicationReadiness.isReady()) {
+            return;
+        }
         if (!leaderElection.isLeader()) {
             return;
         }

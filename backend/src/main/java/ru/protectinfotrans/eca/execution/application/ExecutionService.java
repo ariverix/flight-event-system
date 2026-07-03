@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -235,13 +236,13 @@ public class ExecutionService {
         for (Sequence sequence : activeSequences) {
             if (sequence.getStartCriteriaJson() == null || sequence.getStartCriteriaJson().isBlank()) {
                 if (event.flightStage() == FlightStage.INIT) {
-                    startExecution(sequence.getId(), event.aircraftId(), event.flightNumber(), event.messageId());
+                    startExecutionDeduplicated(sequence.getId(), event.aircraftId(), event.flightNumber(), event.messageId());
                 }
             } else {
                 boolean criterionMet = matchesStartCriteria(sequence.getStartCriteriaJson(), event);
                 if (criterionMet) {
                     log.info("Start criteria met for sequence {} and aircraft {}", sequence.getId(), event.aircraftId());
-                    startExecution(sequence.getId(), event.aircraftId(), event.flightNumber(), event.messageId());
+                    startExecutionDeduplicated(sequence.getId(), event.aircraftId(), event.flightNumber(), event.messageId());
                 }
             }
         }
@@ -587,6 +588,57 @@ public class ExecutionService {
         if (result != null) {
             advanceExecution(instance, firstStep, result);
         }
+    }
+
+    /**
+     * P1-7/P6-1 (V38): изолированный идемпотентный старт для event-driven пути
+     * ({@link #checkStartCriteria}) с грациозной обработкой проигрыша конкурентной гонки.
+     *
+     * <p><b>Зачем отдельный метод, а не прямой {@link #startExecution}:</b> пред-проверка
+     * {@code existsByDedupKey} внутри {@code startExecution} — это read-then-write, НЕ атомарный
+     * с последующим INSERT. При нескольких репликах backend (k8s replicas:2 + HPA, P6-1) повторная
+     * доставка ОДНОГО сообщения на РАЗНЫЕ реплики может привести к тому, что оба процесса пройдут
+     * пред-проверку до коммита любого из них. Уникальный частичный индекс
+     * {@code idx_exec_dedup_trigger_unique} (V38) гарантирует на уровне БД, что второй INSERT
+     * упадёт с {@link DataIntegrityViolationException} — здесь это ловится как идемпотентный no-op
+     * (проигравший гонку не создаёт дубль; победитель уже создал инстанс).
+     *
+     * <p><b>Почему через {@link #self} и {@link #startExecutionInNewTransaction} (REQUIRES_NEW):</b>
+     * {@link #processEvent} ({@code @ApplicationModuleListener}) выполняется в собственной
+     * транзакции; сам INSERT с нарушением уникального индекса помечает ТЕКУЩУЮ транзакцию
+     * rollback-only. Если бы старт шёл в той же транзакции, {@code DataIntegrityViolationException}
+     * отравил бы всю обработку события (откат и уже успешно стартованных соседних инстансов, и
+     * {@code UnexpectedRollbackException} на коммите processEvent). Изоляция в собственной
+     * {@code REQUIRES_NEW}-транзакции (тот же приём, что для stop/waiting в P1-6) означает: при
+     * нарушении откатывается ТОЛЬКО транзакция этого старта, внешняя транзакция processEvent
+     * (приостановленная на время REQUIRES_NEW) продолжается штатно. Вызов обязателен через
+     * AOP-прокси ({@code self.getObject()}), иначе {@code @Transactional(REQUIRES_NEW)} на целевом
+     * методе был бы проигнорирован (self-invocation).
+     */
+    private void startExecutionDeduplicated(Long sequenceId, String aircraftId, String flightNumber,
+                                            Long triggeringMessageId) {
+        try {
+            self.getObject().startExecutionInNewTransaction(sequenceId, aircraftId, flightNumber, triggeringMessageId);
+        } catch (DataIntegrityViolationException e) {
+            executionMetrics.recordDuplicateStartRejected();
+            log.info("Concurrent duplicate startExecution lost race (unique idx_exec_dedup_trigger_unique, V38) "
+                            + "for sequence={}, aircraft={}, flight={}, triggeringMessageId={} — idempotent no-op",
+                    sequenceId, aircraftId, flightNumber, triggeringMessageId);
+        }
+    }
+
+    /**
+     * P1-7/P6-1 (V38): обёртка старта в собственную {@code REQUIRES_NEW}-транзакцию для
+     * event-driven пути (см. {@link #startExecutionDeduplicated}). Self-invocation на
+     * {@link #startExecution} здесь НАМЕРЕННА: вся логика старта выполняется в границе ИМЕННО этой
+     * REQUIRES_NEW-транзакции (аннотация {@code @Transactional} на {@code startExecution} при
+     * self-call не создаёт вложенную границу — что и требуется). Публичный — чтобы вызываться через
+     * AOP-прокси из {@link #startExecutionDeduplicated}.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void startExecutionInNewTransaction(Long sequenceId, String aircraftId, String flightNumber,
+                                               Long triggeringMessageId) {
+        startExecution(sequenceId, aircraftId, flightNumber, triggeringMessageId);
     }
 
     /**

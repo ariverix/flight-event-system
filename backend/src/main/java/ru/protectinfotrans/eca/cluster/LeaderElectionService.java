@@ -50,6 +50,14 @@ public class LeaderElectionService implements LeaderElection {
 
     /** Результат последней попытки захвата (volatile — читается из @Scheduled-потоков планировщиков). */
     private volatile boolean leader = false;
+    /**
+     * P2-3 (гигиена): взводится на {@link ApplicationReadyEvent} ({@link #acquireOnStartup}) — до
+     * готовности приложения {@link #heartbeat()} не тикает. Собственный флаг (а не инъекция
+     * {@code ApplicationReadiness}) намеренно: этот бин САМ слушает {@code ApplicationReadyEvent}
+     * для {@code acquireOnStartup}, поэтому не создаём лишнюю зависимость и не трогаем оба
+     * конструктора (в т.ч. пакетный тестовый).
+     */
+    private volatile boolean applicationReady = false;
     /** Локальный дедлайн аренды: даже если флаг {@link #leader} устарел, по истечении аренды считаемся не-лидером. */
     private volatile Instant localLeaseExpiry = Instant.MIN;
 
@@ -76,6 +84,7 @@ public class LeaderElectionService implements LeaderElection {
 
     @EventListener(ApplicationReadyEvent.class)
     public void acquireOnStartup() {
+        this.applicationReady = true;
         try {
             tryAcquireLeadership();
             if (leader) {
@@ -88,6 +97,11 @@ public class LeaderElectionService implements LeaderElection {
 
     @Scheduled(fixedRate = 10_000)
     public void heartbeat() {
+        // P2-3: не тикаем до готовности приложения — лидерство впервые захватывается в
+        // acquireOnStartup на ApplicationReadyEvent, heartbeat лишь продлевает аренду после.
+        if (!applicationReady) {
+            return;
+        }
         try {
             boolean was = leader;
             tryAcquireLeadership();

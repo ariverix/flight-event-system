@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import ru.protectinfotrans.eca.cluster.ApplicationReadiness;
 import ru.protectinfotrans.eca.cluster.LeaderElection;
 
 import java.time.LocalDate;
@@ -49,6 +50,7 @@ import java.util.List;
 public class RetentionService {
 
     private final LeaderElection leaderElection;
+    private final ApplicationReadiness applicationReadiness;
     private final JdbcTemplate jdbcTemplate;
     private final RetentionProperties props;
     /**
@@ -67,6 +69,11 @@ public class RetentionService {
      */
     @Scheduled(cron = "${app.retention.cron:0 0 3 * * *}")
     public void runRetention() {
+        // P2-3: не тикаем до готовности приложения (ApplicationReadyEvent) — гигиена старта.
+        if (!applicationReadiness.isReady()) {
+            log.debug("Retention: приложение ещё не готово, пропускаем");
+            return;
+        }
         if (!leaderElection.isLeader()) {
             log.debug("Retention: не лидер, пропускаем");
             return;

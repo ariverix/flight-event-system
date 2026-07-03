@@ -73,7 +73,7 @@ class OutboundMessageDeliverySchedulerTest {
         // P6-1: pollPendingMessages() негейтуем (его и тестируем напрямую); лидер-заглушка нужна
         // только для конструктора — для прямого вызова pollPendingMessages значение isLeader не важно.
         scheduler = new OutboundMessageDeliveryScheduler(repository, circuitBreakerRepository, self,
-                () -> true, new ObjectMapper(), templateRenderUseCase, new SimpleMeterRegistry());
+                () -> true, () -> true, new ObjectMapper(), templateRenderUseCase, new SimpleMeterRegistry());
         org.mockito.Mockito.lenient().when(self.getObject()).thenReturn(scheduler);
         org.mockito.Mockito.lenient().when(circuitBreakerRepository.getOrCreate(any()))
                 .thenReturn(closedBreaker(OutboundMessageType.UPLINK));
@@ -513,6 +513,47 @@ class OutboundMessageDeliverySchedulerTest {
             // другого сбоя simulateChannelSend)
             verify(circuitBreakerRepository).recordFailure(eq(OutboundMessageType.UPLINK), eq(false),
                     eq(1), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("P2-3/P6-1: гейты готовности/лидерства на scheduledPoll()")
+    class SchedulingGate {
+
+        private OutboundMessageDeliveryScheduler gatedScheduler(boolean leader, boolean ready) {
+            // конструктор: (..., self, leaderElection, applicationReadiness, objectMapper, ...)
+            OutboundMessageDeliveryScheduler s = new OutboundMessageDeliveryScheduler(repository,
+                    circuitBreakerRepository, self, () -> leader, () -> ready, new ObjectMapper(),
+                    templateRenderUseCase, new SimpleMeterRegistry());
+            org.mockito.Mockito.lenient().when(self.getObject()).thenReturn(s);
+            return s;
+        }
+
+        @Test
+        @DisplayName("приложение не готово (isReady=false) → PENDING не опрашиваются, даже если лидер")
+        void scheduledPollDoesNothingWhenNotReady() {
+            gatedScheduler(true, false).scheduledPoll();
+
+            verify(repository, never()).findPendingCandidates(any(LocalDateTime.class), anyInt());
+        }
+
+        @Test
+        @DisplayName("готово, но не лидер (isLeader=false) → PENDING не опрашиваются")
+        void scheduledPollDoesNothingWhenNotLeader() {
+            gatedScheduler(false, true).scheduledPoll();
+
+            verify(repository, never()).findPendingCandidates(any(LocalDateTime.class), anyInt());
+        }
+
+        @Test
+        @DisplayName("готово и лидер → PENDING опрашиваются (делегирует в pollPendingMessages)")
+        void scheduledPollRunsWhenReadyAndLeader() {
+            when(repository.findPendingCandidates(any(LocalDateTime.class), anyInt()))
+                    .thenReturn(List.of());
+
+            gatedScheduler(true, true).scheduledPoll();
+
+            verify(repository, times(1)).findPendingCandidates(any(LocalDateTime.class), anyInt());
         }
     }
 }
