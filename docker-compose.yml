@@ -7,8 +7,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-eca_db}
       POSTGRES_USER: ${DB_USERNAME:-eca_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-eca_password}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,7 +21,7 @@ services:
       dockerfile: Dockerfile
     container_name: eca-app
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       # P4-3: секреты из окружения/.env; в проде задать DB_PASSWORD и JWT_SECRET обязательно
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-eca_db}

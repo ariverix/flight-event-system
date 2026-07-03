@@ -161,7 +161,7 @@ describe('useInstancesStore', () => {
 
   // ── (c) event-log prepend ─────────────────────────────────────────────────
   describe('event-log payload', () => {
-    it('prepend'ит новое событие в начало массива', () => {
+    it('prepend-ит новое событие в начало массива', () => {
       useInstancesStore.getState().connect();
 
       emit('event-log', makeEventLog(1, 1));
