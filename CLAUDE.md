@@ -5,16 +5,16 @@
 
 ## Что это за проект
 Отечественная промышленная замена модуля **SITA AIRCOM Sequencer** — система обработки авиационных событий по сообщениям «борт-земля» (ACARS). Движок правил ECA (Event-Condition-Action). Заказчик — ФГУП «ЗащитаИнфоТранс».
-Репозиторий: `ariverix/flight-event-system`, ветка `main`. Локальный запуск: `docker-compose up --build`, http://localhost:8080, admin/admin.
+Репозиторий: `ariverix/flight-event-system`, ветка `main`. Локальный запуск: `docker-compose up --build`, http://localhost:8081, admin/admin (порт хоста 8081 — 8080 и 5432 на дев-машине заняты; внутри контейнера приложение слушает 8080).
 
 ## Стек (не менять без ADR архитектора)
 Backend: Java 21, Spring Boot 3.5, Spring Modulith, Easy Rules 4.1, PostgreSQL 16, Flyway.
 Frontend: React 18, TypeScript 5, Ant Design 5, React Flow 12.
 Инфра: Docker (цель — Kubernetes/Helm), GitHub Actions CI/CD.
-Модули backend: `sequence`, `execution`, `eventprocessor`, `integration`, `user`. Архитектура: модульный монолит + гексагональная (порты/адаптеры).
+Модули backend: `sequence`, `execution`, `eventprocessor`, `integration`, `user`, `templates`, `customfields`, `conditions`, `eventhandling`, `cluster`. Архитектура: модульный монолит + гексагональная (порты/адаптеры).
 
 ## Канонические метрики (держать согласованными во всех документах)
-8 таблиц БД; миграции от V1–V10 (новые — Vxx по возрастанию); базово 119 тестов (78 unit + 32 integration + 9 architecture), JaCoCo 72% — **цель ≥ 85%**; 3 типа шагов, 6 типов критериев; демо-сценарий: борт VP-BQR, рейс SU1234.
+23 таблицы БД; миграции V1–V37 (новые — V38+ по возрастанию, применённые не трогать); базово ~843 backend-теста (unit + integration + architecture, точное число подтверждается `mvn verify`) + 183+ frontend-тестов (vitest); JaCoCo-гейт в `mvn verify`: LINE ≥ 0.88, INSTRUCTION ≥ 0.90 — **не понижать** (гейт ревью — ≥ 85% по изменённому коду); 3 типа шагов, 6 типов критериев; демо-сценарий: борт VP-BQR, рейс SU1234. Актуализировано 2026-07-03 (санкционировано Денисом; предыдущие «119 тестов / 72%» — состояние до P1).
 
 ## Спецификация паритета с SITA (реализуем РОВНО так — не упрощать)
 **3 типа шагов:** ACTION (raise/close condition + уровень алерта, send uplink computer-generated|external-user + шаблон, send ground + получатели, wait {x}{sec/min/hour}); EVALUATE IF (мгновенная проверка критериев); WAIT FOR (блокирует до выполнения критериев, таймаут→false, чекбокс «from this point only»).
