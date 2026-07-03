@@ -181,3 +181,29 @@ app:
     create-ahead-months: ${RETENTION_CREATE_AHEAD_MONTHS:3}
     # Cron-расписание retention (Spring cron: сек мин час д м дн). Дефолт: 03:00 каждый день.
     cron: ${RETENTION_CRON:0 0 3 * * *}
+
+  # Фаза 3 (прогон апгрейда): rate limiting (bucket4j, per client IP).
+  # auth — брутфорс логина; messages — флуд открытого ACARS-ингеста. Пороги через env.
+  ratelimit:
+    # Прод: не переопределять (true). В тестах surefire задаёт false (см. pom.xml) — лимитер
+    # пассивен, чтобы не резать высоконагруженные интеграционные тесты ингеста/логина.
+    enabled: ${RATELIMIT_ENABLED:true}
+    auth:
+      # 10 попыток логина / 60 c на IP (брутфорс-guard). /auth/me и /register не лимитируются.
+      capacity: ${RATELIMIT_AUTH_CAPACITY:10}
+      refill-period-seconds: ${RATELIMIT_AUTH_PERIOD_SEC:60}
+    messages:
+      # Высокий потолок: 2000 req/s на IP — выше наблюдаемого пика ~375 msg/s (docs/perf),
+      # штатный поток шлюза не режется, отсекается только runaway-флуд. Тюнится под прод.
+      capacity: ${RATELIMIT_MESSAGES_CAPACITY:2000}
+      refill-period-seconds: ${RATELIMIT_MESSAGES_PERIOD_SEC:1}
+    # Доверенные reverse-proxy (IP/CIDR через запятую). X-Forwarded-For учитывается ТОЛЬКО от них
+    # (иначе клиент подставил бы XFF и обошёл лимит). ДЕФОЛТ ПУСТ = XFF не доверяется, ключ =
+    # remoteAddr (безопасно для прямого docker-compose/dev). Прод за ingress/LB: задать сеть прокси,
+    # напр. APP_RATELIMIT_TRUSTED_PROXIES=10.0.0.0/8,::1
+    trusted-proxies: ${APP_RATELIMIT_TRUSTED_PROXIES:}
+
+  # Фаза 3: CORS allowed-origins вынесены из кода (SecurityConfig) в конфиг. Прод задаёт реальные
+  # origins фронта через env (список через запятую); dev-дефолт — vite (5173) и CRA (3000).
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}

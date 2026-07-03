@@ -136,6 +136,7 @@ public class RetentionService {
      */
     private void createPartitionIfNeeded(YearMonth month) {
         String partName = partitionName(month);
+        assertSafePartitionName(partName);
         String fromDate = month.atDay(1).toString();           // YYYY-MM-DD
         String toDate   = month.plusMonths(1).atDay(1).toString();
         try {
@@ -155,6 +156,7 @@ public class RetentionService {
      * убирает её из parent-таблицы (не нужен предварительный DETACH).
      */
     private void dropPartition(String partName) {
+        assertSafePartitionName(partName);
         try {
             jdbcTemplate.execute("DROP TABLE IF EXISTS " + partName);
             meterRegistry.counter("eca.retention.partitions.dropped", "table", "tracking_event_log").increment();
@@ -186,6 +188,26 @@ public class RetentionService {
     /** Формирует имя партиции в стиле tracking_event_log_YYYY_MM. */
     private String partitionName(YearMonth month) {
         return String.format("tracking_event_log_%04d_%02d", month.getYear(), month.getMonthValue());
+    }
+
+    /** Допустимый формат имени партиции — единственный, что этот сервис создаёт/удаляет. */
+    private static final java.util.regex.Pattern SAFE_PARTITION_NAME =
+            java.util.regex.Pattern.compile("^tracking_event_log_\\d{4}_\\d{2}$");
+
+    /**
+     * Фаза 3 (defense-in-depth, DDL identifier): идентификаторы таблиц НЕЛЬЗЯ параметризовать
+     * через {@code ?} в JDBC, поэтому имя партиции интерполируется в DDL напрямую. Сейчас источники
+     * безопасны — {@link #partitionName(YearMonth)} (из {@link YearMonth}) и
+     * {@link #getNamedPartitions()} (запрос pg_catalog с regex-ограничением). Этот явный whitelist
+     * (только {@code tracking_event_log_YYYY_MM}) — страховка от будущего рефактора, который мог бы
+     * подать во DDL внешние данные (SQL-инъекция). Нарушение = баг конфигурации/рефактора, не
+     * пользовательский ввод, поэтому {@link IllegalArgumentException}.
+     */
+    // package-private для прямого unit-теста негативного пути (RetentionServiceTest)
+    void assertSafePartitionName(String partName) {
+        if (partName == null || !SAFE_PARTITION_NAME.matcher(partName).matches()) {
+            throw new IllegalArgumentException("Небезопасное имя партиции для DDL: " + partName);
+        }
     }
 
     /**

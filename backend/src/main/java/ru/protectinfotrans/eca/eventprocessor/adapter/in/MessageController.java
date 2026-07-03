@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.protectinfotrans.eca.LogSanitizer;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.application.EventProcessorService;
 import ru.protectinfotrans.eca.eventprocessor.application.MessageQueryService;
@@ -51,10 +52,13 @@ public class MessageController {
     @Operation(summary = "Принять входящее сообщение",
                description = "UC-06: Принять ACARS-сообщение от внешней системы. Не требует аутентификации.")
     @ApiResponse(responseCode = "200", description = "Сообщение принято и обработано")
+    @ApiResponse(responseCode = "429", description = "Превышен лимит запросов (rate limit, флуд-защита ингеста)")
     @PostMapping("/messages/incoming")
     public ResponseEntity<MessageReceivedResponse> receiveMessage(@Valid @RequestBody IncomingMessageRequest request) {
+        // открытый эндпоинт (без auth) — санитизируем внешне-контролируемые строки от log forging
         log.debug("POST /api/v1/messages/incoming: type={}, template={}, aircraft={}",
-                request.messageType(), request.templateName(), request.aircraftId());
+                request.messageType(), LogSanitizer.sanitize(request.templateName()),
+                LogSanitizer.sanitize(request.aircraftId()));
 
         Map<String, Object> metadata = null;
         if (request.metadataJson() != null && !request.metadataJson().isBlank()) {
@@ -95,10 +99,11 @@ public class MessageController {
     @Operation(summary = "Изменение стадии полёта",
                description = "UC-06: Уведомить систему об изменении стадии OOOI. Не требует аутентификации.")
     @ApiResponse(responseCode = "200", description = "Стадия обновлена")
+    @ApiResponse(responseCode = "429", description = "Превышен лимит запросов (rate limit, флуд-защита ингеста)")
     @PostMapping("/flights/stage-change")
     public ResponseEntity<Void> notifyFlightStageChange(@Valid @RequestBody FlightStageChangeRequest request) {
         log.debug("POST /api/v1/flights/stage-change: aircraft={}, stage={}",
-                request.aircraftId(), request.stage());
+                LogSanitizer.sanitize(request.aircraftId()), request.stage());
 
         eventProcessorService.notifyFlightStageChange(
                 request.aircraftId(),
@@ -127,7 +132,7 @@ public class MessageController {
             @PageableDefault(sort = "receivedAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         log.debug("GET /api/v1/messages: aircraftId={}, messageType={}, page={}",
-                aircraftId, messageType, pageable.getPageNumber());
+                LogSanitizer.sanitize(aircraftId), messageType, pageable.getPageNumber());
 
         Page<IncomingMessage> messages = messageQueryService.findMessages(aircraftId, messageType, pageable);
 

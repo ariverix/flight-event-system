@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.AuditLog;
+import ru.protectinfotrans.eca.LogSanitizer;
 import ru.protectinfotrans.eca.user.adapter.out.UserJpaRepository;
 import ru.protectinfotrans.eca.user.domain.Role;
 import ru.protectinfotrans.eca.user.domain.User;
@@ -30,7 +31,7 @@ public class UserService implements UserLookupPort {
     /** @throws IllegalArgumentException если username уже занят */
     public User registerUser(String username, String password, String fullName, Role role) {
         if (userRepository.existsByUsername(username)) {
-            log.warn("Registration failed: username '{}' already exists", username);
+            log.warn("Registration failed: username '{}' already exists", LogSanitizer.sanitize(username));
             throw new IllegalArgumentException("User with username '" + username + "' already exists");
         }
 
@@ -46,7 +47,8 @@ public class UserService implements UserLookupPort {
 
         User savedUser = userRepository.save(user);
 
-        log.info("User registered: id={}, username={}, role={}", savedUser.getId(), username, role);
+        log.info("User registered: id={}, username={}, role={}", savedUser.getId(),
+                LogSanitizer.sanitize(username), role);
 
         auditLogPort.save(ru.protectinfotrans.eca.AuditLog.builder()
                 .action("CREATE_USER")
@@ -103,7 +105,8 @@ public class UserService implements UserLookupPort {
         user.setEnabled(!user.getEnabled());
         User updatedUser = userRepository.save(user);
 
-        log.info("User toggled: id={}, username={}, enabled={}", userId, user.getUsername(), user.getEnabled());
+        log.info("User toggled: id={}, username={}, enabled={}", userId,
+                LogSanitizer.sanitize(user.getUsername()), user.getEnabled());
 
         auditLogPort.save(ru.protectinfotrans.eca.AuditLog.builder()
                 .action("TOGGLE_USER")
