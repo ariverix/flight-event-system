@@ -245,6 +245,15 @@
                     <environmentVariables>
                         <DOCKER_HOST>${docker.host}</DOCKER_HOST>
                     </environmentVariables>
+                    <!-- Фаза 2 (стабилизация): выключаем авто-тик @Scheduled-поллеров во всех
+                         тестовых форках. Иначе фоновый тик (напр. OutboundMessageDeliveryScheduler)
+                         может взять блокировку таблицы, а межтестовый Flyway-clean (DROP TABLE)
+                         зависнет в ожидании этой блокировки без таймаута (наблюдался подвисший
+                         прогон). Тесты вызывают методы опроса напрямую — покрытие не страдает.
+                         Прод: свойство не задано → SchedulingConfig matchIfMissing=true → включено. -->
+                    <systemPropertyVariables>
+                        <app.scheduling.enabled>false</app.scheduling.enabled>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
