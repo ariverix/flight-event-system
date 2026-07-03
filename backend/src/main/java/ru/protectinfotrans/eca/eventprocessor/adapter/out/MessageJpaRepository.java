@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
+import ru.protectinfotrans.eca.eventprocessor.dto.AircraftSummaryResponse;
 import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
 import java.time.LocalDateTime;
@@ -87,4 +88,27 @@ public interface MessageJpaRepository extends JpaRepository<IncomingMessage, Lon
 
     // P2-1: lookup идемпотентности шлюза по идентификатору внешней ACARS-системы.
     Optional<IncomingMessage> findByExternalMessageId(String externalMessageId);
+
+    // ---------------------------------------------------------------
+    // Фаза 5: проекция «список бортов» (GROUP BY aircraft_id) для UI aircraft-bindings.
+    // Отдельные методы с/без поиска — тот же приём, что и findAllWithFilters (избегаем
+    // nullable-параметра). Явный countQuery = число различных бортов (групп), а не строк.
+    // ORDER BY MAX(receivedAt) — самый недавно активный борт сверху; Pageable без Sort.
+    // ---------------------------------------------------------------
+    @Query(value = "SELECT new ru.protectinfotrans.eca.eventprocessor.dto.AircraftSummaryResponse("
+            + "m.aircraftId, MAX(m.receivedAt), COUNT(m), COUNT(DISTINCT m.flightNumber)) "
+            + "FROM IncomingMessage m WHERE m.aircraftId IS NOT NULL "
+            + "GROUP BY m.aircraftId ORDER BY MAX(m.receivedAt) DESC",
+            countQuery = "SELECT COUNT(DISTINCT m.aircraftId) FROM IncomingMessage m WHERE m.aircraftId IS NOT NULL")
+    Page<AircraftSummaryResponse> findAircraftSummaries(Pageable pageable);
+
+    @Query(value = "SELECT new ru.protectinfotrans.eca.eventprocessor.dto.AircraftSummaryResponse("
+            + "m.aircraftId, MAX(m.receivedAt), COUNT(m), COUNT(DISTINCT m.flightNumber)) "
+            + "FROM IncomingMessage m WHERE m.aircraftId IS NOT NULL "
+            + "AND LOWER(m.aircraftId) LIKE LOWER(CONCAT('%', :search, '%')) "
+            + "GROUP BY m.aircraftId ORDER BY MAX(m.receivedAt) DESC",
+            countQuery = "SELECT COUNT(DISTINCT m.aircraftId) FROM IncomingMessage m "
+                    + "WHERE m.aircraftId IS NOT NULL "
+                    + "AND LOWER(m.aircraftId) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<AircraftSummaryResponse> searchAircraftSummaries(@Param("search") String search, Pageable pageable);
 }

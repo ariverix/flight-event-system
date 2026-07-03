@@ -731,6 +731,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/aircraft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Список бортов
+         * @description Различные tail numbers (AN) с метаданными последнего контакта и объёма наблюдений; опциональный подстрочный поиск по регистрационному номеру. Пагинация; сортировка — последний активный борт сверху. Типа ВС в системе нет (нет данных).
+         */
+        get: operations["listAircraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/event-handlers/{id}": {
         parameters: {
             query?: never;
@@ -1079,14 +1099,14 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
-            first?: boolean;
-            last?: boolean;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MessageResponse"][];
             /** Format: int32 */
             number?: number;
             sort?: components["schemas"]["SortObject"];
+            first?: boolean;
+            last?: boolean;
             /** Format: int32 */
             numberOfElements?: number;
             pageable?: components["schemas"]["PageableObject"];
@@ -1096,17 +1116,17 @@ export interface components {
             /** Format: int64 */
             offset?: number;
             sort?: components["schemas"]["SortObject"];
-            unpaged?: boolean;
-            paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
+            paged?: boolean;
+            unpaged?: boolean;
         };
         SortObject: {
             empty?: boolean;
-            unsorted?: boolean;
             sorted?: boolean;
+            unsorted?: boolean;
         };
         ExecutionInstanceResponse: {
             /** Format: int64 */
@@ -1240,6 +1260,33 @@ export interface components {
             number?: number;
             /** Format: int32 */
             size?: number;
+        };
+        AircraftSummaryResponse: {
+            aircraftId?: string;
+            /** Format: date-time */
+            lastSeen?: string;
+            /** Format: int64 */
+            messageCount?: number;
+            /** Format: int64 */
+            flightCount?: number;
+        };
+        PageAircraftSummaryResponse: {
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            size?: number;
+            content?: components["schemas"]["AircraftSummaryResponse"][];
+            /** Format: int32 */
+            number?: number;
+            sort?: components["schemas"]["SortObject"];
+            first?: boolean;
+            last?: boolean;
+            /** Format: int32 */
+            numberOfElements?: number;
+            pageable?: components["schemas"]["PageableObject"];
+            empty?: boolean;
         };
     };
     responses: never;
@@ -1815,6 +1862,15 @@ export interface operations {
                     "*/*": components["schemas"]["MessageReceivedResponse"];
                 };
             };
+            /** @description Превышен лимит запросов (rate limit, флуд-защита ингеста) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MessageReceivedResponse"];
+                };
+            };
         };
     };
     receiveRawMessage: {
@@ -1909,6 +1965,13 @@ export interface operations {
         responses: {
             /** @description Стадия обновлена */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Превышен лимит запросов (rate limit, флуд-защита ингеста) */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2091,8 +2154,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Превышен лимит запросов (rate limit) */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2115,8 +2178,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Превышен лимит запросов (rate limit) */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2139,8 +2202,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Превышен лимит попыток входа (rate limit, брутфорс-защита) */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2371,6 +2434,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PageResponseAuditLogResponse"];
+                };
+            };
+        };
+    };
+    listAircraft: {
+        parameters: {
+            query?: {
+                search?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Страница бортов */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageAircraftSummaryResponse"];
                 };
             };
         };

@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
+import ru.protectinfotrans.eca.eventprocessor.dto.AircraftSummaryResponse;
 import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
 import java.time.LocalDateTime;
@@ -122,4 +123,15 @@ public interface MessageRepositoryPort {
      * @return время последнего фактического отчёта, либо empty если отчётов не было вовсе
      */
     Optional<LocalDateTime> findLastActualPositionReportTime(String aircraftId, PositionSource source);
+
+    /**
+     * Фаза 5: сводка по бортам (проекция GROUP BY aircraft_id над журналом сообщений) для UI
+     * aircraft-bindings. Борт = различный {@code aircraft_id} (tail number); отдельной
+     * таблицы-реестра бортов и типа ВС в системе нет.
+     *
+     * @param search подстрочный фильтр по tail number (case-insensitive; null/blank = все борта)
+     * @param pageable страница/размер (сортировка фиксирована в запросе — последний контакт сверху)
+     * @return страница сводок по бортам
+     */
+    Page<AircraftSummaryResponse> findAircraftSummaries(String search, Pageable pageable);
 }

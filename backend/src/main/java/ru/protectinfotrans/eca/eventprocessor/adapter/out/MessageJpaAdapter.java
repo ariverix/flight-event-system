@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.protectinfotrans.eca.MessageType;
 import ru.protectinfotrans.eca.eventprocessor.domain.IncomingMessage;
+import ru.protectinfotrans.eca.eventprocessor.dto.AircraftSummaryResponse;
 import ru.protectinfotrans.eca.eventprocessor.port.out.MessageRepositoryPort;
 import ru.protectinfotrans.eca.sequence.domain.PositionSource;
 
@@ -88,6 +89,15 @@ public class MessageJpaAdapter implements MessageRepositoryPort {
     @Override
     public Optional<LocalDateTime> findLastActualPositionReportTime(String aircraftId, PositionSource source) {
         return jpaRepository.findLastActualPositionReportTime(aircraftId, source);
+    }
+
+    @Override
+    public Page<AircraftSummaryResponse> findAircraftSummaries(String search, Pageable pageable) {
+        // отдельные методы с/без поиска — как в findAllWithFilters (без nullable-параметра)
+        if (search == null || search.isBlank()) {
+            return jpaRepository.findAircraftSummaries(pageable);
+        }
+        return jpaRepository.searchAircraftSummaries(search.trim(), pageable);
     }
 
     @Override

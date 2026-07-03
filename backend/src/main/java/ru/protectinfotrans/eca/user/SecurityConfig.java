@@ -69,6 +69,9 @@ public class SecurityConfig {
                         // путь требует право чтения; запись (POST/PUT/DELETE) дополнительно гейтится
                         // @PreAuthorize('MANAGE_SEQUENCES') на методах контроллера
                         .requestMatchers("/api/v1/sequences/**").hasAuthority("VIEW_SEQUENCES")
+                        // Фаза 5: список бортов для UI aircraft-bindings — тот же уровень, что чтение
+                        // последовательностей (для которых борта выбираются).
+                        .requestMatchers("/api/v1/aircraft/**").hasAuthority("VIEW_SEQUENCES")
                         .requestMatchers("/api/v1/executions/**").hasAuthority("MANAGE_EXECUTIONS")
                         // P2-6: DLQ — ручной reprocess/discard сбойных входящих, НЕ открытый
                         // ingestion-путь (тот остаётся /messages/**)

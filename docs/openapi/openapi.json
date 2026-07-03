@@ -1,1 +1,3042 @@
-{"openapi":"3.1.0","info":{"title":"flight-event-system API","description":"Система обработки авиационных событий ECA (Event-Condition-Action) —\nотечественная промышленная замена модуля SITA AIRCOM Sequencer.\nОбрабатывает сообщения «борт-земля» (ACARS) и управляет последовательностями,\nшагами, критериями и алертами.\n\nБольшинство эндпоинтов требуют JWT (Bearer). Эндпоинт приёма входящих\nсообщений /api/v1/messages/** и /api/v1/flights/** открыт без аутентификации\nдля внешних ACARS-систем — это осознанное решение, защита на уровне сети.\n","contact":{"name":"ФГУП «ЗащитаИнфоТранс»"},"version":"1.0.0"},"servers":[{"url":"http://localhost:8089","description":"Generated server url"}],"security":[{"bearerAuth":[]}],"tags":[{"name":"Sequences","description":"Управление последовательностями ECA (UC-01..UC-04)"},{"name":"Conditions","description":"Активные custom conditions рейсов (P3-3)"},{"name":"Folders","description":"Папки последовательностей (P3-4)"},{"name":"Templates","description":"Управление шаблонами сообщений (downlink/uplink/ground, P3-1)"},{"name":"Event Handlers","description":"Обработчики событий: уведомления уровня папки/последовательности (P3-4)"},{"name":"Authentication","description":"User authentication and registration"},{"name":"Messages","description":"Приём сырых сообщений «борт-земля» (P2-2: ARINC 618/620, Type B, AFTN)"},{"name":"Custom Field Rules","description":"Управление правилами извлечения custom fields из входящих сообщений (P3-2)"},{"name":"Executions","description":"Статус выполнения последовательностей (UC-05)"},{"name":"AuditLog","description":"Журнал аудита операций (только ADMIN)"},{"name":"Users","description":"Управление пользователями (UC-09, только ADMIN)"},{"name":"Messages","description":"Приём входящих сообщений и журнал (UC-06)"},{"name":"DeadLetterQueue","description":"P2-6: сбойные входящие сообщения (DLQ) + ручной reprocess (OPERATOR/ADMIN)"}],"paths":{"/api/v1/users/{id}/toggle":{"put":{"tags":["Users"],"summary":"Toggle user","description":"Enable or disable user account (ADMIN only)","operationId":"toggleUser","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"object"}}}}}}},"/api/v1/templates/{id}":{"get":{"tags":["Templates"],"summary":"Получить шаблон по ID","operationId":"get","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"404":{"description":"Шаблон не найден","content":{"*/*":{"schema":{"$ref":"#/components/schemas/TemplateResponse"}}}},"200":{"description":"Шаблон найден","content":{"*/*":{"schema":{"$ref":"#/components/schemas/TemplateResponse"}}}}}},"put":{"tags":["Templates"],"summary":"Обновить шаблон","description":"Обновляет тело/категорию/origin/активность. Имя неизменяемо.","operationId":"update","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/TemplateUpdateRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/TemplateResponse"}}}}}},"delete":{"tags":["Templates"],"summary":"Удалить шаблон","operationId":"delete","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"204":{"description":"Шаблон удалён"}}}},"/api/v1/sequences/{id}":{"get":{"tags":["Sequences"],"summary":"Получить последовательность","description":"Получить последовательность вместе со всеми шагами по ID","operationId":"get_1","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"404":{"description":"Последовательность не найдена","content":{"*/*":{"schema":{"$ref":"#/components/schemas/SequenceResponse"}}}},"200":{"description":"Последовательность найдена","content":{"*/*":{"schema":{"$ref":"#/components/schemas/SequenceResponse"}}}}}},"put":{"tags":["Sequences"],"summary":"Обновить последовательность","description":"UC-01: Обновить название, описание и критерии (только DRAFT)","operationId":"update_1","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/SequenceUpdateRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/SequenceResponse"}}}}}},"delete":{"tags":["Sequences"],"summary":"Удалить последовательность","description":"UC-01: Удалить последовательность в статусе DRAFT","operationId":"delete_1","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"204":{"description":"Последовательность удалена"}}}},"/api/v1/sequences/{id}/steps/{stepId}":{"put":{"tags":["Steps","Sequences"],"summary":"Обновить шаг","description":"UC-02/UC-03: Обновить параметры шага и настроить переходы (CONTINUE/GOTO/END/ABORT)","operationId":"updateStep","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"stepId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/StepUpdateRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/StepResponse"}}}}}},"delete":{"tags":["Steps","Sequences"],"summary":"Удалить шаг","description":"UC-02: Удалить шаг из последовательности (только DRAFT)","operationId":"deleteStep","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"stepId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"204":{"description":"Шаг удалён"}}}},"/api/v1/sequences/{id}/steps/reorder":{"put":{"tags":["Steps","Sequences"],"summary":"Изменить порядок шагов","description":"UC-02: Переупорядочить шаги по списку ID","operationId":"reorderSteps","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"requestBody":{"content":{"application/json":{"schema":{"type":"array","items":{"type":"integer","format":"int64"}}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/StepResponse"}}}}}}}},"/api/v1/sequences/{id}/folder":{"put":{"tags":["Sequences"],"summary":"Назначить последовательность в папку","description":"P3-4: организация по папкам для наследования event-handling-конфигурации. folderId == null снимает последовательность из папки.","operationId":"assignFolder","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"folderId","in":"query","required":false,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/SequenceResponse"}}}}}}},"/api/v1/custom-field-rules/{id}":{"get":{"tags":["Custom Field Rules"],"summary":"Получить правило по ID","operationId":"get_2","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"404":{"description":"Правило не найдено","content":{"*/*":{"schema":{"$ref":"#/components/schemas/CustomFieldRuleResponse"}}}},"200":{"description":"Правило найдено","content":{"*/*":{"schema":{"$ref":"#/components/schemas/CustomFieldRuleResponse"}}}}}},"put":{"tags":["Custom Field Rules"],"summary":"Обновить правило","description":"Обновляет описание/тип сообщения/шаблон/паттерн/активность. Имя неизменяемо.","operationId":"update_2","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CustomFieldRuleUpdateRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/CustomFieldRuleResponse"}}}}}},"delete":{"tags":["Custom Field Rules"],"summary":"Удалить правило","operationId":"delete_2","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"204":{"description":"Правило удалено"}}}},"/api/v1/templates":{"get":{"tags":["Templates"],"summary":"Список шаблонов","description":"Список шаблонов с пагинацией, опциональной фильтрацией по типу/категории/активности","operationId":"list","parameters":[{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}},{"name":"messageType","in":"query","required":false,"schema":{"type":"string"}},{"name":"category","in":"query","required":false,"schema":{"type":"string"}},{"name":"active","in":"query","required":false,"schema":{"type":"boolean"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/PageResponseTemplateResponse"}}}}}},"post":{"tags":["Templates"],"summary":"Создать шаблон","description":"Создаёт шаблон сообщения (downlink/uplink/ground). Для uplink/ground origin обязателен (computer-generated|external-user).","operationId":"create","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/TemplateCreateRequest"}}},"required":true},"responses":{"201":{"description":"Шаблон создан","content":{"*/*":{"schema":{"$ref":"#/components/schemas/TemplateResponse"}}}}}}},"/api/v1/templates/render":{"post":{"tags":["Templates"],"summary":"Пробный рендеринг шаблона","description":"Подставляет переданные переменные в тело шаблона — предпросмотр в UI перед сохранением ACTION-шага","operationId":"render","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/TemplateRenderRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/TemplateRenderResponse"}}}}}}},"/api/v1/sequences":{"get":{"tags":["Sequences"],"summary":"Список последовательностей","description":"Получить список всех последовательностей с пагинацией и фильтрацией по статусу","operationId":"list_1","parameters":[{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}},{"name":"status","in":"query","required":false,"schema":{"type":"string"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/PageResponseSequenceResponse"}}}}}},"post":{"tags":["Sequences"],"summary":"Создать последовательность","description":"UC-01: Создаёт новую последовательность в статусе DRAFT","operationId":"create_1","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/SequenceCreateRequest"}}},"required":true},"responses":{"201":{"description":"Последовательность создана","content":{"*/*":{"schema":{"$ref":"#/components/schemas/SequenceResponse"}}}}}}},"/api/v1/sequences/{id}/steps":{"post":{"tags":["Steps","Sequences"],"summary":"Добавить шаг","description":"UC-02: Добавить шаг типа ACTION, EVALUATE или WAIT","operationId":"addStep","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/StepCreateRequest"}}},"required":true},"responses":{"201":{"description":"Шаг добавлен","content":{"*/*":{"schema":{"$ref":"#/components/schemas/StepResponse"}}}}}}},"/api/v1/sequences/{id}/deactivate":{"post":{"tags":["Sequences"],"summary":"Деактивировать последовательность","description":"UC-04: Перевести из ACTIVE обратно в DRAFT","operationId":"deactivate","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/SequenceResponse"}}}}}}},"/api/v1/sequences/{id}/activate":{"post":{"tags":["Sequences"],"summary":"Активировать последовательность","description":"UC-04: Перевести в статус ACTIVE — начинает обрабатывать события","operationId":"activate","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/SequenceResponse"}}}}}}},"/api/v1/messages/incoming":{"post":{"tags":["Messages"],"summary":"Принять входящее сообщение","description":"UC-06: Принять ACARS-сообщение от внешней системы. Не требует аутентификации.","operationId":"receiveMessage","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/IncomingMessageRequest"}}},"required":true},"responses":{"200":{"description":"Сообщение принято и обработано","content":{"*/*":{"schema":{"$ref":"#/components/schemas/MessageReceivedResponse"}}}}}}},"/api/v1/messages/incoming/raw":{"post":{"tags":["Messages"],"summary":"Принять сырое сообщение (ARINC 618/620, Type B, AFTN)","description":"P2-2: нормализация промышленного формата борт-земля в структуру и передача в общий конвейер приёма (идемпотентность/persist — P2-1). P2-4: позывной в FI/-поле тела телеграммы при наличии правила сопоставляется с flight id (FI) через callsign matching table. Не требует аутентификации.","operationId":"receiveRawMessage","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/RawIncomingMessageRequest"}}},"required":true},"responses":{"200":{"description":"Сообщение распарсено, принято и обработано","content":{"*/*":{"schema":{"$ref":"#/components/schemas/RawMessageReceivedResponse"}}}},"400":{"description":"Сообщение не соответствует заявленному формату","content":{"*/*":{"schema":{"$ref":"#/components/schemas/RawMessageReceivedResponse"}}}}}}},"/api/v1/folders":{"get":{"tags":["Folders"],"summary":"Список папок","operationId":"list_2","responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/FolderResponse"}}}}}}},"post":{"tags":["Folders"],"summary":"Создать папку","operationId":"create_2","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FolderCreateRequest"}}},"required":true},"responses":{"201":{"description":"Created","content":{"*/*":{"schema":{"$ref":"#/components/schemas/FolderResponse"}}}}}}},"/api/v1/flights/stage-change":{"post":{"tags":["Messages"],"summary":"Изменение стадии полёта","description":"UC-06: Уведомить систему об изменении стадии OOOI. Не требует аутентификации.","operationId":"notifyFlightStageChange","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FlightStageChangeRequest"}}},"required":true},"responses":{"200":{"description":"Стадия обновлена"}}}},"/api/v1/event-handlers":{"get":{"tags":["Event Handlers"],"summary":"Список обработчиков уровня","description":"По scope (FOLDER|SEQUENCE) и scopeId.","operationId":"list_3","parameters":[{"name":"scope","in":"query","required":true,"schema":{"type":"string","enum":["FOLDER","SEQUENCE"]}},{"name":"scopeId","in":"query","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/EventHandlerResponse"}}}}}}},"post":{"tags":["Event Handlers"],"summary":"Создать обработчик событий","operationId":"create_3","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/EventHandlerCreateRequest"}}},"required":true},"responses":{"201":{"description":"Created","content":{"*/*":{"schema":{"$ref":"#/components/schemas/EventHandlerResponse"}}}}}}},"/api/v1/dlq/{id}/reprocess":{"post":{"tags":["DeadLetterQueue"],"summary":"Ручной reprocess DLQ-записи","description":"Повторно прогоняет сырое сообщение через парсинг + приём. При успехе статус -> REPROCESSED, при повторном сбое запись остаётся NEW с обновлённой причиной/счётчиком попыток.","operationId":"reprocess","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/DeadLetterReprocessResponse"}}}}}}},"/api/v1/dlq/{id}/discard":{"post":{"tags":["DeadLetterQueue"],"summary":"Отбросить DLQ-запись","description":"Оператор решил, что сообщение не нужно — дальнейший reprocess не предполагается","operationId":"discard","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK"}}}},"/api/v1/custom-field-rules":{"get":{"tags":["Custom Field Rules"],"summary":"Список правил","description":"Список правил с пагинацией, опциональной фильтрацией по типу сообщения/активности","operationId":"list_4","parameters":[{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}},{"name":"messageType","in":"query","required":false,"schema":{"type":"string"}},{"name":"active","in":"query","required":false,"schema":{"type":"boolean"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/PageResponseCustomFieldRuleResponse"}}}}}},"post":{"tags":["Custom Field Rules"],"summary":"Создать правило извлечения","description":"Заводит правило извлечения custom field из входящих сообщений заданного типа (опционально шаблона) по regex (CONTENT) или ключу metadata (METADATA).","operationId":"create_4","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CustomFieldRuleCreateRequest"}}},"required":true},"responses":{"201":{"description":"Правило создано","content":{"*/*":{"schema":{"$ref":"#/components/schemas/CustomFieldRuleResponse"}}}}}}},"/api/v1/auth/register":{"post":{"tags":["Authentication"],"summary":"Register user","description":"Register new user (ADMIN only)","operationId":"register","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/RegisterRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"object"}}}}}}},"/api/v1/auth/refresh":{"post":{"tags":["Authentication"],"summary":"Refresh tokens","description":"P4-2: обменять refresh-токен на новую пару (access + новый refresh, ротация). Старый refresh инвалидируется; reuse отозванного → 401 и отзыв всех токенов пользователя.","operationId":"refresh","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/RefreshRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"object"}}}}}}},"/api/v1/auth/logout":{"post":{"tags":["Authentication"],"summary":"Logout","description":"P4-2: инвалидировать refresh-токен.","operationId":"logout","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/RefreshRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"object"}}}}}}},"/api/v1/auth/login":{"post":{"tags":["Authentication"],"summary":"Login","description":"Authenticate user and return JWT token","operationId":"login","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/LoginRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"object"}}}}}}},"/api/v1/users":{"get":{"tags":["Users"],"summary":"List users","description":"Get all users (ADMIN only)","operationId":"listUsers","responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/UserResponse"}}}}}}}},"/api/v1/templates/by-name/{name}":{"get":{"tags":["Templates"],"summary":"Получить шаблон по имени","description":"Используется для предпросмотра/проверки шаблона, на который ссылается ACTION-шаг или критерий","operationId":"getByName","parameters":[{"name":"name","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/TemplateResponse"}}}}}}},"/api/v1/messages":{"get":{"tags":["Messages"],"summary":"Журнал сообщений","description":"Получить список входящих сообщений с фильтрацией по ВС и типу. Требует аутентификации.","operationId":"getMessages","parameters":[{"name":"aircraftId","in":"query","required":false,"schema":{"type":"string"}},{"name":"messageType","in":"query","required":false,"schema":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]}},{"name":"pageable","in":"query","required":true,"schema":{"$ref":"#/components/schemas/Pageable"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/PageMessageResponse"}}}}}}},"/api/v1/executions":{"get":{"tags":["Executions"],"summary":"Список экземпляров выполнения","description":"Получить список всех экземпляров с фильтрацией по статусу, ВС и последовательности","operationId":"listExecutions","parameters":[{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}},{"name":"status","in":"query","required":false,"schema":{"type":"string","enum":["RUNNING","WAITING","COMPLETED","ABORTED"]}},{"name":"aircraftId","in":"query","required":false,"schema":{"type":"string"}},{"name":"sequenceId","in":"query","required":false,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/PageResponseExecutionInstanceResponse"}}}}}}},"/api/v1/executions/{id}":{"get":{"tags":["Executions"],"summary":"Детали экземпляра","description":"Получить полную информацию об экземпляре выполнения включая историю шагов","operationId":"getExecution","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/ExecutionInstanceResponse"}}}}}}},"/api/v1/dlq":{"get":{"tags":["DeadLetterQueue"],"summary":"Список DLQ-записей","description":"Сбойные входящие сообщения с пагинацией, опционально по статусу (NEW/REPROCESSED/DISCARDED)","operationId":"list_5","parameters":[{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}},{"name":"status","in":"query","required":false,"schema":{"type":"string","enum":["NEW","REPROCESSED","DISCARDED"]}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/PageResponseDeadLetterMessageResponse"}}}}}}},"/api/v1/dlq/{id}":{"get":{"tags":["DeadLetterQueue"],"summary":"Детали DLQ-записи","description":"Сырое тело сообщения, причина сбоя, стектрейс, история попыток","operationId":"get_3","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/DeadLetterMessageResponse"}}}}}}},"/api/v1/conditions":{"get":{"tags":["Conditions"],"summary":"Список активных условий","description":"Все активные (не закрытые) условия по всем бортам/рейсам.","operationId":"listActive","responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/RaisedConditionResponse"}}}}}}}},"/api/v1/auth/me":{"get":{"tags":["Authentication"],"summary":"Get current user","description":"Get information about currently authenticated user","operationId":"getCurrentUser","responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"object"}}}}}}},"/api/v1/audit-log":{"get":{"tags":["AuditLog"],"summary":"Журнал аудита","description":"Получить записи журнала аудита с пагинацией (только ADMIN)","operationId":"list_6","parameters":[{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}},{"name":"entityType","in":"query","required":false,"schema":{"type":"string"}},{"name":"action","in":"query","required":false,"schema":{"type":"string"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"$ref":"#/components/schemas/PageResponseAuditLogResponse"}}}}}}},"/api/v1/event-handlers/{id}":{"delete":{"tags":["Event Handlers"],"summary":"Удалить обработчик событий","operationId":"delete_3","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"204":{"description":"No Content"}}}}},"components":{"schemas":{"TemplateUpdateRequest":{"type":"object","properties":{"description":{"type":"string","maxLength":500,"minLength":0},"messageType":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]},"origin":{"type":"string","enum":["COMPUTER_GENERATED","EXTERNAL_USER"]},"category":{"type":"string","maxLength":100,"minLength":0},"body":{"type":"string"},"active":{"type":"boolean"}},"required":["active","body","messageType"]},"TemplateResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"description":{"type":"string"},"messageType":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]},"origin":{"type":"string","enum":["COMPUTER_GENERATED","EXTERNAL_USER"]},"category":{"type":"string"},"body":{"type":"string"},"variableNames":{"type":"array","items":{"type":"string"},"uniqueItems":true},"active":{"type":"boolean"},"createdAt":{"type":"string","format":"date-time"},"updatedAt":{"type":"string","format":"date-time"}}},"SequenceUpdateRequest":{"type":"object","properties":{"name":{"type":"string","maxLength":100,"minLength":0},"description":{"type":"string","maxLength":500,"minLength":0},"startCriteriaJson":{"type":"string"},"stopCriteriaJson":{"type":"string"}},"required":["name"]},"SequenceResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"description":{"type":"string"},"status":{"type":"string","enum":["DRAFT","ACTIVE","INACTIVE"]},"startCriteriaJson":{"type":"string"},"stopCriteriaJson":{"type":"string"},"steps":{"type":"array","items":{"$ref":"#/components/schemas/StepResponse"}},"createdAt":{"type":"string","format":"date-time"},"updatedAt":{"type":"string","format":"date-time"},"createdBy":{"type":"integer","format":"int64"}}},"StepResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"orderIndex":{"type":"integer","format":"int32"},"name":{"type":"string"},"stepType":{"type":"string","enum":["ACTION","EVALUATE","WAIT"]},"configJson":{"type":"string"},"timeoutSeconds":{"type":"integer","format":"int32"},"onSuccessAction":{"type":"string","enum":["CONTINUE","GOTO","END","ABORT"]},"onSuccessGotoStep":{"type":"integer","format":"int32"},"onSuccessNotify":{"type":"boolean"},"onFailureAction":{"type":"string","enum":["CONTINUE","GOTO","END","ABORT"]},"onFailureGotoStep":{"type":"integer","format":"int32"},"onFailureNotify":{"type":"boolean"}}},"StepUpdateRequest":{"type":"object","properties":{"name":{"type":"string","maxLength":100,"minLength":0},"stepType":{"type":"string","enum":["ACTION","EVALUATE","WAIT"]},"configJson":{"type":"string"},"timeoutSeconds":{"type":"integer","format":"int32"},"onSuccessAction":{"type":"string","enum":["CONTINUE","GOTO","END","ABORT"]},"onSuccessGotoStep":{"type":"integer","format":"int32"},"onSuccessNotify":{"type":"boolean"},"onFailureAction":{"type":"string","enum":["CONTINUE","GOTO","END","ABORT"]},"onFailureGotoStep":{"type":"integer","format":"int32"},"onFailureNotify":{"type":"boolean"}},"required":["configJson","onFailureAction","onSuccessAction","stepType"]},"CustomFieldRuleUpdateRequest":{"type":"object","properties":{"description":{"type":"string","maxLength":500,"minLength":0},"messageType":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]},"templateName":{"type":"string","maxLength":255,"minLength":0},"extractionSource":{"type":"string","enum":["CONTENT","METADATA"]},"pattern":{"type":"string"},"active":{"type":"boolean"}},"required":["active","extractionSource","messageType","pattern"]},"CustomFieldRuleResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"description":{"type":"string"},"messageType":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]},"templateName":{"type":"string"},"extractionSource":{"type":"string","enum":["CONTENT","METADATA"]},"pattern":{"type":"string"},"active":{"type":"boolean"},"createdAt":{"type":"string","format":"date-time"},"updatedAt":{"type":"string","format":"date-time"}}},"TemplateCreateRequest":{"type":"object","properties":{"name":{"type":"string","maxLength":255,"minLength":0},"description":{"type":"string","maxLength":500,"minLength":0},"messageType":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]},"origin":{"type":"string","enum":["COMPUTER_GENERATED","EXTERNAL_USER"]},"category":{"type":"string","maxLength":100,"minLength":0},"body":{"type":"string"},"active":{"type":"boolean"}},"required":["body","messageType","name"]},"TemplateRenderRequest":{"type":"object","properties":{"templateName":{"type":"string"},"variables":{"type":"object","additionalProperties":{"type":"object"}}},"required":["templateName"]},"TemplateRenderResponse":{"type":"object","properties":{"templateName":{"type":"string"},"renderedText":{"type":"string"}}},"SequenceCreateRequest":{"type":"object","properties":{"name":{"type":"string","maxLength":100,"minLength":0},"description":{"type":"string","maxLength":500,"minLength":0},"startCriteriaJson":{"type":"string"},"stopCriteriaJson":{"type":"string"}},"required":["name"]},"StepCreateRequest":{"type":"object","properties":{"name":{"type":"string","maxLength":100,"minLength":0},"stepType":{"type":"string","enum":["ACTION","EVALUATE","WAIT"]},"configJson":{"type":"string"},"timeoutSeconds":{"type":"integer","format":"int32"},"onSuccessAction":{"type":"string","enum":["CONTINUE","GOTO","END","ABORT"]},"onSuccessGotoStep":{"type":"integer","format":"int32"},"onSuccessNotify":{"type":"boolean"},"onFailureAction":{"type":"string","enum":["CONTINUE","GOTO","END","ABORT"]},"onFailureGotoStep":{"type":"integer","format":"int32"},"onFailureNotify":{"type":"boolean"}},"required":["configJson","onFailureAction","onSuccessAction","stepType"]},"IncomingMessageRequest":{"type":"object","properties":{"messageType":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]},"templateName":{"type":"string"},"aircraftId":{"type":"string"},"flightNumber":{"type":"string"},"metadataJson":{"type":"string"},"externalMessageId":{"type":"string"}},"required":["aircraftId","messageType","templateName"]},"MessageReceivedResponse":{"type":"object","properties":{"messageId":{"type":"integer","format":"int64"},"status":{"type":"string"}}},"RawIncomingMessageRequest":{"type":"object","properties":{"format":{"type":"string","enum":["ARINC_618","ARINC_620","TYPE_B","AFTN"]},"rawMessage":{"type":"string"},"departureAirport":{"type":"string"},"arrivalAirport":{"type":"string"},"flightDate":{"type":"string","format":"date"}},"required":["format","rawMessage"]},"RawMessageReceivedResponse":{"type":"object","properties":{"messageId":{"type":"integer","format":"int64"},"status":{"type":"string"}}},"FolderCreateRequest":{"type":"object","properties":{"name":{"type":"string","maxLength":255,"minLength":0},"parentId":{"type":"integer","format":"int64"}},"required":["name"]},"FolderResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"name":{"type":"string"},"parentId":{"type":"integer","format":"int64"},"createdAt":{"type":"string","format":"date-time"}}},"FlightStageChangeRequest":{"type":"object","properties":{"aircraftId":{"type":"string"},"flightNumber":{"type":"string"},"newStage":{"type":"string","enum":["INIT","OUT","OFF","ON","IN","SUMMARY"]}},"required":["aircraftId","newStage"]},"EventHandlerCreateRequest":{"type":"object","properties":{"scope":{"type":"string","enum":["FOLDER","SEQUENCE"]},"scopeId":{"type":"integer","format":"int64"},"triggerType":{"type":"string","enum":["ON_SUCCESS","ON_FAILURE","ON_ANY"]},"channel":{"type":"string","enum":["EMAIL","WEBHOOK"]},"target":{"type":"string","maxLength":500,"minLength":0}},"required":["channel","scope","scopeId","target","triggerType"]},"EventHandlerResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"scope":{"type":"string","enum":["FOLDER","SEQUENCE"]},"scopeId":{"type":"integer","format":"int64"},"triggerType":{"type":"string","enum":["ON_SUCCESS","ON_FAILURE","ON_ANY"]},"channel":{"type":"string","enum":["EMAIL","WEBHOOK"]},"target":{"type":"string"},"enabled":{"type":"boolean"},"createdAt":{"type":"string","format":"date-time"}}},"DeadLetterReprocessResponse":{"type":"object","properties":{"dlqId":{"type":"integer","format":"int64"},"success":{"type":"boolean"},"status":{"type":"string"}}},"CustomFieldRuleCreateRequest":{"type":"object","properties":{"name":{"type":"string","maxLength":255,"minLength":0},"description":{"type":"string","maxLength":500,"minLength":0},"messageType":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]},"templateName":{"type":"string","maxLength":255,"minLength":0},"extractionSource":{"type":"string","enum":["CONTENT","METADATA"]},"pattern":{"type":"string"},"active":{"type":"boolean"}},"required":["extractionSource","messageType","name","pattern"]},"RegisterRequest":{"type":"object","properties":{"username":{"type":"string","maxLength":50,"minLength":3},"password":{"type":"string","maxLength":2147483647,"minLength":4},"fullName":{"type":"string"},"role":{"type":"string","enum":["OPERATOR","ADMIN"]}},"required":["fullName","password","role","username"]},"RefreshRequest":{"type":"object","properties":{"refreshToken":{"type":"string"}},"required":["refreshToken"]},"LoginRequest":{"type":"object","properties":{"username":{"type":"string"},"password":{"type":"string"}},"required":["password","username"]},"UserResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"username":{"type":"string"},"fullName":{"type":"string"},"role":{"type":"string","enum":["OPERATOR","ADMIN"]},"enabled":{"type":"boolean"},"createdAt":{"type":"string","format":"date-time"}}},"PageResponseTemplateResponse":{"type":"object","properties":{"content":{"type":"array","items":{"$ref":"#/components/schemas/TemplateResponse"}},"totalElements":{"type":"integer","format":"int64"},"totalPages":{"type":"integer","format":"int32"},"number":{"type":"integer","format":"int32"},"size":{"type":"integer","format":"int32"}}},"PageResponseSequenceResponse":{"type":"object","properties":{"content":{"type":"array","items":{"$ref":"#/components/schemas/SequenceResponse"}},"totalElements":{"type":"integer","format":"int64"},"totalPages":{"type":"integer","format":"int32"},"number":{"type":"integer","format":"int32"},"size":{"type":"integer","format":"int32"}}},"Pageable":{"type":"object","properties":{"page":{"type":"integer","format":"int32","minimum":0},"size":{"type":"integer","format":"int32","minimum":1},"sort":{"type":"array","items":{"type":"string"}}}},"MessageResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"messageType":{"type":"string","enum":["DOWNLINK","UPLINK","GROUND"]},"templateName":{"type":"string"},"aircraftId":{"type":"string"},"flightNumber":{"type":"string"},"receivedAt":{"type":"string","format":"date-time"},"metadataJson":{"type":"string"},"externalMessageId":{"type":"string"}}},"PageMessageResponse":{"type":"object","properties":{"totalElements":{"type":"integer","format":"int64"},"totalPages":{"type":"integer","format":"int32"},"first":{"type":"boolean"},"last":{"type":"boolean"},"size":{"type":"integer","format":"int32"},"content":{"type":"array","items":{"$ref":"#/components/schemas/MessageResponse"}},"number":{"type":"integer","format":"int32"},"sort":{"$ref":"#/components/schemas/SortObject"},"numberOfElements":{"type":"integer","format":"int32"},"pageable":{"$ref":"#/components/schemas/PageableObject"},"empty":{"type":"boolean"}}},"PageableObject":{"type":"object","properties":{"offset":{"type":"integer","format":"int64"},"sort":{"$ref":"#/components/schemas/SortObject"},"unpaged":{"type":"boolean"},"paged":{"type":"boolean"},"pageNumber":{"type":"integer","format":"int32"},"pageSize":{"type":"integer","format":"int32"}}},"SortObject":{"type":"object","properties":{"empty":{"type":"boolean"},"unsorted":{"type":"boolean"},"sorted":{"type":"boolean"}}},"ExecutionInstanceResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"sequenceId":{"type":"integer","format":"int64"},"sequenceName":{"type":"string"},"aircraftId":{"type":"string"},"flightNumber":{"type":"string"},"status":{"type":"string","enum":["RUNNING","WAITING","COMPLETED","ABORTED"]},"currentStepIndex":{"type":"integer","format":"int32"},"contextJson":{"type":"string"},"waitStartedAt":{"type":"string","format":"date-time"},"waitTimeoutAt":{"type":"string","format":"date-time"},"startedAt":{"type":"string","format":"date-time"},"completedAt":{"type":"string","format":"date-time"},"updatedAt":{"type":"string","format":"date-time"},"stepExecutions":{"type":"array","items":{"$ref":"#/components/schemas/StepExecutionResponse"}}}},"PageResponseExecutionInstanceResponse":{"type":"object","properties":{"content":{"type":"array","items":{"$ref":"#/components/schemas/ExecutionInstanceResponse"}},"totalElements":{"type":"integer","format":"int64"},"totalPages":{"type":"integer","format":"int32"},"number":{"type":"integer","format":"int32"},"size":{"type":"integer","format":"int32"}}},"StepExecutionResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"stepIndex":{"type":"integer","format":"int32"},"stepType":{"type":"string","enum":["ACTION","EVALUATE","WAIT"]},"result":{"type":"string","enum":["SUCCESS","FAILURE"]},"transitionAction":{"type":"string","enum":["CONTINUE","GOTO","END","ABORT"]},"transitionTarget":{"type":"integer","format":"int32"},"detailsJson":{"type":"string"},"executedAt":{"type":"string","format":"date-time"}}},"DeadLetterMessageResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"source":{"type":"string","enum":["RAW_GATEWAY","STRUCTURED_GATEWAY"]},"format":{"type":"string"},"rawPayload":{"type":"string"},"requestContext":{"type":"string"},"reason":{"type":"string"},"stackTrace":{"type":"string"},"status":{"type":"string","enum":["NEW","REPROCESSED","DISCARDED"]},"attempts":{"type":"integer","format":"int32"},"reprocessedMessageId":{"type":"integer","format":"int64"},"correlationId":{"type":"string"},"createdAt":{"type":"string","format":"date-time"},"lastAttemptAt":{"type":"string","format":"date-time"}}},"PageResponseDeadLetterMessageResponse":{"type":"object","properties":{"content":{"type":"array","items":{"$ref":"#/components/schemas/DeadLetterMessageResponse"}},"totalElements":{"type":"integer","format":"int64"},"totalPages":{"type":"integer","format":"int32"},"number":{"type":"integer","format":"int32"},"size":{"type":"integer","format":"int32"}}},"PageResponseCustomFieldRuleResponse":{"type":"object","properties":{"content":{"type":"array","items":{"$ref":"#/components/schemas/CustomFieldRuleResponse"}},"totalElements":{"type":"integer","format":"int64"},"totalPages":{"type":"integer","format":"int32"},"number":{"type":"integer","format":"int32"},"size":{"type":"integer","format":"int32"}}},"RaisedConditionResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"aircraftId":{"type":"string"},"flightNumber":{"type":"string"},"conditionName":{"type":"string"},"alertLevel":{"type":"string","enum":["NO","LOW","MEDIUM","HIGH","CRITICAL"]},"raisedAt":{"type":"string","format":"date-time"}}},"AuditLogResponse":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"userId":{"type":"integer","format":"int64"},"action":{"type":"string"},"entityType":{"type":"string"},"entityId":{"type":"integer","format":"int64"},"detailsJson":{"type":"string"},"createdAt":{"type":"string","format":"date-time"},"correlationId":{"type":"string"}}},"PageResponseAuditLogResponse":{"type":"object","properties":{"content":{"type":"array","items":{"$ref":"#/components/schemas/AuditLogResponse"}},"totalElements":{"type":"integer","format":"int64"},"totalPages":{"type":"integer","format":"int32"},"number":{"type":"integer","format":"int32"},"size":{"type":"integer","format":"int32"}}}},"securitySchemes":{"bearerAuth":{"type":"http","description":"JWT-токен, полученный через POST /api/v1/auth/login","scheme":"bearer","bearerFormat":"JWT"}}}}
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "flight-event-system API",
+    "description" : "Система обработки авиационных событий ECA (Event-Condition-Action) —\nотечественная промышленная замена модуля SITA AIRCOM Sequencer.\nОбрабатывает сообщения «борт-земля» (ACARS) и управляет последовательностями,\nшагами, критериями и алертами.\n\nБольшинство эндпоинтов требуют JWT (Bearer). Эндпоинт приёма входящих\nсообщений /api/v1/messages/** и /api/v1/flights/** открыт без аутентификации\nдля внешних ACARS-систем — это осознанное решение, защита на уровне сети.\n",
+    "contact" : {
+      "name" : "ФГУП «ЗащитаИнфоТранс»"
+    },
+    "version" : "1.0.0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost:54456",
+    "description" : "Generated server url"
+  } ],
+  "security" : [ {
+    "bearerAuth" : [ ]
+  } ],
+  "tags" : [ {
+    "name" : "Sequences",
+    "description" : "Управление последовательностями ECA (UC-01..UC-04)"
+  }, {
+    "name" : "Conditions",
+    "description" : "Активные custom conditions рейсов (P3-3)"
+  }, {
+    "name" : "Folders",
+    "description" : "Папки последовательностей (P3-4)"
+  }, {
+    "name" : "Templates",
+    "description" : "Управление шаблонами сообщений (downlink/uplink/ground, P3-1)"
+  }, {
+    "name" : "Event Handlers",
+    "description" : "Обработчики событий: уведомления уровня папки/последовательности (P3-4)"
+  }, {
+    "name" : "Authentication",
+    "description" : "User authentication and registration"
+  }, {
+    "name" : "Messages",
+    "description" : "Приём сырых сообщений «борт-земля» (P2-2: ARINC 618/620, Type B, AFTN)"
+  }, {
+    "name" : "Custom Field Rules",
+    "description" : "Управление правилами извлечения custom fields из входящих сообщений (P3-2)"
+  }, {
+    "name" : "Aircraft",
+    "description" : "Фаза 5: список бортов (tail numbers) для привязки последовательностей"
+  }, {
+    "name" : "Executions",
+    "description" : "Статус выполнения последовательностей (UC-05)"
+  }, {
+    "name" : "AuditLog",
+    "description" : "Журнал аудита операций (только ADMIN)"
+  }, {
+    "name" : "Users",
+    "description" : "Управление пользователями (UC-09, только ADMIN)"
+  }, {
+    "name" : "Messages",
+    "description" : "Приём входящих сообщений и журнал (UC-06)"
+  }, {
+    "name" : "DeadLetterQueue",
+    "description" : "P2-6: сбойные входящие сообщения (DLQ) + ручной reprocess (OPERATOR/ADMIN)"
+  } ],
+  "paths" : {
+    "/api/v1/users/{id}/toggle" : {
+      "put" : {
+        "tags" : [ "Users" ],
+        "summary" : "Toggle user",
+        "description" : "Enable or disable user account (ADMIN only)",
+        "operationId" : "toggleUser",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/{id}" : {
+      "get" : {
+        "tags" : [ "Templates" ],
+        "summary" : "Получить шаблон по ID",
+        "operationId" : "get",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "description" : "Шаблон не найден",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Шаблон найден",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Templates" ],
+        "summary" : "Обновить шаблон",
+        "description" : "Обновляет тело/категорию/origin/активность. Имя неизменяемо.",
+        "operationId" : "update",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TemplateUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Templates" ],
+        "summary" : "Удалить шаблон",
+        "operationId" : "delete",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Шаблон удалён"
+          }
+        }
+      }
+    },
+    "/api/v1/sequences/{id}" : {
+      "get" : {
+        "tags" : [ "Sequences" ],
+        "summary" : "Получить последовательность",
+        "description" : "Получить последовательность вместе со всеми шагами по ID",
+        "operationId" : "get_1",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "description" : "Последовательность не найдена",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SequenceResponse"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Последовательность найдена",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SequenceResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Sequences" ],
+        "summary" : "Обновить последовательность",
+        "description" : "UC-01: Обновить название, описание и критерии (только DRAFT)",
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SequenceUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SequenceResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Sequences" ],
+        "summary" : "Удалить последовательность",
+        "description" : "UC-01: Удалить последовательность в статусе DRAFT",
+        "operationId" : "delete_1",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Последовательность удалена"
+          }
+        }
+      }
+    },
+    "/api/v1/sequences/{id}/steps/{stepId}" : {
+      "put" : {
+        "tags" : [ "Steps", "Sequences" ],
+        "summary" : "Обновить шаг",
+        "description" : "UC-02/UC-03: Обновить параметры шага и настроить переходы (CONTINUE/GOTO/END/ABORT)",
+        "operationId" : "updateStep",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "stepId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StepUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StepResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Steps", "Sequences" ],
+        "summary" : "Удалить шаг",
+        "description" : "UC-02: Удалить шаг из последовательности (только DRAFT)",
+        "operationId" : "deleteStep",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "stepId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Шаг удалён"
+          }
+        }
+      }
+    },
+    "/api/v1/sequences/{id}/steps/reorder" : {
+      "put" : {
+        "tags" : [ "Steps", "Sequences" ],
+        "summary" : "Изменить порядок шагов",
+        "description" : "UC-02: Переупорядочить шаги по списку ID",
+        "operationId" : "reorderSteps",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/StepResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sequences/{id}/folder" : {
+      "put" : {
+        "tags" : [ "Sequences" ],
+        "summary" : "Назначить последовательность в папку",
+        "description" : "P3-4: организация по папкам для наследования event-handling-конфигурации. folderId == null снимает последовательность из папки.",
+        "operationId" : "assignFolder",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "folderId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SequenceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-field-rules/{id}" : {
+      "get" : {
+        "tags" : [ "Custom Field Rules" ],
+        "summary" : "Получить правило по ID",
+        "operationId" : "get_2",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "description" : "Правило не найдено",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CustomFieldRuleResponse"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Правило найдено",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CustomFieldRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Custom Field Rules" ],
+        "summary" : "Обновить правило",
+        "description" : "Обновляет описание/тип сообщения/шаблон/паттерн/активность. Имя неизменяемо.",
+        "operationId" : "update_2",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CustomFieldRuleUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CustomFieldRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Custom Field Rules" ],
+        "summary" : "Удалить правило",
+        "operationId" : "delete_2",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Правило удалено"
+          }
+        }
+      }
+    },
+    "/api/v1/templates" : {
+      "get" : {
+        "tags" : [ "Templates" ],
+        "summary" : "Список шаблонов",
+        "description" : "Список шаблонов с пагинацией, опциональной фильтрацией по типу/категории/активности",
+        "operationId" : "list",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        }, {
+          "name" : "messageType",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "category",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "active",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTemplateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Templates" ],
+        "summary" : "Создать шаблон",
+        "description" : "Создаёт шаблон сообщения (downlink/uplink/ground). Для uplink/ground origin обязателен (computer-generated|external-user).",
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TemplateCreateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Шаблон создан",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/render" : {
+      "post" : {
+        "tags" : [ "Templates" ],
+        "summary" : "Пробный рендеринг шаблона",
+        "description" : "Подставляет переданные переменные в тело шаблона — предпросмотр в UI перед сохранением ACTION-шага",
+        "operationId" : "render",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TemplateRenderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TemplateRenderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sequences" : {
+      "get" : {
+        "tags" : [ "Sequences" ],
+        "summary" : "Список последовательностей",
+        "description" : "Получить список всех последовательностей с пагинацией и фильтрацией по статусу",
+        "operationId" : "list_1",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseSequenceResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Sequences" ],
+        "summary" : "Создать последовательность",
+        "description" : "UC-01: Создаёт новую последовательность в статусе DRAFT",
+        "operationId" : "create_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SequenceCreateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Последовательность создана",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SequenceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sequences/{id}/steps" : {
+      "post" : {
+        "tags" : [ "Steps", "Sequences" ],
+        "summary" : "Добавить шаг",
+        "description" : "UC-02: Добавить шаг типа ACTION, EVALUATE или WAIT",
+        "operationId" : "addStep",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StepCreateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Шаг добавлен",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StepResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sequences/{id}/deactivate" : {
+      "post" : {
+        "tags" : [ "Sequences" ],
+        "summary" : "Деактивировать последовательность",
+        "description" : "UC-04: Перевести из ACTIVE обратно в DRAFT",
+        "operationId" : "deactivate",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SequenceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sequences/{id}/activate" : {
+      "post" : {
+        "tags" : [ "Sequences" ],
+        "summary" : "Активировать последовательность",
+        "description" : "UC-04: Перевести в статус ACTIVE — начинает обрабатывать события",
+        "operationId" : "activate",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SequenceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages/incoming" : {
+      "post" : {
+        "tags" : [ "Messages" ],
+        "summary" : "Принять входящее сообщение",
+        "description" : "UC-06: Принять ACARS-сообщение от внешней системы. Не требует аутентификации.",
+        "operationId" : "receiveMessage",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IncomingMessageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Сообщение принято и обработано",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageReceivedResponse"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Превышен лимит запросов (rate limit, флуд-защита ингеста)",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageReceivedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages/incoming/raw" : {
+      "post" : {
+        "tags" : [ "Messages" ],
+        "summary" : "Принять сырое сообщение (ARINC 618/620, Type B, AFTN)",
+        "description" : "P2-2: нормализация промышленного формата борт-земля в структуру и передача в общий конвейер приёма (идемпотентность/persist — P2-1). P2-4: позывной в FI/-поле тела телеграммы при наличии правила сопоставляется с flight id (FI) через callsign matching table. Не требует аутентификации.",
+        "operationId" : "receiveRawMessage",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RawIncomingMessageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Сообщение распарсено, принято и обработано",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RawMessageReceivedResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Сообщение не соответствует заявленному формату",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RawMessageReceivedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/folders" : {
+      "get" : {
+        "tags" : [ "Folders" ],
+        "summary" : "Список папок",
+        "operationId" : "list_2",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/FolderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Folders" ],
+        "summary" : "Создать папку",
+        "operationId" : "create_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FolderCreateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FolderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/flights/stage-change" : {
+      "post" : {
+        "tags" : [ "Messages" ],
+        "summary" : "Изменение стадии полёта",
+        "description" : "UC-06: Уведомить систему об изменении стадии OOOI. Не требует аутентификации.",
+        "operationId" : "notifyFlightStageChange",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FlightStageChangeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Стадия обновлена"
+          },
+          "429" : {
+            "description" : "Превышен лимит запросов (rate limit, флуд-защита ингеста)"
+          }
+        }
+      }
+    },
+    "/api/v1/event-handlers" : {
+      "get" : {
+        "tags" : [ "Event Handlers" ],
+        "summary" : "Список обработчиков уровня",
+        "description" : "По scope (FOLDER|SEQUENCE) и scopeId.",
+        "operationId" : "list_3",
+        "parameters" : [ {
+          "name" : "scope",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "FOLDER", "SEQUENCE" ]
+          }
+        }, {
+          "name" : "scopeId",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EventHandlerResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Event Handlers" ],
+        "summary" : "Создать обработчик событий",
+        "operationId" : "create_3",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EventHandlerCreateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EventHandlerResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dlq/{id}/reprocess" : {
+      "post" : {
+        "tags" : [ "DeadLetterQueue" ],
+        "summary" : "Ручной reprocess DLQ-записи",
+        "description" : "Повторно прогоняет сырое сообщение через парсинг + приём. При успехе статус -> REPROCESSED, при повторном сбое запись остаётся NEW с обновлённой причиной/счётчиком попыток.",
+        "operationId" : "reprocess",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeadLetterReprocessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dlq/{id}/discard" : {
+      "post" : {
+        "tags" : [ "DeadLetterQueue" ],
+        "summary" : "Отбросить DLQ-запись",
+        "description" : "Оператор решил, что сообщение не нужно — дальнейший reprocess не предполагается",
+        "operationId" : "discard",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/custom-field-rules" : {
+      "get" : {
+        "tags" : [ "Custom Field Rules" ],
+        "summary" : "Список правил",
+        "description" : "Список правил с пагинацией, опциональной фильтрацией по типу сообщения/активности",
+        "operationId" : "list_4",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        }, {
+          "name" : "messageType",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "active",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseCustomFieldRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Custom Field Rules" ],
+        "summary" : "Создать правило извлечения",
+        "description" : "Заводит правило извлечения custom field из входящих сообщений заданного типа (опционально шаблона) по regex (CONTENT) или ключу metadata (METADATA).",
+        "operationId" : "create_4",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CustomFieldRuleCreateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Правило создано",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CustomFieldRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register" : {
+      "post" : {
+        "tags" : [ "Authentication" ],
+        "summary" : "Register user",
+        "description" : "Register new user (ADMIN only)",
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh" : {
+      "post" : {
+        "tags" : [ "Authentication" ],
+        "summary" : "Refresh tokens",
+        "description" : "P4-2: обменять refresh-токен на новую пару (access + новый refresh, ротация). Старый refresh инвалидируется; reuse отозванного → 401 и отзыв всех токенов пользователя.",
+        "operationId" : "refresh",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "429" : {
+            "description" : "Превышен лимит запросов (rate limit)",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout" : {
+      "post" : {
+        "tags" : [ "Authentication" ],
+        "summary" : "Logout",
+        "description" : "P4-2: инвалидировать refresh-токен.",
+        "operationId" : "logout",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "429" : {
+            "description" : "Превышен лимит запросов (rate limit)",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login" : {
+      "post" : {
+        "tags" : [ "Authentication" ],
+        "summary" : "Login",
+        "description" : "Authenticate user and return JWT token",
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "429" : {
+            "description" : "Превышен лимит попыток входа (rate limit, брутфорс-защита)",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users" : {
+      "get" : {
+        "tags" : [ "Users" ],
+        "summary" : "List users",
+        "description" : "Get all users (ADMIN only)",
+        "operationId" : "listUsers",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/UserResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/by-name/{name}" : {
+      "get" : {
+        "tags" : [ "Templates" ],
+        "summary" : "Получить шаблон по имени",
+        "description" : "Используется для предпросмотра/проверки шаблона, на который ссылается ACTION-шаг или критерий",
+        "operationId" : "getByName",
+        "parameters" : [ {
+          "name" : "name",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages" : {
+      "get" : {
+        "tags" : [ "Messages" ],
+        "summary" : "Журнал сообщений",
+        "description" : "Получить список входящих сообщений с фильтрацией по ВС и типу. Требует аутентификации.",
+        "operationId" : "getMessages",
+        "parameters" : [ {
+          "name" : "aircraftId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "messageType",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          }
+        }, {
+          "name" : "pageable",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageMessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/executions" : {
+      "get" : {
+        "tags" : [ "Executions" ],
+        "summary" : "Список экземпляров выполнения",
+        "description" : "Получить список всех экземпляров с фильтрацией по статусу, ВС и последовательности",
+        "operationId" : "listExecutions",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "RUNNING", "WAITING", "COMPLETED", "ABORTED" ]
+          }
+        }, {
+          "name" : "aircraftId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "sequenceId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseExecutionInstanceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{id}" : {
+      "get" : {
+        "tags" : [ "Executions" ],
+        "summary" : "Детали экземпляра",
+        "description" : "Получить полную информацию об экземпляре выполнения включая историю шагов",
+        "operationId" : "getExecution",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExecutionInstanceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dlq" : {
+      "get" : {
+        "tags" : [ "DeadLetterQueue" ],
+        "summary" : "Список DLQ-записей",
+        "description" : "Сбойные входящие сообщения с пагинацией, опционально по статусу (NEW/REPROCESSED/DISCARDED)",
+        "operationId" : "list_5",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "NEW", "REPROCESSED", "DISCARDED" ]
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseDeadLetterMessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dlq/{id}" : {
+      "get" : {
+        "tags" : [ "DeadLetterQueue" ],
+        "summary" : "Детали DLQ-записи",
+        "description" : "Сырое тело сообщения, причина сбоя, стектрейс, история попыток",
+        "operationId" : "get_3",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeadLetterMessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conditions" : {
+      "get" : {
+        "tags" : [ "Conditions" ],
+        "summary" : "Список активных условий",
+        "description" : "Все активные (не закрытые) условия по всем бортам/рейсам.",
+        "operationId" : "listActive",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RaisedConditionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me" : {
+      "get" : {
+        "tags" : [ "Authentication" ],
+        "summary" : "Get current user",
+        "description" : "Get information about currently authenticated user",
+        "operationId" : "getCurrentUser",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit-log" : {
+      "get" : {
+        "tags" : [ "AuditLog" ],
+        "summary" : "Журнал аудита",
+        "description" : "Получить записи журнала аудита с пагинацией (только ADMIN)",
+        "operationId" : "list_6",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        }, {
+          "name" : "entityType",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "action",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseAuditLogResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/aircraft" : {
+      "get" : {
+        "tags" : [ "Aircraft" ],
+        "summary" : "Список бортов",
+        "description" : "Различные tail numbers (AN) с метаданными последнего контакта и объёма наблюдений; опциональный подстрочный поиск по регистрационному номеру. Пагинация; сортировка — последний активный борт сверху. Типа ВС в системе нет (нет данных).",
+        "operationId" : "listAircraft",
+        "parameters" : [ {
+          "name" : "search",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Страница бортов",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageAircraftSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/event-handlers/{id}" : {
+      "delete" : {
+        "tags" : [ "Event Handlers" ],
+        "summary" : "Удалить обработчик событий",
+        "operationId" : "delete_3",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "TemplateUpdateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "description" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "messageType" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          },
+          "origin" : {
+            "type" : "string",
+            "enum" : [ "COMPUTER_GENERATED", "EXTERNAL_USER" ]
+          },
+          "category" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "body" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "active", "body", "messageType" ]
+      },
+      "TemplateResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "messageType" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          },
+          "origin" : {
+            "type" : "string",
+            "enum" : [ "COMPUTER_GENERATED", "EXTERNAL_USER" ]
+          },
+          "category" : {
+            "type" : "string"
+          },
+          "body" : {
+            "type" : "string"
+          },
+          "variableNames" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "uniqueItems" : true
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "SequenceUpdateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "description" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "startCriteriaJson" : {
+            "type" : "string"
+          },
+          "stopCriteriaJson" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "SequenceResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "ACTIVE", "INACTIVE" ]
+          },
+          "startCriteriaJson" : {
+            "type" : "string"
+          },
+          "stopCriteriaJson" : {
+            "type" : "string"
+          },
+          "steps" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StepResponse"
+            }
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdBy" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "StepResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "orderIndex" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "stepType" : {
+            "type" : "string",
+            "enum" : [ "ACTION", "EVALUATE", "WAIT" ]
+          },
+          "configJson" : {
+            "type" : "string"
+          },
+          "timeoutSeconds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onSuccessAction" : {
+            "type" : "string",
+            "enum" : [ "CONTINUE", "GOTO", "END", "ABORT" ]
+          },
+          "onSuccessGotoStep" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onSuccessNotify" : {
+            "type" : "boolean"
+          },
+          "onFailureAction" : {
+            "type" : "string",
+            "enum" : [ "CONTINUE", "GOTO", "END", "ABORT" ]
+          },
+          "onFailureGotoStep" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onFailureNotify" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "StepUpdateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "stepType" : {
+            "type" : "string",
+            "enum" : [ "ACTION", "EVALUATE", "WAIT" ]
+          },
+          "configJson" : {
+            "type" : "string"
+          },
+          "timeoutSeconds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onSuccessAction" : {
+            "type" : "string",
+            "enum" : [ "CONTINUE", "GOTO", "END", "ABORT" ]
+          },
+          "onSuccessGotoStep" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onSuccessNotify" : {
+            "type" : "boolean"
+          },
+          "onFailureAction" : {
+            "type" : "string",
+            "enum" : [ "CONTINUE", "GOTO", "END", "ABORT" ]
+          },
+          "onFailureGotoStep" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onFailureNotify" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "configJson", "onFailureAction", "onSuccessAction", "stepType" ]
+      },
+      "CustomFieldRuleUpdateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "description" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "messageType" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          },
+          "templateName" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 0
+          },
+          "extractionSource" : {
+            "type" : "string",
+            "enum" : [ "CONTENT", "METADATA" ]
+          },
+          "pattern" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "active", "extractionSource", "messageType", "pattern" ]
+      },
+      "CustomFieldRuleResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "messageType" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          },
+          "templateName" : {
+            "type" : "string"
+          },
+          "extractionSource" : {
+            "type" : "string",
+            "enum" : [ "CONTENT", "METADATA" ]
+          },
+          "pattern" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "TemplateCreateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 0
+          },
+          "description" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "messageType" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          },
+          "origin" : {
+            "type" : "string",
+            "enum" : [ "COMPUTER_GENERATED", "EXTERNAL_USER" ]
+          },
+          "category" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "body" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "body", "messageType", "name" ]
+      },
+      "TemplateRenderRequest" : {
+        "type" : "object",
+        "properties" : {
+          "templateName" : {
+            "type" : "string"
+          },
+          "variables" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object"
+            }
+          }
+        },
+        "required" : [ "templateName" ]
+      },
+      "TemplateRenderResponse" : {
+        "type" : "object",
+        "properties" : {
+          "templateName" : {
+            "type" : "string"
+          },
+          "renderedText" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SequenceCreateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "description" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "startCriteriaJson" : {
+            "type" : "string"
+          },
+          "stopCriteriaJson" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "StepCreateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "stepType" : {
+            "type" : "string",
+            "enum" : [ "ACTION", "EVALUATE", "WAIT" ]
+          },
+          "configJson" : {
+            "type" : "string"
+          },
+          "timeoutSeconds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onSuccessAction" : {
+            "type" : "string",
+            "enum" : [ "CONTINUE", "GOTO", "END", "ABORT" ]
+          },
+          "onSuccessGotoStep" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onSuccessNotify" : {
+            "type" : "boolean"
+          },
+          "onFailureAction" : {
+            "type" : "string",
+            "enum" : [ "CONTINUE", "GOTO", "END", "ABORT" ]
+          },
+          "onFailureGotoStep" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onFailureNotify" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "configJson", "onFailureAction", "onSuccessAction", "stepType" ]
+      },
+      "IncomingMessageRequest" : {
+        "type" : "object",
+        "properties" : {
+          "messageType" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          },
+          "templateName" : {
+            "type" : "string"
+          },
+          "aircraftId" : {
+            "type" : "string"
+          },
+          "flightNumber" : {
+            "type" : "string"
+          },
+          "metadataJson" : {
+            "type" : "string"
+          },
+          "externalMessageId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "aircraftId", "messageType", "templateName" ]
+      },
+      "MessageReceivedResponse" : {
+        "type" : "object",
+        "properties" : {
+          "messageId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RawIncomingMessageRequest" : {
+        "type" : "object",
+        "properties" : {
+          "format" : {
+            "type" : "string",
+            "enum" : [ "ARINC_618", "ARINC_620", "TYPE_B", "AFTN" ]
+          },
+          "rawMessage" : {
+            "type" : "string"
+          },
+          "departureAirport" : {
+            "type" : "string"
+          },
+          "arrivalAirport" : {
+            "type" : "string"
+          },
+          "flightDate" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        },
+        "required" : [ "format", "rawMessage" ]
+      },
+      "RawMessageReceivedResponse" : {
+        "type" : "object",
+        "properties" : {
+          "messageId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        }
+      },
+      "FolderCreateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 0
+          },
+          "parentId" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "FolderResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parentId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "FlightStageChangeRequest" : {
+        "type" : "object",
+        "properties" : {
+          "aircraftId" : {
+            "type" : "string"
+          },
+          "flightNumber" : {
+            "type" : "string"
+          },
+          "newStage" : {
+            "type" : "string",
+            "enum" : [ "INIT", "OUT", "OFF", "ON", "IN", "SUMMARY" ]
+          }
+        },
+        "required" : [ "aircraftId", "newStage" ]
+      },
+      "EventHandlerCreateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "scope" : {
+            "type" : "string",
+            "enum" : [ "FOLDER", "SEQUENCE" ]
+          },
+          "scopeId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "triggerType" : {
+            "type" : "string",
+            "enum" : [ "ON_SUCCESS", "ON_FAILURE", "ON_ANY" ]
+          },
+          "channel" : {
+            "type" : "string",
+            "enum" : [ "EMAIL", "WEBHOOK" ]
+          },
+          "target" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "channel", "scope", "scopeId", "target", "triggerType" ]
+      },
+      "EventHandlerResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "scope" : {
+            "type" : "string",
+            "enum" : [ "FOLDER", "SEQUENCE" ]
+          },
+          "scopeId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "triggerType" : {
+            "type" : "string",
+            "enum" : [ "ON_SUCCESS", "ON_FAILURE", "ON_ANY" ]
+          },
+          "channel" : {
+            "type" : "string",
+            "enum" : [ "EMAIL", "WEBHOOK" ]
+          },
+          "target" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "DeadLetterReprocessResponse" : {
+        "type" : "object",
+        "properties" : {
+          "dlqId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "success" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CustomFieldRuleCreateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 0
+          },
+          "description" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          },
+          "messageType" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          },
+          "templateName" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 0
+          },
+          "extractionSource" : {
+            "type" : "string",
+            "enum" : [ "CONTENT", "METADATA" ]
+          },
+          "pattern" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "extractionSource", "messageType", "name", "pattern" ]
+      },
+      "RegisterRequest" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string",
+            "maxLength" : 50,
+            "minLength" : 3
+          },
+          "password" : {
+            "type" : "string",
+            "maxLength" : 2147483647,
+            "minLength" : 4
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "OPERATOR", "ADMIN" ]
+          }
+        },
+        "required" : [ "fullName", "password", "role", "username" ]
+      },
+      "RefreshRequest" : {
+        "type" : "object",
+        "properties" : {
+          "refreshToken" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "refreshToken" ]
+      },
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string"
+          },
+          "password" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "password", "username" ]
+      },
+      "UserResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "OPERATOR", "ADMIN" ]
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "PageResponseTemplateResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TemplateResponse"
+            }
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "PageResponseSequenceResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SequenceResponse"
+            }
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "Pageable" : {
+        "type" : "object",
+        "properties" : {
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          },
+          "sort" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "MessageResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "messageType" : {
+            "type" : "string",
+            "enum" : [ "DOWNLINK", "UPLINK", "GROUND" ]
+          },
+          "templateName" : {
+            "type" : "string"
+          },
+          "aircraftId" : {
+            "type" : "string"
+          },
+          "flightNumber" : {
+            "type" : "string"
+          },
+          "receivedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "metadataJson" : {
+            "type" : "string"
+          },
+          "externalMessageId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PageMessageResponse" : {
+        "type" : "object",
+        "properties" : {
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MessageResponse"
+            }
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "numberOfElements" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "empty" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "PageableObject" : {
+        "type" : "object",
+        "properties" : {
+          "offset" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "pageNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "paged" : {
+            "type" : "boolean"
+          },
+          "unpaged" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "SortObject" : {
+        "type" : "object",
+        "properties" : {
+          "empty" : {
+            "type" : "boolean"
+          },
+          "sorted" : {
+            "type" : "boolean"
+          },
+          "unsorted" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "ExecutionInstanceResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "sequenceId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "sequenceName" : {
+            "type" : "string"
+          },
+          "aircraftId" : {
+            "type" : "string"
+          },
+          "flightNumber" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "RUNNING", "WAITING", "COMPLETED", "ABORTED" ]
+          },
+          "currentStepIndex" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "contextJson" : {
+            "type" : "string"
+          },
+          "waitStartedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "waitTimeoutAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "completedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "stepExecutions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StepExecutionResponse"
+            }
+          }
+        }
+      },
+      "PageResponseExecutionInstanceResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ExecutionInstanceResponse"
+            }
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "StepExecutionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "stepIndex" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "stepType" : {
+            "type" : "string",
+            "enum" : [ "ACTION", "EVALUATE", "WAIT" ]
+          },
+          "result" : {
+            "type" : "string",
+            "enum" : [ "SUCCESS", "FAILURE" ]
+          },
+          "transitionAction" : {
+            "type" : "string",
+            "enum" : [ "CONTINUE", "GOTO", "END", "ABORT" ]
+          },
+          "transitionTarget" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "detailsJson" : {
+            "type" : "string"
+          },
+          "executedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "DeadLetterMessageResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "source" : {
+            "type" : "string",
+            "enum" : [ "RAW_GATEWAY", "STRUCTURED_GATEWAY" ]
+          },
+          "format" : {
+            "type" : "string"
+          },
+          "rawPayload" : {
+            "type" : "string"
+          },
+          "requestContext" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "stackTrace" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "NEW", "REPROCESSED", "DISCARDED" ]
+          },
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reprocessedMessageId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "correlationId" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastAttemptAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "PageResponseDeadLetterMessageResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DeadLetterMessageResponse"
+            }
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "PageResponseCustomFieldRuleResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CustomFieldRuleResponse"
+            }
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "RaisedConditionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "aircraftId" : {
+            "type" : "string"
+          },
+          "flightNumber" : {
+            "type" : "string"
+          },
+          "conditionName" : {
+            "type" : "string"
+          },
+          "alertLevel" : {
+            "type" : "string",
+            "enum" : [ "NO", "LOW", "MEDIUM", "HIGH", "CRITICAL" ]
+          },
+          "raisedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "AuditLogResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "userId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "entityType" : {
+            "type" : "string"
+          },
+          "entityId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "detailsJson" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "correlationId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PageResponseAuditLogResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AuditLogResponse"
+            }
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "AircraftSummaryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "aircraftId" : {
+            "type" : "string"
+          },
+          "lastSeen" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "messageCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "flightCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "PageAircraftSummaryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AircraftSummaryResponse"
+            }
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "numberOfElements" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "empty" : {
+            "type" : "boolean"
+          }
+        }
+      }
+    },
+    "securitySchemes" : {
+      "bearerAuth" : {
+        "type" : "http",
+        "description" : "JWT-токен, полученный через POST /api/v1/auth/login",
+        "scheme" : "bearer",
+        "bearerFormat" : "JWT"
+      }
+    }
+  }
+}
