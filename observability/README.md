@@ -39,6 +39,9 @@ observability/
 - **WAIT-таймауты**: сработавшие WAIT-шаги ECA.
 - **JVM**: heap memory (used/max).
 - **Hikari**: active/idle/pending connections к PostgreSQL.
+- **Безопасность / надёжность** (прогон «Промышленный апгрейд»): отклонения rate limit 429 по scope
+  (`eca_ratelimit_rejected_total{scope}` — auth=брутфорс, messages=флуд, Фаза 3) и отклонённые
+  дублирующие старты инстанса (`eca_execution_start_duplicate_rejected_total` — dedup V38, Фаза 1).
 
 ## Prometheus: alert-правила
 
@@ -72,6 +75,11 @@ scrape_configs:
     # Вариант 1: базовая аутентификация через Spring Security (дополнительная конфигурация).
     # Вариант 2: network-level (prometheus в том же VPC/namespace, без auth на scrape).
 ```
+
+Группы правил в `alerts.yml`: `eca.dlq`, `eca.throughput`, `eca.delivery`, `eca.latency`,
+`eca.availability`, и `eca.security` (прогон «Промышленный апгрейд»):
+`EcaAuthRateLimitSpike` (брутфорс логина), `EcaMessagesRateLimitSpike` (флуд ингеста или
+недооценённый потолок), `EcaDuplicateStartRejectedSpike` (аномальный рост дублей старта под HA).
 
 ## SLO
 

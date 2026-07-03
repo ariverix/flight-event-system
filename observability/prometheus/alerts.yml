@@ -183,3 +183,62 @@ groups:
           description: |
             Readiness probe {{ $labels.instance }} вернула DOWN более 2 минут.
             k8s убрал pod из rotation. Проверьте /actuator/health/readiness (SYSTEM_ADMIN).
+
+  # ===================================================================
+  # Безопасность / надёжность нового пути (прогон «Промышленный апгрейд»)
+  # Метрики: eca_ratelimit_rejected_total{scope} (Фаза 3, RateLimitFilter),
+  #          eca_execution_start_duplicate_rejected_total (Фаза 1, dedup V38).
+  # ===================================================================
+  - name: eca.security
+    interval: 1m
+    rules:
+      # ---------------------------------------------------------------
+      # Всплеск отклонений rate limit на логине = вероятная брутфорс-атака
+      # ---------------------------------------------------------------
+      - alert: EcaAuthRateLimitSpike
+        expr: rate(eca_ratelimit_rejected_total{scope="auth"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: eca-ops
+        annotations:
+          summary: "ECA: всплеск отклонений rate limit на /auth (возможен брутфорс)"
+          description: |
+            RateLimitFilter отклоняет запросы к /auth: {{ printf "%.3f" $value }} /сек (429).
+            Устойчивый поток отклонений = вероятная попытка подбора пароля. Проверьте
+            источники (по IP в логах RateLimitFilter), при необходимости — сетевой allowlist.
+
+      # ---------------------------------------------------------------
+      # Всплеск отклонений rate limit на ингесте = флуд/аномалия шлюза
+      # ---------------------------------------------------------------
+      - alert: EcaMessagesRateLimitSpike
+        expr: rate(eca_ratelimit_rejected_total{scope="messages"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: eca-ops
+        annotations:
+          summary: "ECA: rate limit режет ACARS-ингест /messages (флуд или недооценённый потолок)"
+          description: |
+            RateLimitFilter отклоняет ингест: {{ printf "%.3f" $value }} /сек (429). Либо
+            runaway-флуд (защита сработала), либо легитимный пик выше потолка
+            app.ratelimit.messages.capacity — проверьте docs/perf и при необходимости поднимите
+            потолок под прод-нагрузку.
+
+      # ---------------------------------------------------------------
+      # Конфликты дедупа старта инстанса — норма при HA, но всплеск = аномалия
+      # доставки (одно сообщение массово дублируется на реплики)
+      # ---------------------------------------------------------------
+      - alert: EcaDuplicateStartRejectedSpike
+        expr: rate(eca_execution_start_duplicate_rejected_total[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: info
+          team: eca-ops
+        annotations:
+          summary: "ECA: рост отклонённых дублирующих стартов инстанса (dedup V38)"
+          description: |
+            Уникальный индекс idx_exec_dedup_trigger_unique отвергает дубли старта:
+            {{ printf "%.3f" $value }} /сек. Единичные — норма для HA (at-least-once доставка
+            одного сообщения на несколько реплик). Устойчивый рост = аномалия ретрансляции
+            ACARS-шлюза или republish-петля — проверьте источник дублей.

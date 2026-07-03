@@ -44,5 +44,9 @@ class P5_1_MetricsScenarioIntTest extends BaseIntegrationTest {
         // технические: JVM и пул соединений БД (Hikari) — автопривязка Micrometer
         assertThat(body).contains("jvm_memory_used_bytes");
         assertThat(body).contains("hikaricp_connections");
+        // прогон «Промышленный апгрейд»: метрики новых путей регистрируются эагерно
+        // (в конструкторах ExecutionMetrics / RateLimitFilter) и видны в scrape даже при значении 0
+        assertThat(body).contains("eca_execution_start_duplicate_rejected_total"); // Фаза 1 (dedup V38)
+        assertThat(body).contains("eca_ratelimit_rejected_total");                 // Фаза 3 (429)
     }
 }
