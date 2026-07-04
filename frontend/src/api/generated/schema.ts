@@ -38,6 +38,10 @@ export type ApiIncomingMessageRequest     = Schemas['IncomingMessageRequest'];
 export type ApiRawIncomingMessageRequest  = Schemas['RawIncomingMessageRequest'];
 export type ApiMessageReceivedResponse    = Schemas['MessageReceivedResponse'];
 
+// ── Aircraft (Фаза 5/6: список бортов для привязки последовательностей) ──────────
+export type ApiAircraftSummaryResponse     = Schemas['AircraftSummaryResponse'];
+export type ApiPageAircraftSummaryResponse = Schemas['PageAircraftSummaryResponse'];
+
 // ── Users / Auth ──────────────────────────────────────────────────────────────
 export type ApiUserResponse    = Schemas['UserResponse'];
 export type ApiLoginRequest    = Schemas['LoginRequest'];

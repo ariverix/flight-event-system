@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, Select, Input, Space, Button, DatePicker, Tooltip, Skeleton } from 'antd';
+import { Table, Tag, Select, Space, Button, DatePicker, Tooltip, Skeleton } from 'antd';
 import { useNotification } from '../../hooks/useNotification';
 import { ReloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { messageApi } from '../../api/messageApi';
+import { AircraftPicker } from '../sequence/AircraftPicker';
 import { MessageResponse } from '../../types/message';
 import { MessageType } from '../../types/sequence';
 import type { Dayjs } from 'dayjs';
@@ -143,12 +144,14 @@ export const MessageLog: React.FC = () => {
       <div className="page-header">
         <h2 className="page-title">Журнал сообщений</h2>
         <Space wrap>
-          <Input
-            placeholder="Фильтр по идент. ВС"
-            style={{ width: 190 }}
-            allowClear
-            onChange={(e) => setAircraftIdFilter(e.target.value || undefined)}
-          />
+          {/* Фаза 6 (aircraft-bindings): фильтр по борту — выбор из известных tail numbers
+              (GET /api/v1/aircraft) вместо свободного текста */}
+          <div style={{ width: 260 }}>
+            <AircraftPicker
+              value={aircraftIdFilter ?? null}
+              onChange={setAircraftIdFilter}
+            />
+          </div>
           <Select
             placeholder="Тип сообщения"
             style={{ width: 165 }}

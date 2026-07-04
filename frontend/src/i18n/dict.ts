@@ -375,6 +375,15 @@ const EDITOR_RU = {
   expandDetails:      'Развернуть детали',
   collapseDetails:    'Свернуть детали',
 
+  // ── Фаза 6: выбор борта (aircraft-bindings) ─────────────────────────────────
+  aircraftPickerLabel:       'Борт (tail number)',
+  aircraftPickerPlaceholder: 'Выберите или найдите борт…',
+  aircraftPickerSearching:   'Поиск бортов…',
+  aircraftPickerEmpty:       'Борта не найдены',
+  aircraftPickerError:       'Не удалось загрузить список бортов',
+  aircraftLastSeen:          'последний контакт',
+  aircraftFlights:           'рейсов',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -741,6 +750,15 @@ const EDITOR_EN = {
 
   expandDetails:      'Expand details',
   collapseDetails:    'Collapse details',
+
+  // ── Фаза 6: aircraft-bindings picker ────────────────────────────────────────
+  aircraftPickerLabel:       'Aircraft (tail number)',
+  aircraftPickerPlaceholder: 'Select or search aircraft…',
+  aircraftPickerSearching:   'Searching aircraft…',
+  aircraftPickerEmpty:       'No aircraft found',
+  aircraftPickerError:       'Failed to load aircraft list',
+  aircraftLastSeen:          'last seen',
+  aircraftFlights:           'flights',
 
   roles: {
     ADMIN:    'Administrator',
