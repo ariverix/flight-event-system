@@ -18,6 +18,13 @@
 - **Приёмочный перф-прогон на прод-железе / тюнингованном пуле (P6-3 follow-up, IMPROVEMENT_PLAN).**
   Требует приёмочный стенд заказчика — вне объёма прогона. Индикативные числа — `docs/perf/`.
 
+- **Branch protection: required status checks (Фаза 7, MEDIUM ревью).** Jobs `backend`,
+  `frontend`, `e2e` гейтят мёрж только если добавлены в required checks в настройках
+  GitHub (Branch Protection на `main`) — это НЕ код, а настройка репозитория; проверить/
+  задать без `gh`/токена невозможно. **Разблокировка (Денис, владелец репо):** Settings →
+  Branches → main → Require status checks → отметить `backend`, `frontend`, `e2e`
+  (и по желанию `security-scan`, `docker`).
+
 ## Решения по объёму (scope), зафиксированы при реализации
 
 - **SpotBugs CRLF_INJECTION_LOGS — 138 находок Medium при threshold=Low (Фаза 3).**

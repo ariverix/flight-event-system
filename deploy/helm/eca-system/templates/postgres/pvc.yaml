@@ -2,7 +2,8 @@
 # PVC для PostgreSQL данных.
 # Создаётся независимо от StatefulSet — данные сохраняются при пересоздании StatefulSet
 # (helm uninstall → helm install не уничтожает данные).
-# Для полного удаления данных: kubectl delete pvc {{ include "eca-system.fullname" . }}-postgres-data
+# Для полного удаления данных: kubectl delete pvc <fullname>-postgres-data
+# (шаблонные выражения в YAML-комментариях Helm всё равно исполняет — не использовать)
 #
 # В prod postgresql.enabled=false — этот PVC не создаётся (внешняя управляемая БД).
 apiVersion: v1
