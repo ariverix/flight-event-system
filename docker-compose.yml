@@ -1,3 +1,10 @@
+# Один compose-проект для ВСЕХ контейнеров системы (имя проекта фиксировано — контейнеры
+# не разбегаются по разным проектам в Docker Desktop):
+#   docker compose up -d --build           — прод-стек: postgres + app (http://localhost:8081)
+#   docker compose --profile dev up -d     — + pg-dev: локальный Postgres :5432/eca_test
+#                                            (для dev-backend на :8080 и mvn verify)
+name: eca-system
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -32,11 +39,35 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      # Полный /actuator/health закрыт RBAC (P5-3) и отдаёт анониму 401 — контейнер
+      # вечно висел unhealthy. Анонимные k8s-пробы: /actuator/health/{liveness,readiness}.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/liveness || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
 
+  # Dev-БД для локальной разработки и тестов (профиль dev, в прод-стек не входит):
+  # dev-backend на :8080 и `mvn verify` ходят на jdbc:postgresql://localhost:5432/eca_test.
+  # Заменяет исторические разрозненные контейнеры eca-pg / eca-ci-pg.
+  pg-dev:
+    image: postgres:16-alpine
+    container_name: eca-dev-pg
+    profiles: ["dev"]
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: eca_test
+      POSTGRES_USER: eca_user
+      POSTGRES_PASSWORD: eca_password
+    volumes:
+      - pg_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eca_user -d eca_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+  pg_dev_data:
