@@ -38,6 +38,13 @@ spec:
         - name: eca-backend
           image: eca-backend:latest      # тег подставляет CI/CD (P8-1)
           imagePullPolicy: IfNotPresent
+          # Hardening (Semgrep k8s: allow-privilege-escalation-no-securitycontext):
+          # образ уже non-root (USER app в backend/Dockerfile, P4-4) — здесь фиксация на уровне pod-спеки.
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: http
               containerPort: 8080

@@ -1,3 +1,26 @@
+# flight-event-system (ECA System)
+
+Отечественная промышленная замена модуля **SITA AIRCOM Sequencer** — система обработки
+авиационных событий по сообщениям «борт-земля» (ACARS) на движке правил ECA
+(Event-Condition-Action). Заказчик — ФГУП «ЗащитаИнфоТранс».
+
+## Быстрый старт (docker-compose)
+
+```bash
+docker compose up --build
+```
+
+- UI/API: http://localhost:8081 (порт хоста; внутри контейнера приложение слушает 8080)
+- Демо-логин: `admin` / `admin` (заменить после установки — см. `docs/admin/installation.md`)
+- Swagger UI: http://localhost:8081/swagger-ui.html (за RBAC SYSTEM_ADMIN)
+- Health: http://localhost:8081/actuator/health/{liveness,readiness,startup}
+
+Стек: Java 21 / Spring Boot 3.5 / Spring Modulith / PostgreSQL 16 / Flyway (V1–V38);
+React 18 / TypeScript 5 / Ant Design 5 / React Flow 12. Подробности: `CLAUDE.md`,
+установка и эксплуатация — `docs/admin/`, готовность — `PRODUCTION_READINESS_REPORT.md`.
+
+---
+
 # Команда агентов flight-event-system — промышленное внедрение
 
 Полный пакет для Claude Code: 19 автономных агентов + общий «мозг» + роадмап до промышленной замены SITA Sequencer + пошаговый план.

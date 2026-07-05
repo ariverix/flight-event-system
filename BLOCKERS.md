@@ -25,6 +25,17 @@
   Branches → main → Require status checks → отметить `backend`, `frontend`, `e2e`
   (и по желанию `security-scan`, `docker`).
 
+## Требуют решения Дениса
+
+- **Ветка `claude/strange-jang-f38717` — 18 уникальных коммитов, НЕ удалена (Фаза 8).**
+  Посторонний worktree `.claude/worktrees/strange-jang-f38717` снят (`git worktree remove`;
+  рабочие изменения в нём — 100% CRLF-шум перенормализации, проверено `git diff
+  --ignore-cr-at-eol` = пусто, untracked нет). Сама ветка сохранена: содержит раннюю
+  историю прототипа («Step 0…Step 10», «version 0.1»), которой нет в main — вероятно,
+  lineage до пересборки истории. Ценности для текущего кода нет, но удаление истории —
+  решение владельца. **Разблокировка:** осмотреть `git log claude/strange-jang-f38717`,
+  удалить (`git branch -D`) или заархивировать тегом.
+
 ## Решения по объёму (scope), зафиксированы при реализации
 
 - **SpotBugs CRLF_INJECTION_LOGS — 138 находок Medium при threshold=Low (Фаза 3).**

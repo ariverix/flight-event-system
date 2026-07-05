@@ -107,8 +107,8 @@ docker compose up --build
 # Наблюдать за логами до появления "Started EcaSystemApplication"
 docker compose logs -f app
 
-# Проверить health
-curl -s http://localhost:8080/actuator/health | python3 -m json.tool
+# Проверить health (порт ХОСТА в docker-compose — 8081; внутри контейнера приложение слушает 8080)
+curl -s http://localhost:8081/actuator/health | python3 -m json.tool
 # Ожидаемый ответ: {"status":"UP", ...}
 ```
 
@@ -236,21 +236,29 @@ openssl rand -base64 48 | tr -d '\n'
 Срок действия access-токена: 15 минут (`JWT_EXPIRATION_MS=900000`).
 Срок действия refresh-токена: 7 дней (`JWT_REFRESH_EXPIRATION_MS=604800000`).
 
-### Смена пароля администратора после установки
+### Замена демо-администратора после установки
 
-После первого запуска в системе присутствует пользователь `admin` с паролем `admin` (BCrypt, миграция V8). Немедленно сменить через API:
+После первого запуска в системе присутствует пользователь `admin` с паролем `admin` (BCrypt, миграция V8). Эндпоинта смены пароля в API нет (зафиксировано в backlog) — штатная процедура: создать нового администратора и отключить демо-учётку.
 
 ```bash
-# Получить access-токен
-TOKEN=$(curl -s -X POST http://eca.example.ru/api/auth/login \
+# 1. Получить access-токен демо-админа (поле ответа — token)
+TOKEN=$(curl -s -X POST http://eca.example.ru/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"admin"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
+  -d '{"username":"admin","password":"admin"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
 
-# Сменить пароль
-curl -s -X PATCH http://eca.example.ru/api/users/1 \
+# 2. Создать нового администратора (RBAC MANAGE_USERS)
+curl -s -X POST http://eca.example.ru/api/v1/auth/register \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"password":"NEW_SECURE_PASSWORD"}'
+  -d '{"username":"ops-admin","password":"NEW_SECURE_PASSWORD","fullName":"Администратор","role":"ADMIN"}'
+
+# 3. Войти новым администратором и отключить демо-учётку admin (id из GET /api/v1/users)
+NEW_TOKEN=$(curl -s -X POST http://eca.example.ru/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"ops-admin","password":"NEW_SECURE_PASSWORD"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+curl -s -H "Authorization: Bearer $NEW_TOKEN" http://eca.example.ru/api/v1/users
+curl -s -X PUT http://eca.example.ru/api/v1/users/1/toggle \
+  -H "Authorization: Bearer $NEW_TOKEN"
 ```
 
 ---
@@ -260,30 +268,31 @@ curl -s -X PATCH http://eca.example.ru/api/users/1 \
 ### Smoke test
 
 ```bash
-# 1. Получить токен (dev)
-TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+# Порт: docker-compose (хост) — 8081; k8s port-forward из примера выше — 8080.
+# 1. Получить токен (dev; поле ответа — token)
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"admin"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
+  -d '{"username":"admin","password":"admin"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
 
 # 2. Проверить список последовательностей
 curl -s -H "Authorization: Bearer $TOKEN" \
-  http://localhost:8080/api/sequences | python3 -m json.tool
+  http://localhost:8081/api/v1/sequences | python3 -m json.tool
 
-# 3. Убедиться, что Flyway применил все миграции
+# 3. Убедиться, что Flyway применил все миграции (V38 — последняя)
 psql -h localhost -U eca_user -d eca_db \
   -c "SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;"
 
 # 4. Проверить health группы
-curl -s http://localhost:8080/actuator/health/liveness    # {"status":"UP"}
-curl -s http://localhost:8080/actuator/health/readiness   # {"status":"UP"}
-curl -s http://localhost:8080/actuator/health/startup     # {"status":"UP"}
+curl -s http://localhost:8081/actuator/health/liveness    # {"status":"UP"}
+curl -s http://localhost:8081/actuator/health/readiness   # {"status":"UP"}
+curl -s http://localhost:8081/actuator/health/startup     # {"status":"UP"}
 ```
 
 ### Создание тестовой последовательности через API
 
 ```bash
 # Создать последовательность для борта VP-BQR (демо-сценарий из V14)
-curl -s -X POST http://localhost:8080/api/sequences \
+curl -s -X POST http://localhost:8081/api/v1/sequences \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{

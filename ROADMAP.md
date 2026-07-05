@@ -105,3 +105,19 @@
 - **Система готова к UAT.** Функциональный паритет с SITA AIRCOM Sequencer подтверждён по всем категориям. Оставшиеся 3 ЧАСТИЧНО — архитектурные решения (per-sequence фильтр типов ВС) и зона внешней инфраструктуры (radar/ADS-B feed-адаптеры).
 
 - **Пакет документов для заказчика:** `docs/compliance/parity-matrix.md`, `docs/compliance/uat-checklist.md`, `docs/compliance/license-report.md`, `docs/compliance/russian-software-registry.md`, `docs/admin/`, `docs/security/gost-tls-path.md`.
+
+---
+
+## Итог прогона «Промышленный апгрейд» (2026-07-03 … 2026-07-04)
+
+После закрытия P0–P8 выполнен сквозной прогон промышленного укрепления (план — `CLAUDE_CODE_PROMPT.md`, ledger — `docs/PROGRESS.md`, блокеры — `BLOCKERS.md`). Фазы 0–8, коммиты `bf07d31`…HEAD:
+
+- **Целостность движка под HA (Ф1–Ф2):** dedup startExecution перенесён на UNIQUE-индекс БД (V38, ADR-0007) — exactly-once старт при любом числе реплик; @Scheduled-поллеры гейтятся готовностью приложения (`ApplicationReadiness`, модуль cluster); найдена и структурно устранена флейки-гонка поллеров с межтестовым Flyway-clean (`SchedulingConfig`, тумблер `app.scheduling.enabled`).
+- **Безопасность (Ф3):** rate limiting bucket4j (ADR-0006) — анти-брутфорс `/auth` + потолок ингеста, анти-спуфинг XFF, LRU-бакеты; санитизация логов внешней атак-поверхности (`LogSanitizer`); CORS вынесен в env; R-4 threat model → Mitigated.
+- **Наблюдаемость (Ф4):** метрики/алерты/панели новых путей (429 по scope, отклонённые дубли старта) + scrape-ассерты в тестах.
+- **API/БД (Ф5):** `GET /api/v1/aircraft` (реестр бортов — проекция из messages; закрыт TODO P7-3 aircraft-bindings); ревью индексов — горячие пути покрыты, V39 не потребовался; OpenAPI + фронт-клиент пересинхронизированы.
+- **Frontend (Ф6):** `AircraftPicker` (серверный поиск, debounce, race-guard) + фильтр журнала по реальным бортам; Playwright smoke E2E — 6 сценариев против реального стека; 208 vitest-тестов.
+- **CI/CD (Ф7):** frontend-job стал гейтом (lint+vitest), новые jobs e2e (полный стек в CI) и docker (build образов + helm lint ×3, build-only до появления секрета registry); helm lint сразу нашёл дефект чарта P8-1 (чарт не парсился — шаблонные выражения в YAML-комментариях) — исправлен.
+- **Финал (Ф8):** quality gate по diff всего прогона — PASS (0 CRITICAL/HIGH); ADR-0006/0007; синхронизация доков (README quickstart 8081, installation.md — реальные пути `/api/v1` и процедура замены демо-админа, UAT-чеклист); license report дополнен; `PRODUCTION_READINESS_REPORT.md`.
+
+Метрики после прогона: миграции V1–V38; ~906 backend-тестов; 208 frontend (vitest) + 6 E2E (Playwright); JaCoCo LINE≥0.88/INSTR≥0.90 держится. Открытые блокеры — только внешние (секреты registry/NVD, branch protection, приёмочный стенд) — см. `BLOCKERS.md`.
