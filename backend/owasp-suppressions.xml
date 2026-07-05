@@ -122,4 +122,57 @@
         <vulnerabilityName regex="true">.*DOMPurify.*</vulnerabilityName>
     </suppress>
 
+    <!--
+      ============================================================================
+      ГРУППА: ложные CPE-матчи и принятые риски (NVD-обновление 2026-07, Фаза 8+)
+      ============================================================================
+    -->
+
+    <!-- easy-rules-core 4.1.0: CVE-2023-50571 — инъекция через MVEL/SpEL-выражения правил.
+         НЕ эксплуатируется в ECA System: используются ТОЛЬКО Java-классы правил
+         (ActionStepRule и др., модуль execution), модулей easy-rules-mvel/-spel в
+         зависимостях нет, MVELRule/SpELRule не используются (grep по main = 0).
+         Апгрейда не существует: 4.1.0 — последний релиз (проект архивирован),
+         версия зафиксирована спецификацией стека (CLAUDE.md, смена — только через ADR).
+         Ревью: при любом введении динамических выражений правил — пересмотреть немедленно. -->
+    <suppress>
+        <notes>Easy Rules 4.1.0: CVE-2023-50571 касается MVEL/SpEL-правил; в проекте только Java-правила,
+        mvel/spel-модули отсутствуют. 4.1.0 — последняя версия (проект архивирован). Риск принят.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.jeasy/easy-rules-.*$</packageUrl>
+        <cve>CVE-2023-50571</cve>
+    </suppress>
+
+    <!-- micrometer-registry-prometheus: ложный CPE-матч cpe:prometheus:prometheus —
+         это CPE СЕРВЕРА Prometheus, а артефакт — Java-библиотека экспорта метрик
+         (Micrometer). CVE сервера (CVE-2026-42154 и будущие) к jar неприменимы.
+         Подавляем сам ошибочный CPE-матч, а не отдельные CVE. -->
+    <suppress>
+        <notes>Ложный CPE-матч: micrometer-registry-prometheus (Java-клиент метрик) сматчен с CPE
+        сервера Prometheus. CVE сервера неприменимы к библиотеке экспорта.</notes>
+        <packageUrl regex="true">^pkg:maven/io\.micrometer/micrometer-registry-prometheus@.*$</packageUrl>
+        <cpe>cpe:/a:prometheus:prometheus</cpe>
+    </suppress>
+
+    <!-- opentelemetry-semconv: ложный CPE-матч cpe:opentelemetry:opentelemetry (CPE всего
+         проекта OpenTelemetry/коллектора). Артефакт — сгенерированные КОНСТАНТЫ semantic
+         conventions (имена атрибутов), исполняемой логики не содержит; CVE-2026-24051/39882/
+         39883/41178 относятся к другим компонентам экосистемы. -->
+    <suppress>
+        <notes>Ложный CPE-матч: opentelemetry-semconv — jar констант semantic conventions без
+        исполняемой логики; сматчен с CPE всего проекта OpenTelemetry. CVE неприменимы.</notes>
+        <packageUrl regex="true">^pkg:maven/io\.opentelemetry\.semconv/opentelemetry-semconv.*$</packageUrl>
+        <cpe>cpe:/a:opentelemetry:opentelemetry</cpe>
+    </suppress>
+
+    <!-- angus-activation: ложный CPE-матч cpe:eclipse:angus_mail — это CPE проекта Angus MAIL,
+         а артефакт — angus-ACTIVATION (реализация Jakarta Activation, определение MIME-типов).
+         CVE-2025-7962 (DoS в Angus Mail) к activation-библиотеке неприменим; почтовый стек
+         (jakarta.mail/angus-mail) в зависимостях отсутствует. -->
+    <suppress>
+        <notes>Ложный CPE-матч: angus-activation (Jakarta Activation) сматчен с CPE angus_mail.
+        CVE-2025-7962 — уязвимость Angus Mail; почтового стека в проекте нет.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.eclipse\.angus/angus-activation@.*$</packageUrl>
+        <cpe>cpe:/a:eclipse:angus_mail</cpe>
+    </suppress>
+
 </suppressions>
