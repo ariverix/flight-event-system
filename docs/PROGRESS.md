@@ -154,7 +154,7 @@
 - Последний коммит фундамента: `42aabec` ("P0 guardrails: CI/CD, OpenAPI,
   structured logging + audit_log").
 - **P7 aircraft-bindings (TODO из P7-3)**: привязка к бортам через UI ждёт backend-эндпоинтов списка бортов; при необходимости — отдельный тикет после UAT. **Закрыто Фазами 5–6 прогона 2026-07-03** (GET /api/v1/aircraft + AircraftPicker).
-- **LOW-заметки ревью Фазы 6 (2026-07-04, не блокирующие)**: (1) `MessageLog.tsx` без собственного компонентного теста — интеграция AircraftPicker покрыта только E2E `aircraft-filter.spec.ts`; (2) `AircraftPicker` при внешне заданном `value` вне загруженных options показывает «сырой» tail number без обогащённого лейбла до первого fetch — при необходимости персистентного выбора рассмотреть `labelInValue`.
+- **LOW-заметки ревью Фазы 6 (2026-07-04, не блокирующие)**: ~~(1) `MessageLog.tsx` без собственного компонентного теста — интеграция AircraftPicker покрыта только E2E `aircraft-filter.spec.ts`~~ — **ЗАКРЫТО 2026-07-07**: компонентный тест `MessageLog.test.tsx` (8 тестов: mount-загрузка, интеграция AircraftPicker → перезапрос с aircraftId, фильтр типа, пагинация, «Обновить», ошибка→notification, empty-state, превью metadataJson); reviewer PASS. Новый LOW из этого ревью: у Select «Тип сообщения» нет `aria-label` (тест выбирает его по индексу combobox). (2) `AircraftPicker` при внешне заданном `value` вне загруженных options показывает «сырой» tail number без обогащённого лейбла до первого fetch — при необходимости персистентного выбора рассмотреть `labelInValue`.
 
 *Обновлено: 2026-06-28 (P8-4, финальный приёмочный прогон — все фазы P0–P8 завершены).*
 
