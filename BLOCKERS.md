@@ -20,21 +20,20 @@
 
 - **Branch protection: required status checks (Фаза 7, MEDIUM ревью).** Jobs `backend`,
   `frontend`, `e2e` гейтят мёрж только если добавлены в required checks в настройках
-  GitHub (Branch Protection на `main`) — это НЕ код, а настройка репозитория; проверить/
-  задать без `gh`/токена невозможно. **Разблокировка (Денис, владелец репо):** Settings →
-  Branches → main → Require status checks → отметить `backend`, `frontend`, `e2e`
-  (и по желанию `security-scan`, `docker`).
+  GitHub (Branch Protection на `main`) — это НЕ код, а настройка репозитория.
+  **Уточнение 2026-08-26** (`gh` теперь авторизован): `gh api repos/.../branches/main/protection`
+  → 403 "Upgrade to GitHub Pro or make this repository public to enable this feature" —
+  это не забытая настройка, а ограничение тарифа (приватный репо + free plan не поддерживает
+  branch protection). **Разблокировка (Денис, владелец репо):** либо GitHub Pro/Team,
+  либо сделать репозиторий публичным — затем Settings → Branches → main → Require status
+  checks → отметить `backend`, `frontend`, `e2e` (и по желанию `security-scan`, `docker`).
 
 ## Требуют решения Дениса
 
-- **Ветка `claude/strange-jang-f38717` — 18 уникальных коммитов, НЕ удалена (Фаза 8).**
-  Посторонний worktree `.claude/worktrees/strange-jang-f38717` снят (`git worktree remove`;
-  рабочие изменения в нём — 100% CRLF-шум перенормализации, проверено `git diff
-  --ignore-cr-at-eol` = пусто, untracked нет). Сама ветка сохранена: содержит раннюю
-  историю прототипа («Step 0…Step 10», «version 0.1»), которой нет в main — вероятно,
-  lineage до пересборки истории. Ценности для текущего кода нет, но удаление истории —
-  решение владельца. **Разблокировка:** осмотреть `git log claude/strange-jang-f38717`,
-  удалить (`git branch -D`) или заархивировать тегом.
+- ~~**Ветка `claude/strange-jang-f38717` — 18 уникальных коммитов, НЕ удалена (Фаза 8).**~~
+  — **ЗАКРЫТО 2026-08-26** (решение Дениса): ветка удалена локально (`git branch -D`) и на
+  `origin` (`git push origin --delete`). Ранняя история прототипа («Step 0…Step 10»,
+  «version 0.1») ценности для текущего кода не имела (см. анализ Фазы 8 ниже).
 
 ## Решения по объёму (scope), зафиксированы при реализации
 
