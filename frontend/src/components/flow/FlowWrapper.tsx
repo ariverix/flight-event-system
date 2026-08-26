@@ -7,8 +7,8 @@ import type { Node, Edge, NodeTypes, EdgeTypes, OnNodesChange, OnEdgesChange } f
 import '@xyflow/react/dist/style.css';
 import { AimOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
-import { flowNodeTypes } from './FlowNodes';
 import { getAutoLayout } from '../../utils/graphLayout';
+import { getTypeAccent } from '../../utils/stepTypeColors';
 import { NodeDetailPanel } from './NodeDetailPanel';
 import { LabeledEdge } from './LabeledEdge';
 
@@ -103,14 +103,14 @@ const FlowInner: React.FC<FlowInnerProps> = ({
     }
   }, [containerRef]);
 
-  const bgColor  = isDark ? '#060910' : '#eef2ff';
-  const dotColor = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)';
-  const panelBg  = isDark ? 'rgba(6,7,16,0.92)'      : 'rgba(255,255,255,0.96)';
-  const panelBd  = isDark ? 'rgba(255,255,255,0.11)'  : 'rgba(0,0,0,0.10)';
-  const miniMask = isDark ? 'rgba(4,5,8,0.65)'        : 'rgba(238,242,255,0.72)';
+  const bgColor  = isDark ? '#1e1e1e' : '#f5f5f7';
+  const dotColor = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+  const panelBg  = isDark ? '#2c2c2e' : '#ffffff';
+  const panelBd  = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
+  const miniMask = isDark ? 'rgba(30,30,30,0.65)' : 'rgba(245,245,247,0.72)';
   const miniStyle: React.CSSProperties = isDark
-    ? { background: 'rgba(4,5,8,0.90)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 12, width: 110, height: 80 }
-    : { background: '#fff', border: '1px solid rgba(0,0,0,0.09)', borderRadius: 12, width: 110, height: 80 };
+    ? { background: '#2c2c2e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, width: 110, height: 80 }
+    : { background: '#fff', border: '1px solid rgba(0,0,0,0.10)', borderRadius: 10, width: 110, height: 80 };
 
   return (
     <ReactFlow
@@ -146,11 +146,9 @@ const FlowInner: React.FC<FlowInnerProps> = ({
         <div style={{
           display: 'flex', gap: 4, padding: '5px 6px',
           background: panelBg,
-          backdropFilter: 'blur(18px)',
-          WebkitBackdropFilter: 'blur(18px)',
           border: `1px solid ${panelBd}`,
-          borderRadius: 12,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          borderRadius: 10,
+          boxShadow: isDark ? '0 1px 4px rgba(0,0,0,0.24)' : '0 1px 4px rgba(0,0,0,0.08)',
         }}>
           <PanelBtn
             icon={<AimOutlined />}
@@ -180,20 +178,13 @@ const FlowInner: React.FC<FlowInnerProps> = ({
           style={miniStyle}
           maskColor={miniMask}
           nodeColor={n => {
-            const s = (n.data as any)?.state;
-            if (s === 'success')   return isDark ? '#3fb950' : '#22c55e';
-            if (s === 'failure')   return isDark ? '#f85149' : '#ef4444';
-            if (s === 'active')    return '#f59e0b';
-            if (s === 'unreached') return isDark ? '#1e2a3a' : '#e0e7ff';
-            const t = (n.data as any)?.stepType;
-            if (t === 'ACTION')   return '#3b82f6';
-            if (t === 'EVALUATE') return '#8b5cf6';
-            if (t === 'WAIT')     return '#f59e0b';
-            const fs = (n.data as any)?.status;
-            if (fs === 'SUCCESS') return '#10b981';
-            if (fs === 'FAILURE') return '#ef4444';
-            if (fs === 'WAITING') return '#f59e0b';
-            return isDark ? '#1e2a3a' : '#d0d7de';
+            const state = (n.data as Record<string, unknown>).state as string | undefined;
+            if (state === 'success')   return isDark ? '#30d158' : '#34c759';
+            if (state === 'failure')   return isDark ? '#ff453a' : '#ff3b30';
+            if (state === 'active')    return isDark ? '#ff9f0a' : '#ff9500';
+            if (state === 'unreached') return isDark ? '#3a3a3c' : '#d1d1d6';
+            const stepType = (n.data as Record<string, unknown>).stepType as string | undefined;
+            return stepType ? getTypeAccent(stepType, isDark) : (isDark ? '#3a3a3c' : '#d1d1d6');
           }}
           zoomable={false}
           pannable={false}
@@ -211,10 +202,10 @@ export const FlowWrapper: React.FC<FlowWrapperProps> = props => {
 
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
-  const mergedNodeTypes: NodeTypes = { ...flowNodeTypes, ...(customNodeTypes ?? {}) };
+  const mergedNodeTypes: NodeTypes = customNodeTypes ?? {};
 
-  const panelBorderColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
-  const panelBgColor     = isDark ? 'rgba(6,7,16,0.62)'      : 'rgba(255,255,255,0.75)';
+  const panelBorderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
+  const panelBgColor     = isDark ? '#2c2c2e' : '#ffffff';
 
   return (
     <div
@@ -254,8 +245,6 @@ export const FlowWrapper: React.FC<FlowWrapperProps> = props => {
         flexShrink: 0,
         borderLeft: selectedNode ? `1px solid ${panelBorderColor}` : 'none',
         background: panelBgColor,
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
         overflow: 'hidden',
         transition: 'width 0.22s ease',
       }}>

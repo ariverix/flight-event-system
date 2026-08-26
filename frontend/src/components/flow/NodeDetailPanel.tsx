@@ -2,6 +2,7 @@ import React from 'react';
 import { Tag } from 'antd';
 import { ApartmentOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import type { Node } from '@xyflow/react';
+import { getTypeAccent, getStateTokens, type StepNodeState } from '../../utils/stepTypeColors';
 
 interface NodeDetailPanelProps {
   selectedNode: Node | null;
@@ -42,38 +43,27 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
     );
   }
 
-  /* ── Extract node data (supports both StepNodeData and FlowNodeData) ── */
+  /* ── Extract node data ── */
   const d = selectedNode.data as Record<string, unknown>;
 
   const title     = (d.configLabel as string | undefined) || (d.label as string | undefined) || '—';
   const stepNum   = (d.orderIndex as number | undefined) ?? (d.stepNumber as number | undefined);
   const stepType  = (d.stepType as string | undefined)
     || (selectedNode.type ? selectedNode.type.toUpperCase() : undefined);
-  const rawState  = (d.state as string | undefined) || (d.status as string | undefined) || 'idle';
+  const rawState  = ((d.state as string | undefined) ?? 'idle') as StepNodeState;
 
-  const STATE_COLOR: Record<string, string> = {
-    idle:      t3,         active:    '#f59e0b',
-    success:   '#10b981',  failure:   '#ef4444',
-    unreached: t3,         DEFAULT:   t2,
-    RUNNING:   '#3b82f6',  SUCCESS:   '#10b981',
-    FAILURE:   '#ef4444',  WAITING:   '#f59e0b',
-    SKIPPED:   t3,
-  };
-  const STATE_LABEL: Record<string, string> = {
-    idle:      'Ожидание',      active:    'Выполняется',
-    success:   'Завершено',     failure:   'Ошибка',
-    unreached: 'Не достигнут', DEFAULT:   'Обычное',
-    RUNNING:   'Выполняется',   SUCCESS:   'Завершено',
-    FAILURE:   'Ошибка',        WAITING:   'Ожидание',
-    SKIPPED:   'Пропущено',
-  };
-  const TYPE_COLOR: Record<string, string> = {
-    ACTION: '#3b82f6', WAIT: '#f59e0b', EVALUATE: '#8b5cf6',
-    STEPNODE: '#3b82f6', ENDNODE: '#9da3ab',
+  const STATE_LABEL: Record<StepNodeState, string> = {
+    idle:      'Ожидание',
+    active:    'Выполняется',
+    success:   'Завершено',
+    failure:   'Ошибка',
+    unreached: 'Не достигнут',
   };
 
-  const sc = STATE_COLOR[rawState] ?? t2;
-  const tc = TYPE_COLOR[stepType ?? ''] ?? t2;
+  const sc = getStateTokens(rawState, isDark).border;
+  const tc = stepType === 'ACTION' || stepType === 'EVALUATE' || stepType === 'WAIT'
+    ? getTypeAccent(stepType, isDark)
+    : t2;
 
   const detailRows: { label: string; value: string }[] = [
     stepType && { label: 'Тип шага', value: stepType },
