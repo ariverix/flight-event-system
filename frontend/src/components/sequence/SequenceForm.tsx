@@ -36,8 +36,8 @@ export const SequenceForm: React.FC = () => {
   const { isAdmin } = useAuth();
   const { isDark } = useTheme();
   const c = isDark
-    ? { borderSecondary: '#21262d', text: '#e6edf3' }
-    : { borderSecondary: '#d8dee4', text: '#1f2328' };
+    ? { borderSecondary: 'rgba(255,255,255,0.09)', text: '#f5f5f7' }
+    : { borderSecondary: 'rgba(0,0,0,0.08)', text: '#1d1d1f' };
 
   const loadSequence = useCallback(async () => {
     if (!id || id === 'new') return;

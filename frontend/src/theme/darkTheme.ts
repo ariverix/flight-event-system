@@ -101,9 +101,9 @@ export const DARK_THEME = {
       headerSortHoverBg:    'rgba(255,255,255,0.065)',
       headerSplitColor:     'rgba(255,255,255,0.065)',
       borderColor:          'rgba(255,255,255,0.065)',
-      rowHoverBg:           'rgba(59,130,246,0.055)',
-      rowSelectedBg:        'rgba(59,130,246,0.11)',
-      rowSelectedHoverBg:   'rgba(59,130,246,0.16)',
+      rowHoverBg:           'rgba(10,132,255,0.055)',
+      rowSelectedBg:        'rgba(10,132,255,0.11)',
+      rowSelectedHoverBg:   'rgba(10,132,255,0.16)',
       colorText:            'rgba(255,255,255,0.82)',
       filterDropdownBg:     'rgba(8,10,22,0.98)',
       cellPaddingBlock:      13,
@@ -127,11 +127,11 @@ export const DARK_THEME = {
     Input: {
       colorBgContainer:     'rgba(255,255,255,0.042)',
       colorBorder:          'rgba(255,255,255,0.11)',
-      activeBorderColor:    'rgba(59,130,246,0.58)',
+      activeBorderColor:    'rgba(10,132,255,0.58)',
       hoverBorderColor:     'rgba(255,255,255,0.22)',
       colorTextPlaceholder: 'rgba(255,255,255,0.26)',
-      activeShadow:         '0 0 0 3px rgba(59,130,246,0.13)',
-      errorActiveShadow:    '0 0 0 3px rgba(239,68,68,0.13)',
+      activeShadow:         '0 0 0 3px rgba(10,132,255,0.13)',
+      errorActiveShadow:    '0 0 0 3px rgba(255,69,58,0.13)',
       addonBg:              'rgba(255,255,255,0.042)',
     },
 
@@ -139,7 +139,7 @@ export const DARK_THEME = {
       colorBgContainer:    'rgba(255,255,255,0.042)',
       colorBorder:         'rgba(255,255,255,0.11)',
       colorBgElevated:     'rgba(8,10,22,0.98)',
-      optionSelectedBg:    'rgba(59,130,246,0.15)',
+      optionSelectedBg:    'rgba(10,132,255,0.15)',
       optionActiveBg:      'rgba(255,255,255,0.055)',
       selectorBg:          'rgba(255,255,255,0.042)',
     },
@@ -160,7 +160,7 @@ export const DARK_THEME = {
     Dropdown: {
       colorBgElevated:       'rgba(8,10,22,0.98)',
       controlItemBgHover:    'rgba(255,255,255,0.055)',
-      controlItemBgActive:   'rgba(59,130,246,0.13)',
+      controlItemBgActive:   'rgba(10,132,255,0.13)',
     },
 
     Tag: {
@@ -182,27 +182,27 @@ export const DARK_THEME = {
     Pagination: {
       colorBgContainer: 'rgba(255,255,255,0.042)',
       colorBorder:      'rgba(255,255,255,0.09)',
-      itemActiveBg:     'rgba(59,130,246,0.22)',
+      itemActiveBg:     'rgba(10,132,255,0.22)',
       itemSize:          32,
     },
 
     Tabs: {
-      inkBarColor:       '#3b82f6',
-      itemSelectedColor: '#3b82f6',
+      inkBarColor:       '#0a84ff',
+      itemSelectedColor: '#0a84ff',
       itemHoverColor:    'rgba(255,255,255,0.85)',
       itemColor:         'rgba(255,255,255,0.52)',
       cardBg:            'rgba(255,255,255,0.042)',
     },
 
     Progress: {
-      defaultColor:    '#10b981',
-      colorSuccess:    '#10b981',
+      defaultColor:    '#30d158',
+      colorSuccess:    '#30d158',
       remainingColor:  'rgba(255,255,255,0.07)',
     },
 
     Switch: {
-      colorPrimary:      '#10b981',
-      colorPrimaryHover: '#059669',
+      colorPrimary:      '#30d158',
+      colorPrimaryHover: '#29b24b',
       handleBg:          '#ffffff',
     },
 
@@ -220,12 +220,12 @@ export const DARK_THEME = {
       colorBorder:           'rgba(255,255,255,0.11)',
       colorBgElevated:       'rgba(8,10,22,0.98)',
       cellHoverBg:           'rgba(255,255,255,0.055)',
-      cellActiveWithRangeBg: 'rgba(59,130,246,0.11)',
+      cellActiveWithRangeBg: 'rgba(10,132,255,0.11)',
     },
 
     Form: {
       labelColor:             'rgba(255,255,255,0.68)',
-      labelRequiredMarkColor: '#ef4444',
+      labelRequiredMarkColor: '#ff453a',
       itemMarginBottom:        20,
     },
 
@@ -269,11 +269,11 @@ export const DARK_THEME = {
     },
 
     Alert: {
-      colorInfoBg:     'rgba(59,130,246,0.10)',
-      colorInfoBorder: 'rgba(59,130,246,0.28)',
-      colorSuccessBg:  'rgba(16,185,129,0.10)',
-      colorWarningBg:  'rgba(245,158,11,0.10)',
-      colorErrorBg:    'rgba(239,68,68,0.10)',
+      colorInfoBg:     'rgba(10,132,255,0.10)',
+      colorInfoBorder: 'rgba(10,132,255,0.28)',
+      colorSuccessBg:  'rgba(48,209,88,0.10)',
+      colorWarningBg:  'rgba(255,159,10,0.10)',
+      colorErrorBg:    'rgba(255,69,58,0.10)',
     },
 
     List:    { colorSplit: 'rgba(255,255,255,0.06)' },

@@ -27,8 +27,8 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
   const [onFailureAction, setOnFailureAction] = useState<TransitionAction>('ABORT');
   const [formValues, setFormValues] = useState<any>({});
   const { isDark } = useTheme();
-  const previewBg = isDark ? '#0d1117' : '#f6f8fa';
-  const previewBorder = isDark ? '#30363d' : '#d0d7de';
+  const previewBg = isDark ? '#1e1e1e' : '#f5f5f7';
+  const previewBorder = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
 
   useEffect(() => {
     if (initialValues) {
@@ -352,7 +352,7 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
 
       <div style={{ display: 'flex', gap: '16px' }}>
         <div style={{ flex: 1 }}>
-          <h4 style={{ color: '#52c41a', marginTop: 0 }}>При успехе</h4>
+          <h4 style={{ color: 'var(--accent-green)', marginTop: 0 }}>При успехе</h4>
           <Form.Item
             name="onSuccessAction"
             label="Действие"
@@ -381,7 +381,7 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
         </div>
 
         <div style={{ flex: 1 }}>
-          <h4 style={{ color: '#ff4d4f', marginTop: 0 }}>При ошибке</h4>
+          <h4 style={{ color: 'var(--accent-red)', marginTop: 0 }}>При ошибке</h4>
           <Form.Item
             name="onFailureAction"
             label="Действие"
@@ -422,10 +422,10 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
               marginBottom: 16,
             }}
           >
-            <Text style={{ fontSize: 11, color: '#848d97', display: 'block', marginBottom: 6 }}>
+            <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.55)' : '#6e6e73', display: 'block', marginBottom: 6 }}>
               configJson (будет сохранено в БД):
             </Text>
-            <pre style={{ margin: 0, fontSize: 12, color: '#52c41a', lineHeight: 1.6 }}>
+            <pre style={{ margin: 0, fontSize: 12, color: isDark ? '#30d158' : '#15803d', lineHeight: 1.6 }}>
               {configPreview}
             </pre>
           </div>

@@ -59,6 +59,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNotification } from '../../hooks/useNotification';
 import type { StepResponse, StepCreateRequest, SequenceStatus } from '../../types/sequence';
 import { sequenceApi } from '../../api/sequenceApi';
+import { getTypeAccent } from '../../utils/stepTypeColors';
 
 // ── Панель свойств последовательности ────────────────────────────────────────
 
@@ -159,12 +160,6 @@ interface SelectedStepPanelProps {
 
 // Метки типов конфигурации берутся из d.configLabels (dict.ts)
 
-const TYPE_ACCENT: Record<string, string> = {
-  ACTION: '#1677ff',
-  EVALUATE: '#d48806',
-  WAIT: '#7c3aed',
-};
-
 const SelectedStepPanel: React.FC<SelectedStepPanelProps> = ({ step, isDark }) => {
   const d = useEditorI18n();
   const t1 = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.82)';
@@ -188,7 +183,7 @@ const SelectedStepPanel: React.FC<SelectedStepPanelProps> = ({ step, isDark }) =
     );
   }
 
-  const accent = TYPE_ACCENT[step.stepType] ?? '#888';
+  const accent = getTypeAccent(step.stepType, isDark);
 
   let configSummary = '—';
   try {
@@ -246,7 +241,7 @@ const SelectedStepPanel: React.FC<SelectedStepPanelProps> = ({ step, isDark }) =
       {/* Решения */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: '#22c55e', marginBottom: 4 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent-green)', marginBottom: 4 }}>
             {d.onSuccess}
             {step.onSuccessNotify && (
               <span style={{ marginLeft: 4, color: t3 }}>{d.notifyLabel}</span>
@@ -257,7 +252,7 @@ const SelectedStepPanel: React.FC<SelectedStepPanelProps> = ({ step, isDark }) =
           </div>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: '#ef4444', marginBottom: 4 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent-red)', marginBottom: 4 }}>
             {d.onFailure}
             {step.onFailureNotify && (
               <span style={{ marginLeft: 4, color: t3 }}>{d.notifyLabel}</span>
@@ -278,7 +273,7 @@ const SelectedStepPanel: React.FC<SelectedStepPanelProps> = ({ step, isDark }) =
         <pre style={{
           marginTop: 6,
           fontSize: 10,
-          color: isDark ? '#a5d6a7' : '#2e7d32',
+          color: isDark ? '#30d158' : '#15803d',
           background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.04)',
           borderRadius: 6,
           padding: '8px 10px',
@@ -443,10 +438,10 @@ export const SequenceEditor: React.FC = () => {
   const selectedStep = steps.find(s => s.id === selectedStepId) ?? null;
 
   // ─ Цвета темы ────────────────────────────────────────────────────────────
-  const headerBg = isDark ? 'rgba(6,7,16,0.95)' : 'rgba(255,255,255,0.96)';
-  const headerBd = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const panelBg  = isDark ? 'rgba(6,7,16,0.92)' : 'rgba(255,255,255,0.96)';
-  const panelBd  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const headerBg = isDark ? '#2c2c2e' : '#ffffff';
+  const headerBd = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
+  const panelBg  = isDark ? '#2c2c2e' : '#ffffff';
+  const panelBd  = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
   const t1       = isDark ? 'rgba(255,255,255,0.90)' : 'rgba(0,0,0,0.85)';
   const t2       = isDark ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.45)';
 
@@ -493,8 +488,6 @@ export const SequenceEditor: React.FC = () => {
         padding: '10px 16px',
         background: headerBg,
         borderBottom: `1px solid ${headerBd}`,
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
         flexShrink: 0,
         zIndex: 10,
       }}>
@@ -573,8 +566,6 @@ export const SequenceEditor: React.FC = () => {
           flexShrink: 0,
           borderLeft: `1px solid ${panelBd}`,
           background: panelBg,
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
