@@ -1,6 +1,7 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { useTheme } from '../../context/ThemeContext';
+import { getTypeAccent } from '../../utils/stepTypeColors';
 
 export interface StepNodeData {
   label: string;
@@ -22,15 +23,6 @@ const TYPE_LABEL: Record<string, string> = {
   EVALUATE: 'EVALUATE',
   WAIT:     'WAIT',
 };
-
-// Системные цвета macOS — единая палитра с оболочкой приложения (AppLayout) и
-// панелью инструментов канвы (SequenceEditorGraph).
-function getTypeAccent(stepType: string, isDark: boolean): string {
-  if (stepType === 'ACTION')   return isDark ? '#0a84ff' : '#0071e3';
-  if (stepType === 'EVALUATE') return isDark ? '#bf5af2' : '#af52de';
-  if (stepType === 'WAIT')     return isDark ? '#ff9f0a' : '#ff9500';
-  return isDark ? '#8e8e93' : '#8e8e93';
-}
 
 interface StateTokens {
   bg: string;

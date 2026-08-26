@@ -44,6 +44,7 @@ import { convertStepsToFlow } from '../../utils/flowUtils';
 import { getAutoLayout } from '../../utils/graphLayout';
 import { CustomStepNode, CustomEndNode } from '../flow/CustomStepNode';
 import { LabeledEdge } from '../flow/LabeledEdge';
+import { getTypeAccent } from '../../utils/stepTypeColors';
 import { useTheme } from '../../context/ThemeContext';
 import { useEditorI18n } from '../../i18n/useEditorI18n';
 import type { StepResponse } from '../../types/sequence';
@@ -265,10 +266,7 @@ const GraphInner: React.FC<GraphInnerProps> = ({
             maskColor={isDark ? 'rgba(30,30,30,0.65)' : 'rgba(245,245,247,0.72)'}
             nodeColor={n => {
               const t = (n.data as Record<string, unknown>).stepType as string | undefined;
-              if (t === 'ACTION') return isDark ? '#0a84ff' : '#0071e3';
-              if (t === 'EVALUATE') return isDark ? '#bf5af2' : '#af52de';
-              if (t === 'WAIT') return isDark ? '#ff9f0a' : '#ff9500';
-              return isDark ? '#3a3a3c' : '#d1d1d6';
+              return t ? getTypeAccent(t, isDark) : (isDark ? '#3a3a3c' : '#d1d1d6');
             }}
             zoomable={false}
             pannable={false}

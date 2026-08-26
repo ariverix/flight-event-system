@@ -426,7 +426,7 @@ export const StepFormV2: React.FC<StepFormV2Props> = ({
       {/* Переходы */}
       <div style={{ display: 'flex', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', marginBottom: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? '#30d158' : '#15803d', marginBottom: 6 }}>
             {d.onSuccessTitle}
           </div>
           <div style={{ marginBottom: 6 }}>
@@ -473,7 +473,7 @@ export const StepFormV2: React.FC<StepFormV2Props> = ({
         <div style={{ width: 1, background: bd, flexShrink: 0 }} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? '#ff453a' : '#b91c1c', marginBottom: 6 }}>
             {d.onFailureTitle}
           </div>
           <div style={{ marginBottom: 6 }}>

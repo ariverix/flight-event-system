@@ -214,7 +214,7 @@ export const StartStopPanel: React.FC<StartStopPanelProps> = ({
         <CriteriaRow
           label={d.startCriteria}
           criteriaJson={startCriteriaJson}
-          accentColor="#22c55e"
+          accentColor={isDark ? '#30d158' : '#15803d'}
           readOnly={readOnly}
           onEdit={() => openEdit('start')}
           isDark={isDark}
@@ -223,7 +223,7 @@ export const StartStopPanel: React.FC<StartStopPanelProps> = ({
         <CriteriaRow
           label={d.stopCriteria}
           criteriaJson={stopCriteriaJson}
-          accentColor="#ef4444"
+          accentColor={isDark ? '#ff453a' : '#b91c1c'}
           readOnly={readOnly}
           onEdit={() => openEdit('stop')}
           isDark={isDark}

@@ -50,14 +50,18 @@ const CRITERION_TYPES: CriterionType[] = [
   'COMPOUND',
 ];
 
-const TYPE_ACCENT: Record<string, string> = {
-  MESSAGE_RECEIVED:  '#1677ff',
-  FLIGHT_STAGE:      '#d48806',
-  POSITION_REPORTED: '#22c55e',
-  TIME_COMPARISON:   '#7c3aed',
-  CONDITION_ACTIVE:  '#ef4444',
-  COMPOUND:          '#64748b',
-};
+// Системные цвета macOS — по одному акценту на тип критерия.
+function getCriterionAccent(type: string, isDark: boolean): string {
+  switch (type) {
+    case 'MESSAGE_RECEIVED':  return isDark ? '#0a84ff' : '#0071e3';
+    case 'FLIGHT_STAGE':      return isDark ? '#ff9f0a' : '#ff9500';
+    case 'POSITION_REPORTED': return isDark ? '#30d158' : '#248a3d';
+    case 'TIME_COMPARISON':   return isDark ? '#bf5af2' : '#af52de';
+    case 'CONDITION_ACTIVE':  return isDark ? '#ff453a' : '#d70015';
+    case 'COMPOUND':          return isDark ? '#40c8e0' : '#30b0c7';
+    default:                  return '#8e8e93';
+  }
+}
 
 // ── Дефолтные значения при создании нового критерия ──────────────────────────
 
@@ -310,7 +314,7 @@ const CriteriaNodeEditor: React.FC<CriteriaNodeEditorProps> = ({
 }) => {
   const d = useEditorI18n();
 
-  const accent = TYPE_ACCENT[node.type] ?? '#888';
+  const accent = getCriterionAccent(node.type, isDark);
   const bg     = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
   const bd     = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)';
   const t2     = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.50)';
@@ -332,7 +336,7 @@ const CriteriaNodeEditor: React.FC<CriteriaNodeEditorProps> = ({
         borderRadius: 8,
         padding: 10,
         background: depth === 0
-          ? (isDark ? 'rgba(100,116,139,0.06)' : 'rgba(100,116,139,0.04)')
+          ? (isDark ? 'rgba(64,200,224,0.07)' : 'rgba(48,176,199,0.05)')
           : bg,
         marginBottom: depth > 0 ? 6 : 0,
       }}>

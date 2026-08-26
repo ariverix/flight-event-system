@@ -23,14 +23,9 @@ import {
 import type { StepResponse, TransitionAction } from '../../types/sequence';
 import { useEditorI18n } from '../../i18n/useEditorI18n';
 import { useTheme } from '../../context/ThemeContext';
+import { getTypeAccent } from '../../utils/stepTypeColors';
 
 // ── Константы ─────────────────────────────────────────────────────────────────
-
-const TYPE_ACCENT: Record<string, string> = {
-  ACTION:   '#1677ff',
-  EVALUATE: '#d48806',
-  WAIT:     '#7c3aed',
-};
 
 const TYPE_ABBR: Record<string, string> = {
   ACTION:   'ACT',
@@ -78,8 +73,8 @@ const DecisionChip: React.FC<DecisionChipProps> = ({
 }) => {
   const d = useEditorI18n();
   const color = isSuccess
-    ? (isDark ? '#3fb950' : '#16a34a')
-    : (isDark ? '#f85149' : '#dc2626');
+    ? (isDark ? '#30d158' : '#15803d')
+    : (isDark ? '#ff453a' : '#b91c1c');
 
   const actionText =
     action === 'GOTO' && gotoStep !== null
@@ -148,7 +143,7 @@ const StepItem: React.FC<StepItemProps> = ({
   isDark,
 }) => {
   const d = useEditorI18n();
-  const accent = TYPE_ACCENT[step.stepType] ?? '#888';
+  const accent = getTypeAccent(step.stepType, isDark);
   const t1 = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.82)';
   const t3 = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)';
   const bd = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
