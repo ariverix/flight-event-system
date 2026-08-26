@@ -18,6 +18,7 @@ import { ExecutionFlow } from './ExecutionFlow';
 import { usePolling } from '../../hooks/usePolling';
 import { useTheme } from '../../context/ThemeContext';
 import { useEditorI18n } from '../../i18n/useEditorI18n';
+import { getExecutionStatusColor } from '../../utils/executionStatusColors';
 
 const { Text } = Typography;
 
@@ -71,8 +72,8 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
   const [open, setOpen] = useState(false);
   const d = useEditorI18n();
   const c = isDark
-    ? { bg: '#1c2128', border: '#21262d', text: '#e6edf3', muted: '#848d97' }
-    : { bg: '#f6f8fa', border: '#d8dee4', text: '#1f2328', muted: '#636c76' };
+    ? { bg: '#262626', border: 'rgba(255,255,255,0.09)', text: '#f5f5f7', muted: 'rgba(255,255,255,0.55)' }
+    : { bg: '#f5f5f7', border: 'rgba(0,0,0,0.08)', text: '#1d1d1f', muted: '#6e6e73' };
 
   let details: React.ReactNode = null;
   if (se.detailsJson) {
@@ -154,9 +155,9 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
 };
 
 const getTimelineDot = (se: StepExecutionResponse): React.ReactNode => {
-  if (!se.result) return <LoadingOutlined style={{ color: '#1677ff' }} />;
-  if (se.result === 'SUCCESS') return <CheckCircleFilled style={{ color: '#52c41a' }} />;
-  return <CloseCircleFilled style={{ color: '#ff4d4f' }} />;
+  if (!se.result) return <LoadingOutlined style={{ color: '#0a84ff' }} />;
+  if (se.result === 'SUCCESS') return <CheckCircleFilled style={{ color: '#30d158' }} />;
+  return <CloseCircleFilled style={{ color: '#ff453a' }} />;
 };
 
 export const ExecutionDetail: React.FC = () => {
@@ -171,7 +172,7 @@ export const ExecutionDetail: React.FC = () => {
   const { isDark } = useTheme();
   const c = isDark
     ? { borderSecondary: 'rgba(255,255,255,0.08)', text: 'var(--text-1)', muted: 'var(--text-2)' }
-    : { borderSecondary: 'rgba(0,0,0,0.08)', text: '#1f2328', muted: '#636c76' };
+    : { borderSecondary: 'rgba(0,0,0,0.08)', text: 'var(--text-1)', muted: 'var(--text-2)' };
 
   const fmtElapsed = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -283,11 +284,12 @@ export const ExecutionDetail: React.FC = () => {
                   percent={progressPct}
                   status={progressStatus}
                   size="small"
-                  strokeColor={
-                    execution.status === 'ABORTED' ? '#ef4444'
-                    : execution.status === 'COMPLETED' ? '#10b981'
-                    : { from: '#3b82f6', to: '#8b5cf6' }
-                  }
+                  strokeColor={getExecutionStatusColor(
+                    execution.status === 'ABORTED' || execution.status === 'COMPLETED'
+                      ? execution.status
+                      : 'RUNNING',
+                    isDark,
+                  )}
                 />
               </div>
               <span style={{ fontSize: 12, color: c.muted, flexShrink: 0 }}>

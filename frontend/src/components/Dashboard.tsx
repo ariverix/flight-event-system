@@ -108,20 +108,20 @@ export const Dashboard: React.FC = () => {
 
   const c = isDark
     ? {
-        border: '#30363d',
-        borderSecondary: '#21262d',
-        text: '#e6edf3',
-        textMuted: '#848d97',
-        textDimmer: '#484f58',
-        bgElevated: '#1c2128',
+        border: 'rgba(255,255,255,0.14)',
+        borderSecondary: 'rgba(255,255,255,0.09)',
+        text: '#f5f5f7',
+        textMuted: 'rgba(255,255,255,0.55)',
+        textDimmer: 'rgba(255,255,255,0.30)',
+        bgElevated: '#2c2c2e',
       }
     : {
-        border: '#d0d7de',
-        borderSecondary: '#d8dee4',
-        text: '#1f2328',
-        textMuted: '#636c76',
-        textDimmer: '#9da3ab',
-        bgElevated: '#f6f8fa',
+        border: 'rgba(0,0,0,0.14)',
+        borderSecondary: 'rgba(0,0,0,0.08)',
+        text: '#1d1d1f',
+        textMuted: '#6e6e73',
+        textDimmer: '#8e8e93',
+        bgElevated: '#ffffff',
       };
 
   const loadStats = useCallback(async () => {
@@ -178,13 +178,19 @@ export const Dashboard: React.FC = () => {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
+  // Системные цвета macOS — по одному плоскому акценту на карточку (без градиентов).
+  const blue   = isDark ? '#0a84ff' : '#0071e3';
+  const green  = isDark ? '#30d158' : '#248a3d';
+  const orange = isDark ? '#ff9f0a' : '#c2410c';
+  const red    = isDark ? '#ff453a' : '#d70015';
+  const purple = isDark ? '#bf5af2' : '#af52de';
+
   const statCards = [
     {
       title: 'Всего сценариев',
       value: stats.totalSequences,
       sub: 'последовательностей в системе',
-      color: '#1677ff',
-      gradient: 'linear-gradient(135deg, #1677ff 0%, #6366f1 100%)',
+      color: blue,
       icon: <OrderedListOutlined />,
       href: '/sequences',
     },
@@ -192,8 +198,7 @@ export const Dashboard: React.FC = () => {
       title: 'Активных сценариев',
       value: stats.activeSequences,
       sub: `из ${stats.totalSequences} всего`,
-      color: '#00c853',
-      gradient: 'linear-gradient(135deg, #00c853 0%, #06b6d4 100%)',
+      color: green,
       icon: <PlayCircleOutlined />,
       pulse: stats.activeSequences > 0,
       href: '/sequences',
@@ -202,8 +207,7 @@ export const Dashboard: React.FC = () => {
       title: 'Выполнений сегодня',
       value: stats.executionsToday,
       sub: stats.runningExecutions > 0 ? `${stats.runningExecutions} выполняется сейчас` : 'за текущие сутки',
-      color: '#faad14',
-      gradient: 'linear-gradient(135deg, #faad14 0%, #f5576c 100%)',
+      color: orange,
       icon: <RocketOutlined />,
       pulse: stats.runningExecutions > 0,
       href: '/executions',
@@ -213,12 +217,7 @@ export const Dashboard: React.FC = () => {
       value: stats.successRate ?? 0,
       suffix: '%',
       sub: stats.successRate === null ? 'нет завершённых выполнений' : `${stats.completedExecutions} успешных`,
-      color: stats.successRate === null || stats.successRate >= 80 ? '#52c41a' : stats.successRate >= 50 ? '#faad14' : '#ff4d4f',
-      gradient: stats.successRate === null || stats.successRate >= 80
-        ? 'linear-gradient(135deg, #52c41a 0%, #00c853 100%)'
-        : stats.successRate >= 50
-          ? 'linear-gradient(135deg, #faad14 0%, #ff7a45 100%)'
-          : 'linear-gradient(135deg, #ff4d4f 0%, #f5576c 100%)',
+      color: stats.successRate === null || stats.successRate >= 80 ? green : stats.successRate >= 50 ? orange : red,
       icon: <CheckCircleOutlined />,
       href: '/executions',
     },
@@ -248,13 +247,12 @@ export const Dashboard: React.FC = () => {
                 <Skeleton active paragraph={{ rows: 2 }} />
               </Card>
             ) : (
-              <Card className="stat-card stat-card-gradient" style={{ borderColor: c.borderSecondary, flex: 1, '--stat-gradient': card.gradient } as React.CSSProperties} onClick={() => card.href && navigate(card.href)}>
+              <Card className="stat-card stat-card-gradient" style={{ borderColor: c.borderSecondary, flex: 1, '--stat-gradient': card.color } as React.CSSProperties} onClick={() => card.href && navigate(card.href)}>
                 <div
                   className="stat-card-icon"
                   style={{
-                    background: card.gradient,
-                    color: '#fff',
-                    boxShadow: `0 6px 18px ${card.color}55`,
+                    background: `${card.color}1f`,
+                    color: card.color,
                   }}
                 >
                   {card.icon}
@@ -269,7 +267,7 @@ export const Dashboard: React.FC = () => {
                   <div className="stat-card-progress-track" style={{ margin: '6px 0 2px' }}>
                     <div
                       className="stat-card-progress-fill"
-                      style={{ width: `${card.value}%`, background: card.gradient }}
+                      style={{ width: `${card.value}%`, background: card.color }}
                     />
                   </div>
                 )}
@@ -292,11 +290,11 @@ export const Dashboard: React.FC = () => {
           >
             <Row gutter={[12, 10]}>
               {[
-                { label: 'Создать последовательность', desc: 'Новая ECA-последовательность', path: '/sequences/new', color: '#1677ff', icon: <OrderedListOutlined /> },
-                { label: 'Монитор выполнений',         desc: 'Просмотр активных экземпляров',       path: '/executions',      color: '#00c853', icon: <PlayCircleOutlined /> },
-                { label: 'Журнал сообщений',           desc: 'История входящих сообщений',          path: '/messages',        color: '#faad14', icon: <MessageOutlined /> },
-                { label: 'Симулятор',                  desc: 'Отправить тестовое событие',          path: '/simulator',       color: '#722ed1', icon: <RocketOutlined /> },
-                { label: 'Демонстрация',               desc: 'Автоматический показ сценариев',      path: '/demo',            color: '#00c853', icon: <ExperimentOutlined /> },
+                { label: 'Создать последовательность', desc: 'Новая ECA-последовательность', path: '/sequences/new', color: blue, icon: <OrderedListOutlined /> },
+                { label: 'Монитор выполнений',         desc: 'Просмотр активных экземпляров',       path: '/executions',      color: green, icon: <PlayCircleOutlined /> },
+                { label: 'Журнал сообщений',           desc: 'История входящих сообщений',          path: '/messages',        color: orange, icon: <MessageOutlined /> },
+                { label: 'Симулятор',                  desc: 'Отправить тестовое событие',          path: '/simulator',       color: purple, icon: <RocketOutlined /> },
+                { label: 'Демонстрация',               desc: 'Автоматический показ сценариев',      path: '/demo',            color: green, icon: <ExperimentOutlined /> },
               ].map(item => (
                 <Col xs={24} sm={12} xl={item.path === '/demo' ? 24 : 12} key={item.path}>
                   <div
@@ -399,10 +397,10 @@ export const Dashboard: React.FC = () => {
               >
                 <Space direction="vertical" style={{ width: '100%' }} size={10}>
                   {[
-                    { label: 'Сервер приложений', status: 'Онлайн',    color: '#00c853' },
-                    { label: 'База данных',        status: 'Подключена', color: '#00c853' },
-                    { label: 'Движок правил',      status: 'Активен',   color: '#00c853' },
-                    { label: 'Outbox-публикация',  status: 'Активна',   color: '#00c853' },
+                    { label: 'Сервер приложений', status: 'Онлайн',    color: green },
+                    { label: 'База данных',        status: 'Подключена', color: green },
+                    { label: 'Движок правил',      status: 'Активен',   color: green },
+                    { label: 'Outbox-публикация',  status: 'Активна',   color: green },
                   ].map(item => (
                     <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Text style={{ color: c.textMuted, fontSize: 13 }}>{item.label}</Text>

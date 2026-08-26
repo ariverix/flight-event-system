@@ -39,10 +39,10 @@ const ExecutionHeader: React.FC<{ executions: ExecutionInstanceResponse[]; total
   const aborted   = executions.filter(e => e.status === 'ABORTED').length;
 
   const chips = [
-    { label: 'Всего',       value: total,     color: '#6366f1' },
-    { label: 'Выполняется', value: running,   color: '#3b82f6' },
-    { label: 'Завершено',   value: completed, color: '#10b981' },
-    { label: 'Прервано',    value: aborted,   color: '#ef4444' },
+    { label: 'Всего',       value: total,     color: 'var(--accent-indigo)' },
+    { label: 'Выполняется', value: running,   color: 'var(--accent-blue)' },
+    { label: 'Завершено',   value: completed, color: 'var(--accent-green)' },
+    { label: 'Прервано',    value: aborted,   color: 'var(--accent-red)' },
   ];
 
   return (

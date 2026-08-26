@@ -30,6 +30,7 @@ import { useInstancesStore, type InstanceStatus } from '../../store/instancesSto
 import { EventLogPanel } from './EventLogPanel';
 import { useEditorI18n } from '../../i18n/useEditorI18n';
 import { useTheme } from '../../context/ThemeContext';
+import { getExecutionStatusColor } from '../../utils/executionStatusColors';
 
 const { Text, Title } = Typography;
 
@@ -51,13 +52,6 @@ const STATUS_TAG_COLOR: Record<InstanceStatus['status'], string> = {
   WAITING:   'warning',
   COMPLETED: 'success',
   ABORTED:   'error',
-};
-
-const STATUS_DOT_COLOR: Record<InstanceStatus['status'], string> = {
-  RUNNING:   '#1677ff',
-  WAITING:   '#faad14',
-  COMPLETED: '#52c41a',
-  ABORTED:   '#ff4d4f',
 };
 
 // ── Конвертер REST → TableRow ─────────────────────────────────────────────────
@@ -204,7 +198,7 @@ export const InstancesDashboard: React.FC = () => {
               width:        8,
               height:       8,
               borderRadius: '50%',
-              background:   STATUS_DOT_COLOR[row.status],
+              background:   getExecutionStatusColor(row.status, isDark),
               flexShrink:   0,
             }}
           />
@@ -248,7 +242,7 @@ export const InstancesDashboard: React.FC = () => {
   ];
 
   // ── Цвета темы ────────────────────────────────────────────────────────────
-  const borderColor = isDark ? '#30363d' : '#d0d7de';
+  const borderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
 
   return (
     <div className="fade-in-up">

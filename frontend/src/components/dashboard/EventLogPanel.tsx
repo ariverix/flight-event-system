@@ -22,10 +22,10 @@ const EVENT_META: Record<
   EventLogEntry['eventType'],
   { color: string; icon: React.ReactNode }
 > = {
-  SEQUENCE_STARTED:  { color: '#1677ff', icon: <PlayCircleOutlined /> },
-  STEP_COMPLETED:    { color: '#52c41a', icon: <CheckCircleOutlined /> },
-  SEQUENCE_STOPPED:  { color: '#848d97', icon: <StopOutlined /> },
-  SEQUENCE_ABORTED:  { color: '#ff4d4f', icon: <CloseCircleOutlined /> },
+  SEQUENCE_STARTED:  { color: '#0a84ff', icon: <PlayCircleOutlined /> },
+  STEP_COMPLETED:    { color: '#30d158', icon: <CheckCircleOutlined /> },
+  SEQUENCE_STOPPED:  { color: '#8e8e93', icon: <StopOutlined /> },
+  SEQUENCE_ABORTED:  { color: '#ff453a', icon: <CloseCircleOutlined /> },
 };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ export const EventLogPanel: React.FC<EventLogPanelProps> = ({
 
   const timelineItems = events.map((entry) => {
     const meta = EVENT_META[entry.eventType] ?? {
-      color: '#848d97',
+      color: '#8e8e93',
       icon: null,
     };
     return {

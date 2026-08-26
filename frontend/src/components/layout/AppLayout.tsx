@@ -25,16 +25,10 @@ import { ExecutionInstanceResponse } from '../../types/execution';
 import { ConnectionStatus } from '../dashboard/ConnectionStatus';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { useEditorI18n } from '../../i18n/useEditorI18n';
+import { getExecutionStatusColor } from '../../utils/executionStatusColors';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
-
-const STATUS_COLORS: Record<string, string> = {
-  RUNNING:   '#1677ff',
-  WAITING:   '#faad14',
-  COMPLETED: '#52c41a',
-  ABORTED:   '#ff4d4f',
-};
 
 export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -154,7 +148,7 @@ export const AppLayout: React.FC = () => {
                   <span
                     style={{
                       fontSize: 11,
-                      color: STATUS_COLORS[exec.status],
+                      color: getExecutionStatusColor(exec.status, isDark),
                       fontWeight: 500,
                     }}
                   >
@@ -254,7 +248,7 @@ export const AppLayout: React.FC = () => {
           {/* Left: system subtitle */}
           <Badge
             status="processing"
-            color="#00c853"
+            color="#30d158"
             text={
               <Text style={{ fontSize: 12, color: c.textMuted }}>
                 {d.sysTagline}
@@ -291,7 +285,7 @@ export const AppLayout: React.FC = () => {
                     type="text"
                     icon={<BellOutlined style={{ fontSize: 16 }} />}
                     aria-label={d.notifTitle}
-                    style={{ color: activeExecutions.length > 0 ? '#faad14' : c.textMuted }}
+                    style={{ color: activeExecutions.length > 0 ? '#ff9f0a' : c.textMuted }}
                   />
                 </Badge>
               </Tooltip>
