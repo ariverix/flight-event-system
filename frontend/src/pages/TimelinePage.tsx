@@ -14,11 +14,11 @@ const SPEEDS   = [0.5, 1, 2, 4];
 
 
 const STAT_CONFIG = [
-  { key: 'MESSAGE_RECEIVED',    label: 'Сообщений',  color: '#3b82f6' },
-  { key: 'EXECUTION_STARTED',   label: 'Запусков',   color: '#10b981' },
-  { key: 'STEP_COMPLETED',      label: 'Шагов',      color: '#8b5cf6' },
-  { key: 'EXECUTION_COMPLETED', label: 'Завершено',  color: '#10b981' },
-  { key: 'EXECUTION_FAILED',    label: 'Ошибок',     color: '#ef4444' },
+  { key: 'MESSAGE_RECEIVED',    label: 'Сообщений',  color: 'var(--accent-blue)' },
+  { key: 'EXECUTION_STARTED',   label: 'Запусков',   color: 'var(--accent-green)' },
+  { key: 'STEP_COMPLETED',      label: 'Шагов',      color: 'var(--accent-purple)' },
+  { key: 'EXECUTION_COMPLETED', label: 'Завершено',  color: 'var(--accent-green)' },
+  { key: 'EXECUTION_FAILED',    label: 'Ошибок',     color: 'var(--accent-red)' },
 ];
 
 export const TimelinePage: React.FC = () => {
@@ -36,41 +36,42 @@ export const TimelinePage: React.FC = () => {
     return () => window.removeEventListener('resize', handle);
   }, []);
 
-  // Тема-адаптивные цвета
+  // Тема-адаптивные цвета — плоские поверхности (без glass-blur), системные
+  // акценты через var(--accent-*) (см. TLEventCard.tsx)
   const c = isDark
     ? {
         text:          'rgba(255,255,255,0.88)',
         textMuted:     'rgba(255,255,255,0.50)',
         textDim:       'rgba(255,255,255,0.30)',
-        panelBg:       'rgba(255,255,255,0.042)',
-        panelBorder:   'rgba(255,255,255,0.085)',
-        statBg:        'rgba(255,255,255,0.028)',
-        statBorder:    'rgba(255,255,255,0.075)',
+        panelBg:       '#262626',
+        panelBorder:   'rgba(255,255,255,0.12)',
+        statBg:        '#262626',
+        statBorder:    'rgba(255,255,255,0.12)',
         statLabel:     'rgba(255,255,255,0.50)',
-        statDivider:   'rgba(255,255,255,0.055)',
+        statDivider:   'rgba(255,255,255,0.08)',
         headingColor:  'rgba(255,255,255,0.65)',
         progressTrack: 'rgba(255,255,255,0.08)',
         progressCount: 'rgba(255,255,255,0.35)',
-        speedActive:   { bg:'rgba(59,130,246,0.22)', color:'#60a5fa', border:'rgba(59,130,246,0.48)' },
+        speedActive:   { bg:'rgba(var(--accent-blue-rgb), 0.20)', color:'var(--accent-blue)', border:'rgba(var(--accent-blue-rgb), 0.45)' },
         speedInactive: { bg:'rgba(255,255,255,0.055)', color:'rgba(255,255,255,0.52)', border:'rgba(255,255,255,0.11)' },
-        acftTag:       { bg:'rgba(59,130,246,0.12)', border:'rgba(59,130,246,0.30)', color:'#60a5fa' },
+        acftTag:       { bg:'rgba(var(--accent-blue-rgb), 0.14)', border:'rgba(var(--accent-blue-rgb), 0.32)', color:'var(--accent-blue)' },
       }
     : {
-        text:          '#1f2328',
-        textMuted:     '#636c76',
-        textDim:       '#9da3ab',
-        panelBg:       'rgba(255,255,255,0.90)',
-        panelBorder:   'rgba(0,0,0,0.09)',
-        statBg:        'rgba(255,255,255,0.90)',
-        statBorder:    'rgba(0,0,0,0.09)',
-        statLabel:     '#636c76',
-        statDivider:   'rgba(0,0,0,0.06)',
-        headingColor:  '#1f2328',
+        text:          '#1d1d1f',
+        textMuted:     '#6e6e73',
+        textDim:       '#8e8e93',
+        panelBg:       '#ffffff',
+        panelBorder:   'rgba(0,0,0,0.10)',
+        statBg:        '#ffffff',
+        statBorder:    'rgba(0,0,0,0.10)',
+        statLabel:     '#6e6e73',
+        statDivider:   'rgba(0,0,0,0.07)',
+        headingColor:  '#1d1d1f',
         progressTrack: 'rgba(0,0,0,0.08)',
         progressCount: 'rgba(0,0,0,0.40)',
-        speedActive:   { bg:'rgba(59,130,246,0.10)', color:'#2563eb', border:'rgba(59,130,246,0.40)' },
+        speedActive:   { bg:'rgba(var(--accent-blue-rgb), 0.12)', color:'var(--accent-blue)', border:'rgba(var(--accent-blue-rgb), 0.35)' },
         speedInactive: { bg:'rgba(0,0,0,0.04)', color:'rgba(0,0,0,0.55)', border:'rgba(0,0,0,0.12)' },
-        acftTag:       { bg:'rgba(59,130,246,0.10)', border:'rgba(59,130,246,0.25)', color:'#2563eb' },
+        acftTag:       { bg:'rgba(var(--accent-blue-rgb), 0.10)', border:'rgba(var(--accent-blue-rgb), 0.28)', color:'var(--accent-blue)' },
       };
 
   // Автоскролл к новым событиям
@@ -99,7 +100,7 @@ export const TimelinePage: React.FC = () => {
       }}>
         <div>
           <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <RadarChartOutlined style={{ color: '#3b82f6', fontSize: 22 }} />
+            <RadarChartOutlined style={{ color: 'var(--accent-blue)', fontSize: 22 }} />
             Хронология полёта
           </h2>
           <p style={{ color: c.textMuted, margin: 0, fontSize: 13 }}>
@@ -121,24 +122,13 @@ export const TimelinePage: React.FC = () => {
       {/* ПАНЕЛЬ УПРАВЛЕНИЯ */}
       <div style={{
         background: c.panelBg,
-        backdropFilter: 'blur(18px)',
-        WebkitBackdropFilter: 'blur(18px)',
         border: `1px solid ${c.panelBorder}`,
-        borderRadius: 16,
+        borderRadius: 12,
         padding: '14px 20px',
         marginBottom: 20,
         display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
         position: 'relative',
       }}>
-        {/* Блик */}
-        {isDark && (
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-            background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.14) 50%,transparent)',
-            pointerEvents: 'none', borderRadius: '16px 16px 0 0',
-          }} />
-        )}
-
         {/* Транспорт-кнопки */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Button
@@ -155,9 +145,9 @@ export const TimelinePage: React.FC = () => {
             disabled={tl.total === 0}
             style={{
               minWidth: 150,
-              background: tl.playing ? 'rgba(245,158,11,0.22)' : undefined,
-              borderColor: tl.playing ? 'rgba(245,158,11,0.55)' : undefined,
-              color: tl.playing ? '#f59e0b' : undefined,
+              background: tl.playing ? 'rgba(var(--accent-amber-rgb), 0.20)' : undefined,
+              borderColor: tl.playing ? 'rgba(var(--accent-amber-rgb), 0.50)' : undefined,
+              color: tl.playing ? 'var(--accent-amber)' : undefined,
             }}
           >
             {tl.playing ? 'Пауза' : 'Воспроизвести'}
@@ -207,9 +197,8 @@ export const TimelinePage: React.FC = () => {
           }}>
             <div style={{
               width: `${tl.progress}%`, height: '100%',
-              background: 'linear-gradient(90deg,#3b82f6,#8b5cf6)',
+              background: 'var(--accent-blue)',
               borderRadius: 3, transition: 'width 0.25s ease',
-              boxShadow: '0 0 6px rgba(59,130,246,0.45)',
             }} />
           </div>
           <span style={{ fontSize: 12, color: c.progressCount, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
@@ -291,10 +280,8 @@ export const TimelinePage: React.FC = () => {
         <div style={{
           position: isNarrow ? 'relative' : 'sticky', top: 24,
           background: c.statBg,
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
           border: `1px solid ${c.statBorder}`,
-          borderRadius: 16,
+          borderRadius: 12,
           padding: '20px',
         }}>
           <h3 style={{ fontSize: 13, fontWeight: 600, color: c.headingColor, margin: '0 0 14px' }}>

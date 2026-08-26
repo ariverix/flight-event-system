@@ -31,6 +31,16 @@
   --accent-purple: #bf5af2;
   --accent-cyan:   #64d2ff;
 
+  /* RGB-компоненты акцентов — для rgba(var(--accent-X-rgb), alpha) там,
+     где нужен полупрозрачный fill/border без привязки к isDark в JS. */
+  --accent-blue-rgb:   10,132,255;
+  --accent-indigo-rgb: 94,92,230;
+  --accent-green-rgb:  48,209,88;
+  --accent-amber-rgb:  255,159,10;
+  --accent-red-rgb:    255,69,58;
+  --accent-purple-rgb: 191,90,242;
+  --accent-cyan-rgb:   100,210,255;
+
   --glow-blue:   none;
   --glow-green:  none;
   --glow-amber:  none;
@@ -59,6 +69,7 @@ body[data-theme='light'] {
   --glass-shine: none;
 
   --accent-blue: #0071e3;   /* системный синий macOS (светлый режим) */
+  --accent-blue-rgb: 0,113,227;
 
   --text-1: #1d1d1f; --text-2: #6e6e73; --text-3: #8e8e93; --text-4: #c7c7cc;
 }

@@ -8,13 +8,15 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import type { TLEventType } from '../../hooks/useTimeline';
 
-// Цветовая конфигурация по типу события (не зависит от темы)
+// Цветовая конфигурация по типу события — системные цвета macOS через CSS
+// custom properties (var(--accent-*)), поэтому не зависит от темы в JS:
+// браузер подставляет тёмный/светлый оттенок акцента сам.
 const EVENT_CFG: Record<TLEventType, { icon: React.ReactNode; color: string; bg: string; bd: string; label: string }> = {
-  MESSAGE_RECEIVED:    { icon:<MessageOutlined />,     color:'#3b82f6', bg:'rgba(59,130,246,0.10)',  bd:'rgba(59,130,246,0.28)',  label:'Сообщение'  },
-  EXECUTION_STARTED:   { icon:<PlayCircleOutlined />,  color:'#10b981', bg:'rgba(16,185,129,0.10)',  bd:'rgba(16,185,129,0.28)',  label:'Запуск'     },
-  STEP_COMPLETED:      { icon:<ThunderboltOutlined />, color:'#8b5cf6', bg:'rgba(139,92,246,0.10)',  bd:'rgba(139,92,246,0.28)',  label:'Шаг'        },
-  EXECUTION_COMPLETED: { icon:<CheckCircleOutlined />, color:'#10b981', bg:'rgba(16,185,129,0.12)',  bd:'rgba(16,185,129,0.32)',  label:'Завершено'  },
-  EXECUTION_FAILED:    { icon:<CloseCircleOutlined />, color:'#ef4444', bg:'rgba(239,68,68,0.12)',   bd:'rgba(239,68,68,0.32)',   label:'Ошибка'     },
+  MESSAGE_RECEIVED:    { icon:<MessageOutlined />,     color:'var(--accent-blue)',   bg:'rgba(var(--accent-blue-rgb), 0.10)',   bd:'rgba(var(--accent-blue-rgb), 0.28)',   label:'Сообщение'  },
+  EXECUTION_STARTED:   { icon:<PlayCircleOutlined />,  color:'var(--accent-green)',  bg:'rgba(var(--accent-green-rgb), 0.10)',  bd:'rgba(var(--accent-green-rgb), 0.28)',  label:'Запуск'     },
+  STEP_COMPLETED:      { icon:<ThunderboltOutlined />, color:'var(--accent-purple)', bg:'rgba(var(--accent-purple-rgb), 0.10)', bd:'rgba(var(--accent-purple-rgb), 0.28)', label:'Шаг'        },
+  EXECUTION_COMPLETED: { icon:<CheckCircleOutlined />, color:'var(--accent-green)',  bg:'rgba(var(--accent-green-rgb), 0.12)',  bd:'rgba(var(--accent-green-rgb), 0.32)',  label:'Завершено'  },
+  EXECUTION_FAILED:    { icon:<CloseCircleOutlined />, color:'var(--accent-red)',    bg:'rgba(var(--accent-red-rgb), 0.12)',    bd:'rgba(var(--accent-red-rgb), 0.32)',    label:'Ошибка'     },
 };
 
 const fmtTime = (iso: string) => {
@@ -23,21 +25,21 @@ const fmtTime = (iso: string) => {
   } catch { return '??:??'; }
 };
 
-const DIR_LABEL: Record<string, { text: string; color: string }> = {
-  GROUND:   { text: 'Наземная',   color: '#f59e0b' },
-  DOWNLINK: { text: 'Нисходящая', color: '#3b82f6' },
-  UPLINK:   { text: 'Восходящая', color: '#8b5cf6' },
+const DIR_LABEL: Record<string, { text: string; color: string; bg: string; bd: string }> = {
+  GROUND:   { text: 'Наземная',   color: 'var(--accent-amber)',  bg: 'rgba(var(--accent-amber-rgb), 0.12)',  bd: 'rgba(var(--accent-amber-rgb), 0.25)' },
+  DOWNLINK: { text: 'Нисходящая', color: 'var(--accent-blue)',   bg: 'rgba(var(--accent-blue-rgb), 0.12)',   bd: 'rgba(var(--accent-blue-rgb), 0.25)' },
+  UPLINK:   { text: 'Восходящая', color: 'var(--accent-purple)', bg: 'rgba(var(--accent-purple-rgb), 0.12)', bd: 'rgba(var(--accent-purple-rgb), 0.25)' },
 };
 
 const STEP_TYPE_CFG: Record<string, { label: string; color: string; bg: string; bd: string }> = {
-  ACTION:   { label: '⚡ ACTION',  color: '#3b82f6', bg: 'rgba(59,130,246,0.10)',  bd: 'rgba(59,130,246,0.28)' },
-  WAIT:     { label: '⏳ WAIT',    color: '#f59e0b', bg: 'rgba(245,158,11,0.10)',  bd: 'rgba(245,158,11,0.28)' },
-  EVALUATE: { label: '🔍 EVAL',   color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)',  bd: 'rgba(139,92,246,0.28)' },
+  ACTION:   { label: '⚡ ACTION', color: 'var(--accent-blue)',   bg: 'rgba(var(--accent-blue-rgb), 0.10)',   bd: 'rgba(var(--accent-blue-rgb), 0.28)' },
+  WAIT:     { label: '⏳ WAIT',   color: 'var(--accent-amber)',  bg: 'rgba(var(--accent-amber-rgb), 0.10)',  bd: 'rgba(var(--accent-amber-rgb), 0.28)' },
+  EVALUATE: { label: '🔍 EVAL',  color: 'var(--accent-purple)', bg: 'rgba(var(--accent-purple-rgb), 0.10)', bd: 'rgba(var(--accent-purple-rgb), 0.28)' },
 };
 
-interface EventBodyProps { event: any; textMain: string; textMuted: string }
+interface EventBodyProps { event: any; textMain: string; textMuted: string; isDark: boolean }
 
-const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted }) => {
+const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDark }) => {
   switch (event.type as TLEventType) {
     case 'MESSAGE_RECEIVED':
       return (
@@ -47,9 +49,10 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted }) => 
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {event.msgDirection && (() => {
-              const d = DIR_LABEL[event.msgDirection.toUpperCase()] ?? { text: event.msgDirection, color: '#6b7280' };
+              const d = DIR_LABEL[event.msgDirection.toUpperCase()]
+                ?? { text: event.msgDirection, color: '#8e8e93', bg: 'rgba(142,142,147,0.12)', bd: 'rgba(142,142,147,0.25)' };
               return (
-                <Tag style={{ background: `${d.color}20`, border: `1px solid ${d.color}40`, color: d.color, borderRadius: 6, fontSize: 11, fontWeight: 600, padding: '1px 8px' }}>
+                <Tag style={{ background: d.bg, border: `1px solid ${d.bd}`, color: d.color, borderRadius: 6, fontSize: 11, fontWeight: 600, padding: '1px 8px' }}>
                   {d.text}
                 </Tag>
               );
@@ -70,7 +73,7 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted }) => 
             {event.seqName || `Выполнение #${event.execId}`}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Tag style={{ background:'rgba(16,185,129,0.10)', border:'1px solid rgba(16,185,129,0.28)', color:'#10b981', borderRadius:6, fontSize:11, fontWeight:600 }}>
+            <Tag style={{ background:'rgba(var(--accent-green-rgb), 0.10)', border:'1px solid rgba(var(--accent-green-rgb), 0.28)', color:'var(--accent-green)', borderRadius:6, fontSize:11, fontWeight:600 }}>
               Запуск последовательности
             </Tag>
             <span style={{ fontSize: 11, color: textMuted, fontFamily: 'monospace' }}>#{event.execId}</span>
@@ -86,7 +89,11 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted }) => 
             {event.stepLabel || `Шаг ${event.stepNum}`}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Tag style={{ background:'rgba(0,0,0,0.05)', border:'1px solid rgba(0,0,0,0.12)', color: textMuted, borderRadius:6, fontSize:11 }}>
+            <Tag style={{
+              background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'}`,
+              color: textMuted, borderRadius:6, fontSize:11,
+            }}>
               Шаг {event.stepNum}
             </Tag>
             {event.stepType && (
@@ -95,9 +102,9 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted }) => 
               </Tag>
             )}
             <Tag style={{
-              background: event.stepResult === 'SUCCESS' ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
-              border: event.stepResult === 'SUCCESS' ? '1px solid rgba(16,185,129,0.28)' : '1px solid rgba(239,68,68,0.28)',
-              color: event.stepResult === 'SUCCESS' ? '#10b981' : '#ef4444',
+              background: event.stepResult === 'SUCCESS' ? 'rgba(var(--accent-green-rgb), 0.10)' : 'rgba(var(--accent-red-rgb), 0.10)',
+              border: event.stepResult === 'SUCCESS' ? '1px solid rgba(var(--accent-green-rgb), 0.28)' : '1px solid rgba(var(--accent-red-rgb), 0.28)',
+              color: event.stepResult === 'SUCCESS' ? 'var(--accent-green)' : 'var(--accent-red)',
               borderRadius: 6, fontSize: 11, fontWeight: 600,
             }}>
               {event.stepResult === 'SUCCESS' ? '✓ Успех' : '✗ Ошибка'}
@@ -114,7 +121,7 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted }) => 
           <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 4 }}>
             ✓ {event.seqName || `Выполнение #${event.execId}`}
           </div>
-          <span style={{ fontSize: 12, color: '#10b981', fontWeight: 500 }}>Последовательность успешно завершена</span>
+          <span style={{ fontSize: 12, color: 'var(--accent-green)', fontWeight: 500 }}>Последовательность успешно завершена</span>
         </div>
       );
 
@@ -124,7 +131,7 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted }) => 
           <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 4 }}>
             ✗ {event.seqName || `Выполнение #${event.execId}`}
           </div>
-          <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 500 }}>Выполнение завершено с ошибкой</span>
+          <span style={{ fontSize: 12, color: 'var(--accent-red)', fontWeight: 500 }}>Выполнение завершено с ошибкой</span>
         </div>
       );
 
@@ -143,16 +150,16 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
   const { isDark } = useTheme();
   const [expanded, setExpanded] = useState(false);
 
-  const textMain   = isDark ? 'rgba(255,255,255,0.88)' : '#1f2328';
-  const textMuted  = isDark ? 'rgba(255,255,255,0.48)' : '#636c76';
-  const textDim    = isDark ? 'rgba(255,255,255,0.30)' : '#9da3ab';
+  const textMain   = isDark ? 'rgba(255,255,255,0.88)' : '#1d1d1f';
+  const textMuted  = isDark ? 'rgba(255,255,255,0.48)' : '#6e6e73';
+  const textDim    = isDark ? 'rgba(255,255,255,0.30)' : '#8e8e93';
   const cardBg     = isDark ? 'rgba(255,255,255,0.028)' : 'rgba(0,0,0,0.022)';
   const cardBorder = isDark ? 'rgba(255,255,255,0.065)' : 'rgba(0,0,0,0.08)';
   const connLine   = isDark ? 'rgba(255,255,255,0.06)'  : 'rgba(0,0,0,0.06)';
   const detailsBg  = isDark ? 'rgba(255,255,255,0.04)'  : 'rgba(0,0,0,0.04)';
 
   const cfg = EVENT_CFG[event.type as TLEventType]
-    ?? { icon:<ThunderboltOutlined />, color:'#6b7280', bg:'rgba(107,114,128,0.10)', bd:'rgba(107,114,128,0.28)', label: event.type };
+    ?? { icon:<ThunderboltOutlined />, color:'#8e8e93', bg:'rgba(142,142,147,0.10)', bd:'rgba(142,142,147,0.28)', label: event.type };
 
   return (
     <div style={{
@@ -214,7 +221,7 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
         </div>
 
         {/* Основной контент — всегда видим */}
-        <EventBody event={event} textMain={textMain} textMuted={textMuted} />
+        <EventBody event={event} textMain={textMain} textMuted={textMuted} isDark={isDark} />
 
         {/* Детали при раскрытии */}
         {expanded && (
