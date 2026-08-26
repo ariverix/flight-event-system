@@ -202,6 +202,31 @@ class RateLimitFilterTest {
     }
 
     @Test
+    @DisplayName("Multi-hop XFF: несколько доверенных прокси подряд — ключ = реальный клиент, а не промежуточный хоп")
+    void usesRealClientHopThroughMultipleTrustedProxies() throws Exception {
+        // цепочка из ДВУХ доверенных прокси (напр. внутренний LB + edge-прокси) перед app
+        props.setTrustedProxies(java.util.List.of("10.0.0.0/8"));
+        RateLimitFilter filter = filter();
+        FilterChain chain = mock(FilterChain.class);
+
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        when(req.getRequestURI()).thenReturn("/api/v1/auth/login");
+        when(req.getMethod()).thenReturn("POST");
+        when(req.getRemoteAddr()).thenReturn("10.0.0.100"); // ближайший доверенный прокси
+        // реальный клиент добавлен первым доверенным прокси, второй дописал свой хоп справа
+        when(req.getHeader("X-Forwarded-For")).thenReturn("203.0.113.7, 10.0.0.50, 10.0.0.100");
+
+        // ключ = 203.0.113.7 (оба доверенных хопа справа пропущены) — тот же бакет, что и
+        // в двухзвенном случае: лимит (auth capacity=2) считается по реальному клиенту
+        filter.doFilterInternal(req, mock(HttpServletResponse.class), chain);
+        filter.doFilterInternal(req, mock(HttpServletResponse.class), chain);
+        filter.doFilterInternal(req, responseCapturing(new StringWriter()), chain);
+
+        verify(chain, times(2)).doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        assertThat(rejected("auth")).isEqualTo(1.0);
+    }
+
+    @Test
     @DisplayName("SECURITY: XFF от НЕдоверенного источника игнорируется — спуфинг не обходит лимит")
     void ignoresSpoofedXForwardedForFromUntrustedSource() throws Exception {
         // trustedProxies пуст (дефолт) → XFF не доверяем, ключ всегда remoteAddr
