@@ -14,8 +14,8 @@ export const LoginPage: React.FC = () => {
   const { isDark } = useTheme();
 
   const c = isDark
-    ? { border: '#30363d', bgInput: '#1c2128', textDimmer: '#484f58', borderSecondary: '#21262d' }
-    : { border: '#d0d7de', bgInput: '#ffffff', textDimmer: '#9da3ab', borderSecondary: '#d8dee4' };
+    ? { border: 'rgba(255,255,255,0.14)', bgInput: '#2c2c2e', textDimmer: 'rgba(255,255,255,0.30)', borderSecondary: 'rgba(255,255,255,0.09)' }
+    : { border: 'rgba(0,0,0,0.14)', bgInput: '#ffffff', textDimmer: '#8e8e93', borderSecondary: 'rgba(0,0,0,0.08)' };
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -38,12 +38,11 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="login-bg">
-      <div className="login-bg-orb2" />
       <div className="login-card fade-in-up">
         {/* Logo */}
         <div className="login-logo">
           <div className="login-logo-icon">
-            <RocketOutlined style={{ fontSize: 28, color: '#60a5fa' }} />
+            <RocketOutlined style={{ fontSize: 28 }} />
           </div>
           <h1 className="login-title">СИСТЕМА ЕСА</h1>
           <p className="login-subtitle">

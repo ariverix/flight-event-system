@@ -127,10 +127,6 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-@keyframes float {
-  0%,100% { transform: translateY(0); }
-  50%      { transform: translateY(-4px); }
-}
 @keyframes progressStripe {
   from { background-position: 40px 0; }
   to   { background-position: 0 0; }
@@ -149,7 +145,6 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
 .page-enter { animation: fadeInUp 0.38s cubic-bezier(0.4,0,0.2,1) both; }
 .fade-in-up { animation: fadeInUp 0.35s ease forwards; }
 .fade-in    { animation: fadeIn 0.3s ease forwards; }
-.float      { animation: float 3.5s ease-in-out infinite; }
 
 /* ── Stagger ─────────────────────────────────────── */
 .stagger-container .stagger-item:nth-child(1) { animation-delay:   0ms; }
@@ -662,70 +657,35 @@ body[data-theme='light'] .audit-detail-code {
 }
 
 /* ═══════════════════════════════════════════════════
-   LOGIN PAGE
+   LOGIN PAGE — плоская поверхность, без blur/градиентов/орбов
+   (согласовано с оболочкой приложения, Фаза 1)
    ═══════════════════════════════════════════════════ */
 .login-bg {
   display: flex; justify-content: center; align-items: center;
-  min-height: 100vh; position: relative; overflow: hidden;
-  background: linear-gradient(-45deg, #04050d, #080b18, #0d0520, #040a1c);
-  background-size: 400% 400%; animation: gradientShift 18s ease infinite;
-}
-.login-bg::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background-image:
-    linear-gradient(rgba(59,130,246,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59,130,246,0.05) 1px, transparent 1px);
-  background-size: 56px 56px;
-}
-.login-bg-orb2 {
-  position: absolute; width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(139,92,246,0.09) 0%, transparent 65%);
-  bottom: -100px; right: -100px; pointer-events: none;
-  animation: float 14s ease-in-out infinite reverse;
+  min-height: 100vh; position: relative;
+  background: var(--bg-base);
 }
 .login-card {
   position: relative; z-index: 1; width: 420px; padding: 40px 36px;
   border-radius: var(--r-xl);
-  background: rgba(8,11,24,0.78);
-  border: 1px solid rgba(255,255,255,0.11);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  box-shadow:
-    0 1px 0 rgba(255,255,255,0.09) inset,
-    0 0 0 1px rgba(59,130,246,0.08),
-    0 40px 80px rgba(0,0,0,0.65);
-  animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.24);
+  animation: fadeInUp 0.4s ease forwards;
 }
+body[data-theme='light'] .login-card { box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .login-logo { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 32px; }
 .login-logo-icon {
   width: 64px; height: 64px; border-radius: 18px;
-  background: linear-gradient(135deg, rgba(59,130,246,0.22), rgba(99,102,241,0.15));
-  border: 1px solid rgba(59,130,246,0.28);
+  background: var(--accent-blue);
   display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--glow-blue); animation: float 3.5s ease-in-out infinite;
+  color: #fff;
 }
 .login-title {
   font-size: 22px; font-weight: 800; margin: 0; letter-spacing: 0.07em;
-  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.70) 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-1);
 }
 .login-subtitle { font-size: 12px; color: var(--text-3); text-align: center; margin: 0; }
-/* Light mode: blue gradient so title is visible on white card */
-body[data-theme='light'] .login-title {
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-body[data-theme='light'] .login-subtitle { color: rgba(0,0,0,0.50); }
-body[data-theme='light'] .login-bg {
-  background: linear-gradient(-45deg, #dbeafe, #ede9fe, #f0f4ff, #e0e7ff);
-  background-size: 400% 400%; animation: gradientShift 18s ease infinite;
-}
-body[data-theme='light'] .login-card {
-  background: rgba(255,255,255,0.76); border-color: rgba(59,130,246,0.18);
-  box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 40px 80px rgba(0,0,0,0.10);
-}
 
 /* ═══════════════════════════════════════════════════
    MISC
