@@ -104,14 +104,14 @@ function makeEdge(
   dimmed = false,
   routeHandle?: 'right' | 'left',
 ): Edge {
-  const successColor = isDark ? '#3fb950' : '#16a34a';
-  const failColor    = isDark ? '#f85149' : '#dc2626';
-  const defaultColor = isDark ? '#30363d' : '#d0d7de';
+  const successColor = isDark ? '#30d158' : '#248a3d';
+  const failColor    = isDark ? '#ff453a' : '#d70015';
+  const defaultColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)';
 
   const fullColor = isSuccess ? successColor : failColor;
   const dimColor  = isSuccess
-    ? (isDark ? 'rgba(63,185,80,0.60)'  : 'rgba(22,163,74,0.60)')
-    : (isDark ? 'rgba(248,81,73,0.60)'  : 'rgba(220,38,38,0.60)');
+    ? (isDark ? 'rgba(48,209,88,0.60)' : 'rgba(36,138,61,0.60)')
+    : (isDark ? 'rgba(255,69,58,0.60)' : 'rgba(215,0,21,0.60)');
 
   const strokeColor = traversed ? fullColor : defaultColor;
 
@@ -138,8 +138,8 @@ function makeEdge(
       fontWeight: 700,
     },
     labelBgStyle: {
-      fill: isDark ? 'rgba(6,7,18,0.92)' : 'rgba(255,255,255,0.96)',
-      stroke: isSuccess ? 'rgba(16,185,129,0.30)' : 'rgba(239,68,68,0.30)',
+      fill: isDark ? '#2c2c2e' : '#ffffff',
+      stroke: isSuccess ? 'rgba(48,209,88,0.35)' : 'rgba(255,69,58,0.35)',
       strokeWidth: 0.8,
       rx: 5, ry: 5,
     },

@@ -188,13 +188,13 @@ const GraphInner: React.FC<GraphInnerProps> = ({
     }
   }, []);
 
-  const bgColor   = isDark ? '#060910' : '#eef2ff';
-  const dotColor  = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)';
-  const panelBg   = isDark ? 'rgba(6,7,16,0.92)' : 'rgba(255,255,255,0.96)';
-  const panelBd   = isDark ? 'rgba(255,255,255,0.11)' : 'rgba(0,0,0,0.10)';
+  const bgColor   = isDark ? '#1e1e1e' : '#f5f5f7';
+  const dotColor  = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+  const panelBg   = isDark ? '#2c2c2e' : '#ffffff';
+  const panelBd   = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
   const miniStyle: React.CSSProperties = isDark
-    ? { background: 'rgba(4,5,8,0.90)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 12, width: 110, height: 80 }
-    : { background: '#fff', border: '1px solid rgba(0,0,0,0.09)', borderRadius: 12, width: 110, height: 80 };
+    ? { background: '#2c2c2e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, width: 110, height: 80 }
+    : { background: '#fff', border: '1px solid rgba(0,0,0,0.10)', borderRadius: 10, width: 110, height: 80 };
 
   return (
     <div ref={containerRef} style={{ width: '100%', height }}>
@@ -234,11 +234,9 @@ const GraphInner: React.FC<GraphInnerProps> = ({
             gap: 4,
             padding: '5px 6px',
             background: panelBg,
-            backdropFilter: 'blur(18px)',
-            WebkitBackdropFilter: 'blur(18px)',
             border: `1px solid ${panelBd}`,
-            borderRadius: 12,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            borderRadius: 10,
+            boxShadow: isDark ? '0 1px 4px rgba(0,0,0,0.24)' : '0 1px 4px rgba(0,0,0,0.08)',
           }}>
             <PanelBtn
               icon={<AimOutlined />}
@@ -264,13 +262,13 @@ const GraphInner: React.FC<GraphInnerProps> = ({
         {nodes.length >= 4 && (
           <MiniMap
             style={miniStyle}
-            maskColor={isDark ? 'rgba(4,5,8,0.65)' : 'rgba(238,242,255,0.72)'}
+            maskColor={isDark ? 'rgba(30,30,30,0.65)' : 'rgba(245,245,247,0.72)'}
             nodeColor={n => {
               const t = (n.data as Record<string, unknown>).stepType as string | undefined;
-              if (t === 'ACTION') return '#3b82f6';
-              if (t === 'EVALUATE') return '#8b5cf6';
-              if (t === 'WAIT') return '#f59e0b';
-              return isDark ? '#1e2a3a' : '#d0d7de';
+              if (t === 'ACTION') return isDark ? '#0a84ff' : '#0071e3';
+              if (t === 'EVALUATE') return isDark ? '#bf5af2' : '#af52de';
+              if (t === 'WAIT') return isDark ? '#ff9f0a' : '#ff9500';
+              return isDark ? '#3a3a3c' : '#d1d1d6';
             }}
             zoomable={false}
             pannable={false}

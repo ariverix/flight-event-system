@@ -112,8 +112,8 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
   50%      { box-shadow: 0 0 14px rgba(16,185,129,0.8); }
 }
 @keyframes nodeGlow {
-  0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.7), 0 0 14px rgba(245,158,11,0.4); }
-  50%      { box-shadow: 0 0 0 8px rgba(245,158,11,0), 0 0 30px rgba(245,158,11,0.8); }
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,159,10,0.32); }
+  50%      { box-shadow: 0 0 0 4px rgba(255,159,10,0.16); }
 }
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
@@ -440,14 +440,14 @@ body[data-theme='light'] .ant-tag-processing { color: #2563eb !important; }
 
 /* MiniMap — white rect fix */
 .react-flow__minimap {
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   overflow: hidden !important;
-  background: #0d1530 !important;
+  background: #2c2c2e !important;
 }
-.react-flow__minimap-svg { background: #0d1530 !important; }
+.react-flow__minimap-svg { background: #2c2c2e !important; }
 .react-flow__minimap-svg > rect:first-child { fill: transparent !important; }
-body[data-theme='light'] .react-flow__minimap     { background: #e8edf8 !important; }
-body[data-theme='light'] .react-flow__minimap-svg { background: #e8edf8 !important; }
+body[data-theme='light'] .react-flow__minimap     { background: #ffffff !important; }
+body[data-theme='light'] .react-flow__minimap-svg { background: #ffffff !important; }
 body[data-theme='light'] .react-flow__minimap-svg > rect:first-child { fill: transparent !important; }
 
 /* Empty panel guard */
@@ -457,13 +457,13 @@ body[data-theme='light'] .react-flow__minimap-svg > rect:first-child { fill: tra
 
 /* Edge labels — opaque bg, always readable */
 .react-flow__edge-textbg {
-  fill: rgba(6,7,18,0.92) !important;
+  fill: #2c2c2e !important;
   stroke: rgba(255,255,255,0.12) !important;
   stroke-width: 1 !important;
   rx: 5 !important; ry: 5 !important;
 }
 body[data-theme='light'] .react-flow__edge-textbg {
-  fill: rgba(255,255,255,0.97) !important;
+  fill: #ffffff !important;
   stroke: rgba(0,0,0,0.10) !important;
 }
 .react-flow__edge-text { font-weight: 700 !important; }
@@ -478,17 +478,17 @@ body[data-theme='light'] .react-flow__edge-textbg {
 
 /* ── Controls — dark (default) ── */
 .react-flow__controls {
-  background: rgba(8,11,24,0.90) !important;
-  backdrop-filter: blur(14px) !important;
-  border: 1px solid rgba(255,255,255,0.10) !important;
-  border-radius: 12px !important;
+  background: #2c2c2e !important;
+  backdrop-filter: none !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 10px !important;
   overflow: hidden !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.30) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.24) !important;
 }
 .react-flow__controls-button {
   background: transparent !important;
   border: none !important;
-  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
   color: rgba(255,255,255,0.58) !important;
   width: 34px !important; height: 34px !important;
   transition: all 0.15s ease;
@@ -505,9 +505,9 @@ body[data-theme='light'] .react-flow__edge-textbg {
 
 /* ── Controls — light ── */
 body[data-theme='light'] .react-flow__controls {
-  background: rgba(255,255,255,0.96) !important;
-  border-color: rgba(0,0,0,0.10) !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.10) !important;
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
 }
 body[data-theme='light'] .react-flow__controls-button {
   color: rgba(0,0,0,0.52) !important;

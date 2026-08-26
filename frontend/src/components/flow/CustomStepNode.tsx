@@ -23,11 +23,14 @@ const TYPE_LABEL: Record<string, string> = {
   WAIT:     'WAIT',
 };
 
-const TYPE_ACCENT: Record<string, string> = {
-  ACTION:   '#1677ff',
-  EVALUATE: '#d48806',
-  WAIT:     '#7c3aed',
-};
+// Системные цвета macOS — единая палитра с оболочкой приложения (AppLayout) и
+// панелью инструментов канвы (SequenceEditorGraph).
+function getTypeAccent(stepType: string, isDark: boolean): string {
+  if (stepType === 'ACTION')   return isDark ? '#0a84ff' : '#0071e3';
+  if (stepType === 'EVALUATE') return isDark ? '#bf5af2' : '#af52de';
+  if (stepType === 'WAIT')     return isDark ? '#ff9f0a' : '#ff9500';
+  return isDark ? '#8e8e93' : '#8e8e93';
+}
 
 interface StateTokens {
   bg: string;
@@ -39,22 +42,24 @@ interface StateTokens {
   opacity?: number;
 }
 
+// Плоские поверхности с hairline-границами (без градиентов/свечений) — состояние
+// шага передаётся цветом акцента и границы, а не интенсивностью тени.
 function getStateTokens(state: StepNodeData['state'], isDark: boolean): StateTokens {
   if (isDark) {
     switch (state) {
-      case 'active':    return { bg: 'linear-gradient(135deg,#3d2b00,#2d1f00)', border: '#faad14', textMain: '#faad14', textSub: '#d4a017', shadow: '0 0 0 0 rgba(250,173,20,.7)', animation: 'nodeGlow 1.8s ease-in-out infinite' };
-      case 'success':   return { bg: 'linear-gradient(135deg,#0d2a1a,#071a10)', border: '#3fb950', textMain: '#3fb950', textSub: '#2ea043', shadow: '0 2px 12px rgba(63,185,80,.25)' };
-      case 'failure':   return { bg: 'linear-gradient(135deg,#2a0d0d,#1a0707)', border: '#f85149', textMain: '#f85149', textSub: '#da3633', shadow: '0 2px 12px rgba(248,81,73,.25)' };
-      case 'unreached': return { bg: 'linear-gradient(135deg,#161b22,#0d1117)', border: '#21262d', textMain: '#484f58', textSub: '#30363d', shadow: 'none', opacity: 0.5 };
-      default:          return { bg: 'linear-gradient(135deg,#1c2128,#161b22)', border: '#30363d', textMain: '#e6edf3', textSub: '#8b949e', shadow: '0 2px 8px rgba(0,0,0,.4)' };
+      case 'active':    return { bg: 'rgba(255,159,10,0.12)',  border: '#ff9f0a', textMain: '#ff9f0a', textSub: 'rgba(255,159,10,0.75)', shadow: 'none', animation: 'nodeGlow 2s ease-in-out infinite' };
+      case 'success':   return { bg: 'rgba(48,209,88,0.12)',   border: '#30d158', textMain: '#30d158', textSub: 'rgba(48,209,88,0.75)',  shadow: 'none' };
+      case 'failure':   return { bg: 'rgba(255,69,58,0.12)',   border: '#ff453a', textMain: '#ff453a', textSub: 'rgba(255,69,58,0.75)',  shadow: 'none' };
+      case 'unreached': return { bg: '#262626', border: 'rgba(255,255,255,0.10)', textMain: 'rgba(255,255,255,0.35)', textSub: 'rgba(255,255,255,0.22)', shadow: 'none', opacity: 0.5 };
+      default:          return { bg: '#262626', border: 'rgba(255,255,255,0.12)', textMain: '#f5f5f7', textSub: 'rgba(255,255,255,0.55)', shadow: 'none' };
     }
   } else {
     switch (state) {
-      case 'active':    return { bg: 'linear-gradient(135deg,#fffbe6,#fff8d6)', border: '#faad14', textMain: '#b45309', textSub: '#92400e', shadow: '0 0 0 0 rgba(250,173,20,.5)', animation: 'nodeGlow 1.8s ease-in-out infinite' };
-      case 'success':   return { bg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '#22c55e', textMain: '#16a34a', textSub: '#15803d', shadow: '0 2px 10px rgba(34,197,94,.2)' };
-      case 'failure':   return { bg: 'linear-gradient(135deg,#fff5f5,#fee2e2)', border: '#ef4444', textMain: '#dc2626', textSub: '#b91c1c', shadow: '0 2px 10px rgba(239,68,68,.2)' };
-      case 'unreached': return { bg: '#f6f8fa', border: '#d0d7de', textMain: '#9da3ab', textSub: '#c6cdd4', shadow: 'none', opacity: 0.6 };
-      default:          return { bg: 'linear-gradient(135deg,#ffffff,#f6f8fa)', border: '#d0d7de', textMain: '#1f2328', textSub: '#636c76', shadow: '0 2px 6px rgba(0,0,0,.08)' };
+      case 'active':    return { bg: 'rgba(255,149,0,0.10)',  border: '#ff9500', textMain: '#c2410c', textSub: '#9a3412', shadow: 'none', animation: 'nodeGlow 2s ease-in-out infinite' };
+      case 'success':   return { bg: 'rgba(52,199,89,0.10)',  border: '#34c759', textMain: '#15803d', textSub: '#166534', shadow: 'none' };
+      case 'failure':   return { bg: 'rgba(255,59,48,0.10)',  border: '#ff3b30', textMain: '#b91c1c', textSub: '#991b1b', shadow: 'none' };
+      case 'unreached': return { bg: '#f5f5f7', border: 'rgba(0,0,0,0.08)', textMain: '#8e8e93', textSub: '#c7c7cc', shadow: 'none', opacity: 0.6 };
+      default:          return { bg: '#ffffff', border: 'rgba(0,0,0,0.12)', textMain: '#1d1d1f', textSub: '#6e6e73', shadow: 'none' };
     }
   }
 }
@@ -63,19 +68,16 @@ export const CustomStepNode: React.FC<NodeProps> = ({ data }) => {
   const { isDark } = useTheme();
   const d = data as StepNodeData;
   const tok = getStateTokens(d.state, isDark);
-  const accent = TYPE_ACCENT[d.stepType] ?? '#888';
+  const accent = getTypeAccent(d.stepType, isDark);
   const icon = TYPE_ICON[d.stepType] ?? '●';
   const isActive  = d.state === 'active';
   const isSuccess = d.state === 'success';
   const isFailure = d.state === 'failure';
 
-  const accentColor = isSuccess ? (isDark ? '#3fb950' : '#16a34a')
-    : isFailure ? (isDark ? '#f85149' : '#dc2626')
-    : isActive  ? '#faad14'
-    : accent;
+  const accentColor = isSuccess || isFailure || isActive ? tok.border : accent;
 
-  const handleColor = isDark ? '#30363d' : '#d0d7de';
-  const handleBorder = isDark ? '#484f58' : '#9da3ab';
+  const handleColor = isDark ? '#3a3a3c' : '#d1d1d6';
+  const handleBorder = isDark ? '#5a5a5e' : '#aeaeb2';
 
   return (
     <>
@@ -98,12 +100,12 @@ export const CustomStepNode: React.FC<NodeProps> = ({ data }) => {
 
       <div style={{
         background: tok.bg,
-        border: `${isActive || isSuccess || isFailure ? '2px' : '1.5px'} solid ${tok.border}`,
+        border: `${isActive || isSuccess || isFailure ? '1.5px' : '1px'} solid ${tok.border}`,
         borderRadius: 10,
         padding: '10px 14px',
         minWidth: 160,
         maxWidth: 200,
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: "-apple-system,'SF Pro Display','Inter',system-ui,sans-serif",
         position: 'relative',
         overflow: 'hidden',
         boxShadow: tok.shadow,
@@ -171,34 +173,37 @@ export const CustomEndNode: React.FC<NodeProps> = ({ data }) => {
 
   const bg = reached
     ? isDark
-      ? (isAbort ? 'linear-gradient(135deg,#2a0d0d,#1a0707)' : 'linear-gradient(135deg,#0d2a1a,#071a10)')
-      : (isAbort ? '#fff5f5' : '#f0fdf4')
-    : isDark ? '#161b22' : '#f6f8fa';
+      ? (isAbort ? 'rgba(255,69,58,0.12)' : 'rgba(48,209,88,0.12)')
+      : (isAbort ? 'rgba(255,59,48,0.10)' : 'rgba(52,199,89,0.10)')
+    : isDark ? '#262626' : '#f5f5f7';
 
   const borderColor = reached
-    ? (isAbort ? (isDark ? '#f85149' : '#ef4444') : (isDark ? '#3fb950' : '#22c55e'))
-    : (isDark ? '#30363d' : '#d0d7de');
+    ? (isAbort ? (isDark ? '#ff453a' : '#ff3b30') : (isDark ? '#30d158' : '#34c759'))
+    : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)');
 
   const textColor = reached
-    ? (isAbort ? (isDark ? '#f85149' : '#dc2626') : (isDark ? '#3fb950' : '#16a34a'))
-    : (isDark ? '#484f58' : '#9da3ab');
+    ? (isAbort ? (isDark ? '#ff453a' : '#b91c1c') : (isDark ? '#30d158' : '#15803d'))
+    : (isDark ? 'rgba(255,255,255,0.35)' : '#8e8e93');
+
+  const handleColor = isDark ? '#3a3a3c' : '#d1d1d6';
+  const handleBorder = isDark ? '#5a5a5e' : '#aeaeb2';
 
   return (
     <>
       <Handle type="target" position={Position.Top}
-        style={{ background: isDark ? '#30363d' : '#d0d7de', border: `1px solid ${isDark ? '#484f58' : '#9da3ab'}`, width: 8, height: 8 }} />
+        style={{ background: handleColor, border: `1px solid ${handleBorder}`, width: 8, height: 8 }} />
       <Handle type="target" id="right" position={Position.Right}
-        style={{ background: isDark ? '#30363d' : '#d0d7de', border: `1px solid ${isDark ? '#484f58' : '#9da3ab'}`, width: 8, height: 8 }} />
+        style={{ background: handleColor, border: `1px solid ${handleBorder}`, width: 8, height: 8 }} />
       <div style={{
         background: bg,
-        border: `${reached ? 2 : 1.5}px solid ${borderColor}`,
+        border: `1px solid ${borderColor}`,
         borderRadius: 20,
         padding: '6px 18px',
         color: textColor,
-        fontWeight: 700,
+        fontWeight: 600,
         fontSize: 11,
-        letterSpacing: '0.08em',
-        boxShadow: reached ? `0 2px 10px ${borderColor}44` : 'none',
+        letterSpacing: '0.04em',
+        boxShadow: 'none',
         transition: 'all 0.3s ease',
         whiteSpace: 'nowrap',
       }}>
