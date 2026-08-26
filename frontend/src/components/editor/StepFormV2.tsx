@@ -57,8 +57,11 @@ export interface StepFormV2Props {
   onCancel: () => void;
 }
 
-// TODO P7-bindings: привязка последовательности к борту (tail number AN / flight id FI + flight data)
-// откладывается до появления backend-эндпоинтов /api/v1/sequences/{id}/bindings
+// Привязка последовательности к борту (tail number AN / flight id FI + flight data) не хранится
+// отдельным полем шага — по SITA-модели она выражается через start/stop-критерии (CriteriaBuilder):
+// конкретный борт определяется тем, чьё сообщение/рейс подошёл под критерий. Отдельного эндпоинта
+// /api/v1/sequences/{id}/bindings нет и не вводился — решение зафиксировано в docs/PROGRESS.md
+// (Фаза 5-6 прогона апгрейда).
 
 // ── Валидация состояния формы ─────────────────────────────────────────────────
 
