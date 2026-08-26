@@ -47,24 +47,26 @@ export const AppLayout: React.FC = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [siderCollapsed, setSiderCollapsed] = useState(false);
 
+  // Палитра оболочки приложения — macOS System Settings / Finder (нейтральные
+  // поверхности, тонкие hairline-границы, без свечений).
   const c = isDark
     ? {
-        bgElevated: 'rgba(8,10,22,0.97)',
-        border: 'rgba(255,255,255,0.09)',
-        borderSecondary: 'rgba(255,255,255,0.055)',
-        text: '#e6edf3',
-        textMuted: '#848d97',
-        textDimmer: '#484f58',
-        bgContainer: 'rgba(255,255,255,0.022)',
+        bgElevated: '#2c2c2e',
+        border: 'rgba(255,255,255,0.14)',
+        borderSecondary: 'rgba(255,255,255,0.09)',
+        text: '#f5f5f7',
+        textMuted: 'rgba(255,255,255,0.55)',
+        textDimmer: 'rgba(255,255,255,0.30)',
+        bgContainer: '#262626',
       }
     : {
-        bgElevated: '#f6f8fa',
-        border: '#d0d7de',
-        borderSecondary: '#d8dee4',
-        text: '#1f2328',
-        textMuted: '#636c76',
-        textDimmer: '#9da3ab',
-        bgContainer: 'rgba(255,255,255,0.82)',
+        bgElevated: '#ffffff',
+        border: 'rgba(0,0,0,0.14)',
+        borderSecondary: 'rgba(0,0,0,0.08)',
+        text: '#1d1d1f',
+        textMuted: '#6e6e73',
+        textDimmer: '#8e8e93',
+        bgContainer: '#ffffff',
       };
 
   // опрашиваем активные выполнения каждые 10 сек для счётчика в сайдбаре
@@ -114,8 +116,8 @@ export const AppLayout: React.FC = () => {
         width: 320,
         background: c.bgElevated,
         border: `1px solid ${c.border}`,
-        borderRadius: 8,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        borderRadius: 10,
+        boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.35)' : '0 4px 20px rgba(0,0,0,0.12)',
         overflow: 'hidden',
       }}
     >
@@ -362,7 +364,7 @@ export const AppLayout: React.FC = () => {
             style={{
               padding: 24,
               background: c.bgContainer,
-              borderRadius: 12,
+              borderRadius: 10,
               border: `1px solid ${c.borderSecondary}`,
               minHeight: 'calc(100vh - 112px)',
             }}

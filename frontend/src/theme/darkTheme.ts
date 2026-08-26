@@ -4,31 +4,31 @@ export const DARK_THEME = {
   algorithm: antTheme.darkAlgorithm,
 
   token: {
-    // ── ФОНЫ ─────────────────────────────────────────
-    colorBgBase:            '#040508',
-    colorBgContainer:       'rgba(255,255,255,0.042)',
-    colorBgElevated:        'rgba(8,10,22,0.97)',
-    colorBgLayout:          '#040508',
-    colorBgSpotlight:       'rgba(8,10,22,0.96)',
-    colorBgMask:            'rgba(0,0,0,0.60)',
+    // ── ФОНЫ (macOS Dark Mode) ────────────────────────
+    colorBgBase:            '#1e1e1e',
+    colorBgContainer:       '#262626',
+    colorBgElevated:        '#2c2c2e',
+    colorBgLayout:          '#1e1e1e',
+    colorBgSpotlight:       '#2c2c2e',
+    colorBgMask:            'rgba(0,0,0,0.45)',
 
     // ── ГРАНИЦЫ ──────────────────────────────────────
-    colorBorder:            'rgba(255,255,255,0.09)',
-    colorBorderSecondary:   'rgba(255,255,255,0.055)',
-    colorSplit:             'rgba(255,255,255,0.07)',
+    colorBorder:            'rgba(255,255,255,0.12)',
+    colorBorderSecondary:   'rgba(255,255,255,0.08)',
+    colorSplit:             'rgba(255,255,255,0.08)',
 
     // ── ЗАЛИВКИ ──────────────────────────────────────
     colorFill:              'rgba(255,255,255,0.08)',
     colorFillSecondary:     'rgba(255,255,255,0.05)',
     colorFillTertiary:      'rgba(255,255,255,0.03)',
 
-    // ── АКЦЕНТЫ ──────────────────────────────────────
-    colorPrimary:           '#3b82f6',
-    colorSuccess:           '#10b981',
-    borderRadius:            10,
-    colorWarning:           '#f59e0b',
-    colorError:             '#ef4444',
-    colorInfo:              '#06b6d4',
+    // ── АКЦЕНТЫ (системный синий macOS) ──────────────
+    colorPrimary:           '#0a84ff',
+    colorSuccess:           '#30d158',
+    borderRadius:             8,
+    colorWarning:           '#ff9f0a',
+    colorError:             '#ff453a',
+    colorInfo:              '#64d2ff',
 
     // ── ТЕКСТ ────────────────────────────────────────
     colorText:              'rgba(255,255,255,0.88)',
@@ -39,49 +39,50 @@ export const DARK_THEME = {
     colorTextDisabled:      'rgba(255,255,255,0.22)',
     colorTextHeading:       'rgba(255,255,255,0.92)',
 
-    // ── РАДИУСЫ ──────────────────────────────────────
-    borderRadiusLG:          14,
-    borderRadiusSM:          7,
-    borderRadiusXS:          5,
+    // ── РАДИУСЫ (компактнее, ближе к macOS-контролам) ─
+    borderRadiusLG:          10,
+    borderRadiusSM:           6,
+    borderRadiusXS:           4,
 
     // ── ШРИФТ ────────────────────────────────────────
     fontFamily:             "-apple-system,'SF Pro Display','Inter',system-ui,sans-serif",
     fontSize:                14,
     fontSizeLG:              16,
     fontSizeSM:              12,
-    lineHeight:              1.6,
+    lineHeight:              1.5,
 
     // ── КОНТРОЛЫ ─────────────────────────────────────
-    controlHeight:           38,
-    controlHeightLG:         46,
-    controlHeightSM:         30,
+    controlHeight:           34,
+    controlHeightLG:         42,
+    controlHeightSM:         28,
     paddingContentHorizontal:16,
 
-    // ── ТЕНИ ─────────────────────────────────────────
-    boxShadow:              '0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25)',
-    boxShadowSecondary:     '0 4px 16px rgba(0,0,0,0.28)',
+    // ── ТЕНИ (без свечений — тонкие, почти незаметные) ─
+    boxShadow:              '0 2px 6px rgba(0,0,0,0.30)',
+    boxShadowSecondary:     '0 1px 3px rgba(0,0,0,0.24)',
   },
 
   components: {
 
     Layout: {
-      siderBg:   'rgba(4,5,8,0.92)',
-      headerBg:  'rgba(4,5,8,0.78)',
+      siderBg:   '#252526',
+      headerBg:  '#1e1e1e',
       bodyBg:    'transparent',
-      triggerBg: 'rgba(255,255,255,0.04)',
+      triggerBg: 'rgba(255,255,255,0.06)',
     },
 
     Menu: {
       darkItemBg:            'transparent',
       darkSubMenuItemBg:     'transparent',
-      darkItemSelectedBg:    'rgba(59,130,246,0.15)',
-      darkItemSelectedColor: '#3b82f6',
-      darkItemHoverBg:       'rgba(255,255,255,0.055)',
+      darkItemSelectedBg:    '#0a84ff',
+      darkItemSelectedColor: '#ffffff',
+      darkItemHoverBg:       'rgba(255,255,255,0.07)',
       darkItemHoverColor:    'rgba(255,255,255,0.92)',
-      darkItemColor:         'rgba(255,255,255,0.58)',
-      itemBorderRadius:      10,
-      itemMarginInline:      8,
-      itemPaddingInline:     14,
+      darkItemColor:         'rgba(255,255,255,0.65)',
+      itemBorderRadius:       6,
+      itemMarginInline:       8,
+      itemPaddingInline:     12,
+      itemHeight:            32,
     },
 
     Card: {
@@ -109,18 +110,18 @@ export const DARK_THEME = {
     },
 
     Button: {
-      defaultBg:              'rgba(255,255,255,0.065)',
-      defaultBorderColor:     'rgba(255,255,255,0.13)',
+      defaultBg:              'rgba(255,255,255,0.07)',
+      defaultBorderColor:     'rgba(255,255,255,0.14)',
       defaultColor:           'rgba(255,255,255,0.82)',
-      defaultHoverBg:         'rgba(255,255,255,0.10)',
+      defaultHoverBg:         'rgba(255,255,255,0.11)',
       defaultHoverBorderColor:'rgba(255,255,255,0.22)',
       defaultHoverColor:      'rgba(255,255,255,0.95)',
-      defaultActiveBg:        'rgba(255,255,255,0.08)',
-      primaryShadow:          '0 4px 14px rgba(59,130,246,0.38)',
-      dangerShadow:           '0 4px 14px rgba(239,68,68,0.28)',
-      borderRadius:            10,
-      borderRadiusLG:          12,
-      borderRadiusSM:          8,
+      defaultActiveBg:        'rgba(255,255,255,0.09)',
+      primaryShadow:          'none',
+      dangerShadow:           'none',
+      borderRadius:             8,
+      borderRadiusLG:          10,
+      borderRadiusSM:           6,
     },
 
     Input: {
@@ -283,44 +284,48 @@ export const DARK_THEME = {
 export const LIGHT_THEME = {
   algorithm: antTheme.defaultAlgorithm,
   token: {
-    colorPrimary:         '#3b82f6',
-    colorSuccess:         '#10b981',
-    colorWarning:         '#f59e0b',
-    colorError:           '#ef4444',
-    colorBgBase:          '#ffffff',
+    colorPrimary:         '#0071e3',
+    colorSuccess:         '#34c759',
+    colorWarning:         '#ff9500',
+    colorError:           '#ff3b30',
+    colorBgBase:          '#f5f5f7',
     colorBgContainer:     '#ffffff',
-    colorBgElevated:      '#f6f8fa',
-    colorBgLayout:        '#eef2ff',
-    colorBorder:          'rgba(0,0,0,0.10)',
-    colorBorderSecondary: 'rgba(0,0,0,0.06)',
-    colorText:            '#1f2328',
-    colorTextSecondary:   '#636c76',
-    borderRadius:          10,
-    borderRadiusLG:        14,
-    borderRadiusSM:        7,
+    colorBgElevated:      '#ffffff',
+    colorBgLayout:        '#f5f5f7',
+    colorBorder:          'rgba(0,0,0,0.12)',
+    colorBorderSecondary: 'rgba(0,0,0,0.07)',
+    colorText:            '#1d1d1f',
+    colorTextSecondary:   '#6e6e73',
+    borderRadius:           8,
+    borderRadiusLG:        10,
+    borderRadiusSM:         6,
     fontFamily:           "-apple-system,'SF Pro Display','Inter',system-ui,sans-serif",
     fontSize:              14,
-    controlHeight:         38,
+    controlHeight:         34,
+    boxShadow:             '0 1px 3px rgba(0,0,0,0.08)',
+    boxShadowSecondary:    '0 1px 2px rgba(0,0,0,0.06)',
   },
   components: {
-    Layout: { bodyBg: '#eef2ff', headerBg: 'rgba(255,255,255,0.82)', siderBg: 'rgba(255,255,255,0.85)' },
+    Layout: { bodyBg: '#f5f5f7', headerBg: '#f5f5f7', siderBg: '#ebebeb' },
     Menu: {
-      itemSelectedBg:    'rgba(59,130,246,0.10)',
-      itemSelectedColor: '#2563eb',
-      itemHoverBg:       'rgba(59,130,246,0.06)',
-      itemBorderRadius:   10,
-      itemMarginInline:   8,
+      itemSelectedBg:    '#0071e3',
+      itemSelectedColor: '#ffffff',
+      itemHoverBg:       'rgba(0,0,0,0.05)',
+      itemBorderRadius:    6,
+      itemMarginInline:    8,
+      itemHeight:         32,
     },
     Table: {
       headerBg:      'rgba(0,0,0,0.02)',
-      rowHoverBg:    'rgba(59,130,246,0.04)',
+      rowHoverBg:    'rgba(0,113,227,0.04)',
       borderColor:   'rgba(0,0,0,0.06)',
       cellPaddingBlock: 13,
     },
-    Card:      { colorBgContainer: 'rgba(255,255,255,0.80)', borderRadiusLG: 16, paddingLG: 22 },
+    Button:    { primaryShadow: 'none', dangerShadow: 'none' },
+    Card:      { colorBgContainer: '#ffffff', borderRadiusLG: 12, paddingLG: 22 },
     Statistic: { contentFontSize: 36 },
     Progress:  { remainingColor: 'rgba(0,0,0,0.06)' },
-    Switch:    { colorPrimary: '#10b981' },
+    Switch:    { colorPrimary: '#34c759' },
     Divider:   { colorSplit: 'rgba(0,0,0,0.08)' },
   },
 };
