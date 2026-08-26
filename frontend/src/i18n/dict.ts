@@ -384,6 +384,10 @@ const EDITOR_RU = {
   aircraftLastSeen:          'последний контакт',
   aircraftFlights:           'рейсов',
 
+  errorBoundaryTitle:    'Что-то пошло не так',
+  errorBoundarySubtitle: 'Произошла непредвиденная ошибка. Попробуйте перезагрузить страницу.',
+  errorBoundaryReload:   'Перезагрузить страницу',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -759,6 +763,10 @@ const EDITOR_EN = {
   aircraftPickerError:       'Failed to load aircraft list',
   aircraftLastSeen:          'last seen',
   aircraftFlights:           'flights',
+
+  errorBoundaryTitle:    'Something went wrong',
+  errorBoundarySubtitle: 'An unexpected error occurred. Try reloading the page.',
+  errorBoundaryReload:   'Reload page',
 
   roles: {
     ADMIN:    'Administrator',

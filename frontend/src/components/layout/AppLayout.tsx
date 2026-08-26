@@ -23,6 +23,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { executionApi } from '../../api/executionApi';
 import { ExecutionInstanceResponse } from '../../types/execution';
 import { ConnectionStatus } from '../dashboard/ConnectionStatus';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 const { Header, Sider, Content } = Layout;
@@ -366,7 +367,9 @@ export const AppLayout: React.FC = () => {
               minHeight: 'calc(100vh - 112px)',
             }}
           >
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </Content>
       </Layout>
