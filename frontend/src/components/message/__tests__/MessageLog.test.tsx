@@ -52,9 +52,8 @@ function pageOf(content: MessageResponse[], totalElements = content.length): Pag
   return { content, totalElements, totalPages: Math.ceil(totalElements / 20), size: 20, number: 0 };
 }
 
-/** Комбобоксы страницы: [0] — AircraftPicker, [1] — Select типа сообщения. */
 function typeSelectCombo(): HTMLElement {
-  return screen.getAllByRole('combobox')[1];
+  return screen.getByRole('combobox', { name: 'Тип сообщения' });
 }
 
 /** Клик по опции открытого дропдауна AntD (визуальный узел .ant-select-item-option-content). */

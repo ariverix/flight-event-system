@@ -153,6 +153,7 @@ export const MessageLog: React.FC = () => {
             />
           </div>
           <Select
+            aria-label="Тип сообщения"
             placeholder="Тип сообщения"
             style={{ width: 165 }}
             allowClear
