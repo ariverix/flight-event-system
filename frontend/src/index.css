@@ -478,8 +478,6 @@ body[data-theme='light'] .react-flow__controls-button:hover {
 /* ── Sidebar (macOS System Settings / Finder) ────── */
 .ant-layout-sider {
   background: var(--bg-sidebar) !important;
-  backdrop-filter: blur(20px) saturate(150%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
   border-right: 1px solid var(--glass-border) !important;
   box-shadow: none !important;
 }
