@@ -103,20 +103,12 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
   from { opacity: 0; transform: translateX(20px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-@keyframes pulseGlow {
-  0%,100% { box-shadow: 0 0 12px rgba(245,158,11,0.30); }
-  50%      { box-shadow: 0 0 28px rgba(245,158,11,0.70); }
-}
 @keyframes pulseWait {
   0%,100% { box-shadow: 0 0 14px rgba(255,159,10,0.28), inset 0 1px 0 rgba(255,255,255,0.08); }
   50%     { box-shadow: 0 0 30px rgba(255,159,10,0.65), inset 0 1px 0 rgba(255,255,255,0.08); }
 }
 @keyframes flowDash {
   to { stroke-dashoffset: -20; }
-}
-@keyframes pulseBlue {
-  0%,100% { box-shadow: 0 0 8px rgba(59,130,246,0.20); }
-  50%      { box-shadow: 0 0 16px rgba(59,130,246,0.45); }
 }
 @keyframes pulseOnline {
   0%,100% { box-shadow: 0 0 6px rgba(48,209,88,0.5); }
