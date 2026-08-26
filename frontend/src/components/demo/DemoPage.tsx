@@ -19,6 +19,7 @@ import { ExecutionInstanceResponse } from '../../types/execution';
 import { SequenceResponse } from '../../types/sequence';
 import { useTheme } from '../../context/ThemeContext';
 import { ExecutionFlow } from '../execution/ExecutionFlow';
+import { getTypeAccent } from '../../utils/stepTypeColors';
 
 const { Text } = Typography;
 
@@ -177,7 +178,6 @@ const SCENARIOS: Scenario[] = [
   },
 ];
 
-const STEP_COLOR: Record<string, string> = { ACTION: '#1677ff', EVALUATE: '#faad14', WAIT: '#7c3aed' };
 const STATUS_LABEL: Record<string, string> = { RUNNING: 'Выполняется', WAITING: 'Ожидание', COMPLETED: 'Завершено', ABORTED: 'Прервано' };
 const STATUS_COLOR_TAG: Record<string, string> = { RUNNING: 'processing', WAITING: 'warning', COMPLETED: 'success', ABORTED: 'error' };
 
@@ -197,8 +197,8 @@ export const DemoPage: React.FC = () => {
   const logRef = useRef<HTMLDivElement>(null);
 
   const c = isDark
-    ? { border: '#30363d', borderSec: '#21262d', text: '#e6edf3', muted: '#848d97', dim: '#484f58', bg: '#161b22', bgLow: '#0d1117', logText: '#8b949e' }
-    : { border: '#d0d7de', borderSec: '#d8dee4', text: '#1f2328', muted: '#636c76', dim: '#9da3ab', bg: '#fff', bgLow: '#f6f8fa', logText: '#57606a' };
+    ? { border: 'rgba(255,255,255,0.14)', borderSec: 'rgba(255,255,255,0.09)', text: '#f5f5f7', muted: 'rgba(255,255,255,0.55)', dim: 'rgba(255,255,255,0.30)', bg: '#2c2c2e', bgLow: '#1e1e1e', logText: 'rgba(255,255,255,0.55)' }
+    : { border: 'rgba(0,0,0,0.14)', borderSec: 'rgba(0,0,0,0.08)', text: '#1d1d1f', muted: '#6e6e73', dim: '#8e8e93', bg: '#ffffff', bgLow: '#f5f5f7', logText: '#6e6e73' };
 
   const scenario = SCENARIOS.find(s => s.key === scenarioKey)!;
 
@@ -467,12 +467,12 @@ export const DemoPage: React.FC = () => {
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 0', borderBottom: `1px solid ${c.borderSec}` }}>
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                  background: STEP_COLOR[step.type],
+                  background: getTypeAccent(step.type, isDark),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 10, fontWeight: 700, color: '#fff', marginTop: 1,
                 }}>{i + 1}</div>
                 <Tag
-                  color={step.type === 'ACTION' ? 'blue' : step.type === 'EVALUATE' ? 'gold' : 'purple'}
+                  color={step.type === 'ACTION' ? 'blue' : step.type === 'EVALUATE' ? 'purple' : 'gold'}
                   style={{ margin: 0, fontSize: 10, flexShrink: 0, marginTop: 1 }}
                 >
                   {step.type}
@@ -487,9 +487,9 @@ export const DemoPage: React.FC = () => {
             ))}
 
             {scenario.followUp && (
-              <div style={{ marginTop: 10, padding: '6px 10px', borderRadius: 6, background: 'rgba(22,119,255,0.06)', border: '1px solid rgba(22,119,255,0.15)' }}>
+              <div style={{ marginTop: 10, padding: '6px 10px', borderRadius: 6, background: 'rgba(var(--accent-blue-rgb), 0.08)', border: '1px solid rgba(var(--accent-blue-rgb), 0.20)' }}>
                 <Text style={{ color: c.logText, fontSize: 11 }}>
-                  <SendOutlined style={{ marginRight: 4, color: '#1677ff' }} />
+                  <SendOutlined style={{ marginRight: 4, color: 'var(--accent-blue)' }} />
                   Авто-ответ через ~4 сек: {scenario.followUp.label}
                 </Text>
               </div>
@@ -505,12 +505,11 @@ export const DemoPage: React.FC = () => {
                 style={{
                   flex: 1,
                   height: 42,
-                  background: isRunning ? undefined : 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                  background: isRunning ? undefined : 'var(--accent-blue)',
                   border: 'none',
                   borderRadius: 11,
                   fontWeight: 600,
                   fontSize: 14,
-                  boxShadow: isRunning ? 'none' : '0 4px 16px rgba(59,130,246,0.42)',
                 }}
               >
                 {isRunning ? phaseLabel[phase] : 'Запустить'}
@@ -539,9 +538,9 @@ export const DemoPage: React.FC = () => {
                   <div key={s.id} style={{
                     width: 28, height: 28, borderRadius: 6, fontSize: 10, fontWeight: 700,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: s.result === 'SUCCESS' ? 'rgba(63,185,80,0.15)' : s.result === 'FAILURE' ? 'rgba(248,81,73,0.15)' : 'rgba(22,119,255,0.15)',
-                    border: `1.5px solid ${s.result === 'SUCCESS' ? '#3fb950' : s.result === 'FAILURE' ? '#f85149' : '#1677ff'}`,
-                    color: s.result === 'SUCCESS' ? '#3fb950' : s.result === 'FAILURE' ? '#f85149' : '#1677ff',
+                    background: s.result === 'SUCCESS' ? 'rgba(var(--accent-green-rgb), 0.15)' : s.result === 'FAILURE' ? 'rgba(var(--accent-red-rgb), 0.15)' : 'rgba(var(--accent-blue-rgb), 0.15)',
+                    border: `1.5px solid ${s.result === 'SUCCESS' ? 'var(--accent-green)' : s.result === 'FAILURE' ? 'var(--accent-red)' : 'var(--accent-blue)'}`,
+                    color: s.result === 'SUCCESS' ? 'var(--accent-green)' : s.result === 'FAILURE' ? 'var(--accent-red)' : 'var(--accent-blue)',
                   }}>
                     {s.result === 'SUCCESS' ? '✓' : s.result === 'FAILURE' ? '✗' : s.stepIndex}
                   </div>
@@ -569,10 +568,10 @@ export const DemoPage: React.FC = () => {
               На что смотреть
             </Text>
             {[
-              { icon: <NodeExpandOutlined style={{ color: '#1677ff' }} />, text: 'Граф обновляется в реальном времени' },
-              { icon: <ClockCircleOutlined style={{ color: '#7c3aed' }} />, text: 'WAIT — жёлтый пульс на текущем шаге' },
-              { icon: <CheckCircleOutlined style={{ color: '#3fb950' }} />, text: 'SUCCESS — зелёный, FAILURE — красный' },
-              { icon: <ThunderboltOutlined style={{ color: '#faad14' }} />, text: 'Пройденные рёбра подсвечиваются' },
+              { icon: <NodeExpandOutlined style={{ color: 'var(--accent-blue)' }} />, text: 'Граф обновляется в реальном времени' },
+              { icon: <ClockCircleOutlined style={{ color: 'var(--accent-amber)' }} />, text: 'WAIT — жёлтый пульс на текущем шаге' },
+              { icon: <CheckCircleOutlined style={{ color: 'var(--accent-green)' }} />, text: 'SUCCESS — зелёный, FAILURE — красный' },
+              { icon: <ThunderboltOutlined style={{ color: 'var(--accent-amber)' }} />, text: 'Пройденные рёбра подсвечиваются' },
             ].map((item, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', alignItems: 'flex-start' }}>
                 <span style={{ marginTop: 1, fontSize: 13, flexShrink: 0 }}>{item.icon}</span>
@@ -610,7 +609,7 @@ export const DemoPage: React.FC = () => {
                   {showGraph ? 'Скрыть' : 'Показать'}
                 </Button>
               }
-              style={{ border: `1px solid ${isRunning ? '#1677ff' : c.border}`, marginBottom: 16, transition: 'border-color 0.4s' }}
+              style={{ border: `1px solid ${isRunning ? 'var(--accent-blue)' : c.border}`, marginBottom: 16, transition: 'border-color 0.4s' }}
             >
               {showGraph && (
                 execution ? (
@@ -674,7 +673,7 @@ export const DemoPage: React.FC = () => {
                   <div key={i} className="demo-log-line" style={{ marginBottom: 3, display: 'flex', gap: 10 }}>
                     <Text style={{ color: c.dim, fontSize: 10, flexShrink: 0, minWidth: 55 }}>{entry.time}</Text>
                     <Text style={{
-                      color: entry.type === 'success' ? '#3fb950' : entry.type === 'error' ? '#f85149' : entry.type === 'warn' ? '#d29922' : c.logText,
+                      color: entry.type === 'success' ? 'var(--accent-green)' : entry.type === 'error' ? 'var(--accent-red)' : entry.type === 'warn' ? 'var(--accent-amber)' : c.logText,
                     }}>
                       {entry.text}
                     </Text>
@@ -682,7 +681,7 @@ export const DemoPage: React.FC = () => {
                 ))
               )}
               {isRunning && (
-                <div style={{ marginTop: 4, color: '#1677ff', fontSize: 11 }}>
+                <div style={{ marginTop: 4, color: 'var(--accent-blue)', fontSize: 11 }}>
                   <LoadingOutlined style={{ marginRight: 6 }} />опрашиваем бэкенд…
                 </div>
               )}

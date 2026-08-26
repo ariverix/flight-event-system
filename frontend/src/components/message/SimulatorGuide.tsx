@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Button, Drawer, Tag, Collapse } from 'antd';
 import { QuestionCircleOutlined } from '@ant-design/icons';
+import { useTheme } from '../../context/ThemeContext';
 
-const GUIDE_ITEMS = [
+interface GuideColors { cardBg: string; cardBorder: string; textMuted: string; textDim: string }
+
+const getGuideItems = (t: GuideColors) => [
   {
     key: '1',
     label: '📋 Как отправить сообщение',
@@ -59,18 +62,18 @@ const GUIDE_ITEMS = [
           },
         ].map(ex => (
           <div key={ex.title} style={{
-            background: 'rgba(0,0,0,0.03)',
-            border: '1px solid rgba(0,0,0,0.08)',
+            background: t.cardBg,
+            border: `1px solid ${t.cardBorder}`,
             borderRadius: 10, padding: '12px 14px', marginBottom: 12,
           }}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{ex.title}</div>
-            <div style={{ fontSize: 12, fontFamily: 'monospace', lineHeight: 1.7, color: 'rgba(0,0,0,0.65)' }}>
+            <div style={{ fontSize: 12, fontFamily: 'monospace', lineHeight: 1.7, color: t.textMuted }}>
               <div>Тип: <Tag style={{ fontSize: 10 }}>{ex.type}</Tag></div>
               <div>Шаблон: <code>{ex.tmpl}</code></div>
               <div>ВС: <code>{ex.ac}</code> · Рейс: <code>{ex.fl}</code></div>
               <div style={{ wordBreak: 'break-all' }}>Метаданные: <code>{ex.meta}</code></div>
             </div>
-            <div style={{ fontSize: 11, color: '#10b981', marginTop: 6 }}>💡 {ex.hint}</div>
+            <div style={{ fontSize: 11, color: 'var(--accent-green)', marginTop: 6 }}>💡 {ex.hint}</div>
           </div>
         ))}
       </div>
@@ -89,7 +92,7 @@ const GUIDE_ITEMS = [
           <div><Tag>ON</Tag>  — посадка → запускает "Контроль связи после посадки"</div>
           <div><Tag>IN</Tag>  — заруливание на стоянку</div>
         </div>
-        <p style={{ marginTop: 10, color: 'rgba(0,0,0,0.55)' }}>
+        <p style={{ marginTop: 10, color: t.textDim }}>
           Используй борт <code>SU9876</code> или <code>RA-89050</code> — для них в базе есть активные последовательности.
         </p>
       </div>
@@ -99,6 +102,12 @@ const GUIDE_ITEMS = [
 
 export const SimulatorGuide: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const { isDark } = useTheme();
+
+  const guideColors: GuideColors = isDark
+    ? { cardBg: 'rgba(255,255,255,0.04)', cardBorder: 'rgba(255,255,255,0.09)', textMuted: 'rgba(255,255,255,0.65)', textDim: 'rgba(255,255,255,0.55)' }
+    : { cardBg: 'rgba(0,0,0,0.03)', cardBorder: 'rgba(0,0,0,0.08)', textMuted: 'rgba(0,0,0,0.65)', textDim: 'rgba(0,0,0,0.55)' };
+
   return (
     <>
       <Button
@@ -115,7 +124,7 @@ export const SimulatorGuide: React.FC = () => {
         open={open}
         onClose={() => setOpen(false)}
       >
-        <Collapse defaultActiveKey={['1']} items={GUIDE_ITEMS} />
+        <Collapse defaultActiveKey={['1']} items={getGuideItems(guideColors)} />
       </Drawer>
     </>
   );

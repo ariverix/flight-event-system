@@ -69,8 +69,8 @@ export const MessageSimulator: React.FC = () => {
   const navigate = useNavigate();
 
   const c = isDark
-    ? { borderSecondary: '#21262d', text: '#e6edf3', textMuted: '#848d97', textDimmer: '#484f58', bgElevated: '#1c2128' }
-    : { borderSecondary: '#d8dee4', text: '#1f2328', textMuted: '#636c76', textDimmer: '#9da3ab', bgElevated: '#f6f8fa' };
+    ? { borderSecondary: 'rgba(255,255,255,0.09)', text: '#f5f5f7', textMuted: 'rgba(255,255,255,0.55)', textDimmer: 'rgba(255,255,255,0.30)', bgElevated: '#2c2c2e' }
+    : { borderSecondary: 'rgba(0,0,0,0.08)', text: '#1d1d1f', textMuted: '#6e6e73', textDimmer: '#8e8e93', bgElevated: '#ffffff' };
 
   const fetchRecentExecutions = async (aircraftId: string) => {
     setCheckingExecs(true);
@@ -184,9 +184,9 @@ export const MessageSimulator: React.FC = () => {
                   transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.background = 'rgba(59,130,246,0.08)';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(59,130,246,0.35)';
-                  (e.currentTarget as HTMLElement).style.color = '#3b82f6';
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-blue-rgb), 0.08)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(var(--accent-blue-rgb), 0.35)';
+                  (e.currentTarget as HTMLElement).style.color = 'var(--accent-blue)';
                 }}
                 onMouseLeave={e => {
                   (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -367,11 +367,11 @@ export const MessageSimulator: React.FC = () => {
         <Card
           title={
             <Space>
-              <CheckCircleOutlined style={{ color: '#52c41a' }} />
+              <CheckCircleOutlined style={{ color: 'var(--accent-green)' }} />
               <span style={{ color: c.text }}>Результат обработки события</span>
             </Space>
           }
-          style={{ marginTop: 16, borderColor: '#52c41a' }}
+          style={{ marginTop: 16, borderColor: 'var(--accent-green)' }}
         >
           {checkingExecs ? (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -400,7 +400,7 @@ export const MessageSimulator: React.FC = () => {
                     gap: 10,
                     transition: 'border-color 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = '#1677ff')}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent-blue)')}
                   onMouseLeave={e => (e.currentTarget.style.borderColor = c.borderSecondary)}
                 >
                   <Tag color={STATUS_COLOR[exec.status]} style={{ margin: 0, minWidth: 90, textAlign: 'center' }}>
@@ -458,7 +458,7 @@ export const MessageSimulator: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
             {
-              icon: '📡', color: '#3b82f6',
+              icon: '📡', color: 'var(--accent-blue)', hoverBg: 'rgba(var(--accent-blue-rgb), 0.10)',
               title: 'Позиционный отчёт от борта',
               badge: 'DOWNLINK · POSITION_REPORT',
               ac: 'VP-BQR', fl: 'SU1234',
@@ -466,7 +466,7 @@ export const MessageSimulator: React.FC = () => {
               fill: () => { setSimulationType('message'); setTimeout(() => form.setFieldsValue({ messageType: 'DOWNLINK', templateName: 'POSITION_REPORT', aircraftId: 'VP-BQR', flightNumber: 'SU1234', metadataJson: '{"latitude":55.7558,"longitude":37.6173,"positionSource":"ACARS","estimatedPosition":false}' }), 0); },
             },
             {
-              icon: '⚡', color: '#10b981',
+              icon: '⚡', color: 'var(--accent-green)', hoverBg: 'rgba(var(--accent-green-rgb), 0.10)',
               title: 'Смена фазы: взлёт (FlightStage = OFF)',
               badge: 'FlightStage · OFF',
               ac: 'VP-BQR', fl: 'SU1234',
@@ -474,7 +474,7 @@ export const MessageSimulator: React.FC = () => {
               fill: () => { setSimulationType('stage'); setTimeout(() => form.setFieldsValue({ aircraftId: 'VP-BQR', flightNumber: 'SU1234', newStage: 'OFF' }), 0); },
             },
             {
-              icon: '🌤', color: '#f59e0b',
+              icon: '🌤', color: 'var(--accent-amber)', hoverBg: 'rgba(var(--accent-amber-rgb), 0.10)',
               title: 'Метеосводка для рейса',
               badge: 'GROUND · WEATHER_UPDATE',
               ac: 'SU9876', fl: 'AFL123',
@@ -482,7 +482,7 @@ export const MessageSimulator: React.FC = () => {
               fill: () => { setSimulationType('message'); setTimeout(() => form.setFieldsValue({ messageType: 'GROUND', templateName: 'WEATHER_UPDATE', aircraftId: 'SU9876', flightNumber: 'AFL123', metadataJson: '{"temperature":-5,"wind":"10kt"}' }), 0); },
             },
             {
-              icon: '⏰', color: '#ef4444',
+              icon: '⏰', color: 'var(--accent-red)', hoverBg: 'rgba(var(--accent-red-rgb), 0.10)',
               title: 'Уведомление о задержке рейса',
               badge: 'GROUND · DELAY_NOTICE',
               ac: 'SU9876', fl: 'AFL123',
@@ -490,7 +490,7 @@ export const MessageSimulator: React.FC = () => {
               fill: () => { setSimulationType('message'); setTimeout(() => form.setFieldsValue({ messageType: 'GROUND', templateName: 'DELAY_NOTICE', aircraftId: 'SU9876', flightNumber: 'AFL123', metadataJson: '{"reason":"weather","delayMinutes":30}' }), 0); },
             },
             {
-              icon: '🛫', color: '#8b5cf6',
+              icon: '🛫', color: 'var(--accent-purple)', hoverBg: 'rgba(var(--accent-purple-rgb), 0.10)',
               title: 'Начало предполётной подготовки (FlightStage = INIT)',
               badge: 'FlightStage · INIT',
               ac: 'SU1234', fl: 'AFL456',
@@ -511,7 +511,7 @@ export const MessageSimulator: React.FC = () => {
               }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.borderColor = s.color;
-                (e.currentTarget as HTMLElement).style.background = `${s.color}12`;
+                (e.currentTarget as HTMLElement).style.background = s.hoverBg;
               }}
               onMouseLeave={e => {
                 (e.currentTarget as HTMLElement).style.borderColor = c.borderSecondary;
@@ -529,7 +529,7 @@ export const MessageSimulator: React.FC = () => {
                 {' '}· ВС: <code style={{ background: 'transparent' }}>{s.ac}</code>
                 {' '}· Рейс: <code style={{ background: 'transparent' }}>{s.fl}</code>
               </div>
-              <div style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>💡 {s.note}</div>
+              <div style={{ fontSize: 11, color: 'var(--accent-green)', marginTop: 4 }}>💡 {s.note}</div>
             </div>
           ))}
         </div>
