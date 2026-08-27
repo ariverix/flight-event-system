@@ -245,19 +245,28 @@ export const AppLayout: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          {/* Left: system subtitle */}
-          <Badge
-            status="processing"
-            color="#30d158"
-            text={
-              <Text style={{ fontSize: 12, color: c.textMuted }}>
-                {d.sysTagline}
-              </Text>
-            }
-          />
+          {/* Left: system subtitle — сжимается/скрывается первым, чтобы не наезжать
+              на иконки справа при недостатке ширины (сплит-экран, узкий ноутбук) */}
+          <div style={{ minWidth: 0, overflow: 'hidden', flexShrink: 1 }}>
+            <Badge
+              status="processing"
+              color="#30d158"
+              text={
+                <Text
+                  style={{
+                    fontSize: 12, color: c.textMuted,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {d.sysTagline}
+                </Text>
+              }
+            />
+          </div>
 
-          {/* Right: WS status + theme toggle + notifications + user */}
-          <Space size={8}>
+          {/* Right: WS status + theme toggle + notifications + user —
+              никогда не сжимается: интерактивные элементы важнее тэглайна слева */}
+          <Space size={8} style={{ flexShrink: 0 }}>
             {/* P7-4: WS connection indicator */}
             <ConnectionStatus />
             {/* Theme toggle */}
