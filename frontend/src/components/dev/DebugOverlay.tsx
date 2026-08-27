@@ -96,7 +96,7 @@ export const DebugOverlay: React.FC = () => {
           fontSize: 12, fontWeight: 600, cursor: 'pointer',
           boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
           display: 'flex', alignItems: 'center', gap: 6,
-          userSelect: 'none', transition: 'all 0.2s ease',
+          userSelect: 'none', transition: 'background-color 0.2s ease',
         }}
       >
         {errorCount > 0 ? `❌ ${errorCount}` : '🔧 Dev'}
