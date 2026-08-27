@@ -229,7 +229,7 @@ export const AppLayout: React.FC = () => {
         </div>
       </Sider>
 
-      <Layout style={{ marginLeft: siderCollapsed ? 0 : 240, transition: 'margin-left 0.2s ease' }}>
+      <Layout style={{ marginLeft: siderCollapsed ? 0 : 240, transition: 'margin-left 0.2s var(--ease-in-out)' }}>
         <Header
           style={{
             padding: '0 24px',
