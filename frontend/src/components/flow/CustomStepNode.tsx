@@ -164,7 +164,7 @@ export const CustomEndNode: React.FC<NodeProps> = ({ data }) => {
         fontSize: 11,
         letterSpacing: '0.04em',
         boxShadow: 'none',
-        transition: 'all 0.3s ease',
+        transition: 'background 0.3s ease, border-color 0.3s ease, color 0.3s ease',
         whiteSpace: 'nowrap',
       }}>
         {reached ? (isAbort ? '✗' : '✓') : '●'} {d.label}

@@ -149,7 +149,7 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
   return (
     <div style={rowStyle}>
       {header}
-      {details && open && <div style={{ marginTop: 8 }}>{details}</div>}
+      {details && open && <div className="fade-in" style={{ marginTop: 8 }}>{details}</div>}
     </div>
   );
 };

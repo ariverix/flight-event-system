@@ -267,7 +267,7 @@ export const Dashboard: React.FC = () => {
                   <div className="stat-card-progress-track" style={{ margin: '6px 0 2px' }}>
                     <div
                       className="stat-card-progress-fill"
-                      style={{ width: `${card.value}%`, background: card.color }}
+                      style={{ transform: `scaleX(${card.value / 100})`, background: card.color }}
                     />
                   </div>
                 )}

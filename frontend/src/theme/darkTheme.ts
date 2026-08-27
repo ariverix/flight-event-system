@@ -105,7 +105,7 @@ export const DARK_THEME = {
       rowSelectedBg:        'rgba(10,132,255,0.11)',
       rowSelectedHoverBg:   'rgba(10,132,255,0.16)',
       colorText:            'rgba(255,255,255,0.82)',
-      filterDropdownBg:     'rgba(8,10,22,0.98)',
+      filterDropdownBg:     '#2c2c2e',
       cellPaddingBlock:      13,
     },
 
@@ -138,14 +138,14 @@ export const DARK_THEME = {
     Select: {
       colorBgContainer:    'rgba(255,255,255,0.042)',
       colorBorder:         'rgba(255,255,255,0.11)',
-      colorBgElevated:     'rgba(8,10,22,0.98)',
+      colorBgElevated:     '#2c2c2e',
       optionSelectedBg:    'rgba(10,132,255,0.15)',
       optionActiveBg:      'rgba(255,255,255,0.055)',
       selectorBg:          'rgba(255,255,255,0.042)',
     },
 
     Modal: {
-      contentBg:                  'rgba(8,10,22,0.97)',
+      contentBg:                  '#2c2c2e',
       headerBg:                   'transparent',
       footerBg:                   'transparent',
       colorText:                  'rgba(255,255,255,0.88)',
@@ -154,11 +154,11 @@ export const DARK_THEME = {
     },
 
     Drawer: {
-      colorBgElevated: 'rgba(8,10,22,0.98)',
+      colorBgElevated: '#2c2c2e',
     },
 
     Dropdown: {
-      colorBgElevated:       'rgba(8,10,22,0.98)',
+      colorBgElevated:       '#2c2c2e',
       controlItemBgHover:    'rgba(255,255,255,0.055)',
       controlItemBgActive:   'rgba(10,132,255,0.13)',
     },
@@ -170,11 +170,11 @@ export const DARK_THEME = {
     },
 
     Badge: {
-      colorBgContainer: 'rgba(4,5,8,0.92)',
+      colorBgContainer: '#2c2c2e',
     },
 
     Tooltip: {
-      colorBgSpotlight: 'rgba(6,8,20,0.96)',
+      colorBgSpotlight: '#2c2c2e',
       colorText:        'rgba(255,255,255,0.88)',
       borderRadius:      10,
     },
@@ -218,7 +218,7 @@ export const DARK_THEME = {
     DatePicker: {
       colorBgContainer:      'rgba(255,255,255,0.042)',
       colorBorder:           'rgba(255,255,255,0.11)',
-      colorBgElevated:       'rgba(8,10,22,0.98)',
+      colorBgElevated:       '#2c2c2e',
       cellHoverBg:           'rgba(255,255,255,0.055)',
       cellActiveWithRangeBg: 'rgba(10,132,255,0.11)',
     },
@@ -230,19 +230,19 @@ export const DARK_THEME = {
     },
 
     Message: {
-      contentBg: 'rgba(8,10,22,0.97)',
+      contentBg: '#2c2c2e',
       colorText:  'rgba(255,255,255,0.90)',
     },
 
     Notification: {
-      colorBgElevated: 'rgba(8,10,22,0.97)',
+      colorBgElevated: '#2c2c2e',
       borderRadiusLG:   14,
       colorText:       'rgba(255,255,255,0.88)',
     },
 
     Timeline: {
       colorText: 'rgba(255,255,255,0.72)',
-      dotBg:     'rgba(4,5,8,0.92)',
+      dotBg:     '#2c2c2e',
     },
 
     Statistic: {
@@ -265,7 +265,7 @@ export const DARK_THEME = {
 
     AutoComplete: {
       colorBgContainer: 'rgba(255,255,255,0.042)',
-      colorBgElevated:  'rgba(8,10,22,0.98)',
+      colorBgElevated:  '#2c2c2e',
     },
 
     Alert: {

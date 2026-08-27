@@ -178,9 +178,10 @@ export const TimelinePage: React.FC = () => {
                   background: sc.bg, color: sc.color,
                   fontSize: 12, fontWeight: 700,
                   cursor: 'pointer', userSelect: 'none',
-                  transition: 'all 0.15s ease',
+                  transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s var(--ease-out)',
                   outline: 'none',
                 }}
+                className="panel-btn-press"
               >
                 {s}×
               </button>
@@ -196,9 +197,12 @@ export const TimelinePage: React.FC = () => {
             borderRadius: 3, overflow: 'hidden',
           }}>
             <div style={{
-              width: `${tl.progress}%`, height: '100%',
+              width: '100%', height: '100%',
               background: 'var(--accent-blue)',
-              borderRadius: 3, transition: 'width 0.25s ease',
+              borderRadius: 3,
+              transformOrigin: 'left',
+              transform: `scaleX(${tl.progress / 100})`,
+              transition: 'transform 0.25s ease',
             }} />
           </div>
           <span style={{ fontSize: 12, color: c.progressCount, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
@@ -288,18 +292,27 @@ export const TimelinePage: React.FC = () => {
             Статистика
           </h3>
 
-          {STAT_CONFIG.map(s => (
-            <div key={s.key} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 0',
-              borderBottom: `1px solid ${c.statDivider}`,
-            }}>
-              <span style={{ fontSize: 13, color: c.statLabel }}>{s.label}</span>
-              <span style={{ fontSize: 24, fontWeight: 700, color: s.color, letterSpacing: '-0.02em', transition: 'all 0.2s ease' }}>
-                {tl.visible.filter(e => e.type === s.key).length}
-              </span>
-            </div>
-          ))}
+          {STAT_CONFIG.map(s => {
+            const count = tl.visible.filter(e => e.type === s.key).length;
+            return (
+              <div key={s.key} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 0',
+                borderBottom: `1px solid ${c.statDivider}`,
+              }}>
+                <span style={{ fontSize: 13, color: c.statLabel }}>{s.label}</span>
+                {/* key={count} — ремонтирует span при каждом инкременте, чтобы countPop
+                    проигрывался заново (CSS animation не перезапускается на том же узле) */}
+                <span
+                  key={count}
+                  className="stat-count-pop"
+                  style={{ fontSize: 24, fontWeight: 700, color: s.color, letterSpacing: '-0.02em' }}
+                >
+                  {count}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

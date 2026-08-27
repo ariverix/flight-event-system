@@ -38,7 +38,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="login-bg">
-      <div className="login-card fade-in-up">
+      <div className="login-card">
         {/* Logo */}
         <div className="login-logo">
           <div className="login-logo-icon">

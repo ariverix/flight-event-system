@@ -75,7 +75,7 @@ export const EventLogPanel: React.FC<EventLogPanelProps> = ({
       color: meta.color,
       dot:   meta.icon,
       children: (
-        <Space direction="vertical" size={2}>
+        <Space direction="vertical" size={2} className="fade-in">
           <Space size={6} wrap>
             <Tag
               color={meta.color}

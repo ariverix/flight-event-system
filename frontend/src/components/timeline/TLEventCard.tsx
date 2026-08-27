@@ -164,7 +164,7 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
   return (
     <div style={{
       display: 'flex', gap: 12, paddingBottom: 16,
-      animation: isNew ? 'fadeInUp 0.35s ease both' : 'none',
+      animation: isNew ? 'fadeInUp 0.35s var(--ease-out) both' : 'none',
       position: 'relative',
     }}>
       {showConnector && (
@@ -195,7 +195,7 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
           border: `1px solid ${isNew ? cfg.bd : cardBorder}`,
           borderRadius: 12, padding: '12px 16px',
           cursor: 'pointer',
-          transition: 'all 0.25s ease',
+          transition: 'background 0.25s ease, border-color 0.25s ease',
         }}
         onClick={() => setExpanded(e => !e)}
       >
@@ -215,7 +215,7 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
             <RightOutlined style={{
               fontSize: 10, color: textDim,
               transform: expanded ? 'rotate(90deg)' : 'none',
-              transition: 'transform 0.2s ease',
+              transition: 'transform 0.2s var(--ease-in-out)',
             }} />
           </div>
         </div>
@@ -228,7 +228,7 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
           <div style={{
             marginTop: 12, padding: '10px 12px',
             background: detailsBg, borderRadius: 8,
-            animation: 'fadeIn 0.2s ease',
+            animation: 'fadeIn 0.2s var(--ease-out)',
           }}>
             <div style={{ fontSize: 11, fontFamily: 'monospace', color: textMuted, lineHeight: 1.7 }}>
               <div><strong>ID:</strong> {event.id}</div>

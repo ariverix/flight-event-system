@@ -156,8 +156,8 @@ export const SequenceList: React.FC = () => {
       key: 'actions',
       width: isAdmin ? 280 : 100,
       fixed: 'right' as const,
-      onCell: () => ({ style: { background: '#fff' } }),
-      onHeaderCell: () => ({ style: { background: '#fff' } }),
+      onCell: () => ({ style: { background: 'var(--bg-surface)' } }),
+      onHeaderCell: () => ({ style: { background: 'var(--bg-surface)' } }),
       render: (_: any, record: SequenceResponse) => (
         <Space size={2} wrap={false}>
           <Button type="text" size="small" icon={<EyeOutlined />}

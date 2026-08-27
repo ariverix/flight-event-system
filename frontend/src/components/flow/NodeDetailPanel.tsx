@@ -107,11 +107,15 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
         </div>
         <button
           onClick={onClose}
+          className="panel-btn-press"
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: t3, fontSize: 20, lineHeight: 1,
             padding: 0, flexShrink: 0, marginTop: -2,
+            transition: 'color 0.15s ease, transform 0.12s var(--ease-out)',
           }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = t1; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = t3; }}
         >
           ×
         </button>

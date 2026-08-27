@@ -176,12 +176,13 @@ export const MessageSimulator: React.FC = () => {
               <button
                 key={p.label}
                 onClick={() => applyPreset(p)}
+                className="panel-btn-press"
                 style={{
                   padding: '5px 14px', borderRadius: 20,
                   border: `1px solid ${c.borderSecondary}`,
                   background: 'transparent', color: c.text,
                   fontSize: 13, cursor: 'pointer',
-                  transition: 'all 0.15s ease',
+                  transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s var(--ease-out)',
                 }}
                 onMouseEnter={e => {
                   (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-blue-rgb), 0.08)';
@@ -507,7 +508,7 @@ export const MessageSimulator: React.FC = () => {
                 border: `1px solid ${c.borderSecondary}`,
                 borderLeft: `4px solid ${s.color}`,
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition: 'border-color 0.15s ease, background 0.15s ease',
               }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.borderColor = s.color;

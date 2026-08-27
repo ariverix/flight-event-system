@@ -21,7 +21,6 @@
   --glass-3: rgba(255,255,255,0.10);
   --glass-border: rgba(255,255,255,0.10);
   --glass-border-hover: rgba(255,255,255,0.16);
-  --glass-shine: none;
 
   --accent-blue:   #0a84ff;  /* системный синий macOS (тёмный режим) */
   --accent-indigo: #5e5ce6;
@@ -54,6 +53,11 @@
   --text-4: rgba(255,255,255,0.22);
 
   --r-xs: 6px; --r-sm: 8px; --r-md: 10px; --r-lg: 12px; --r-xl: 16px;
+
+  /* Строгий ease-out — для входа/появления элементов (не встроенный слабый `ease`) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* Строгий ease-in-out — для движения/поворота уже видимых элементов */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 body[data-theme='light'] {
@@ -66,7 +70,6 @@ body[data-theme='light'] {
   --glass-2: rgba(255,255,255,0.88);
   --glass-border: rgba(0,0,0,0.08);
   --glass-border-hover: rgba(0,0,0,0.14);
-  --glass-shine: none;
 
   --accent-blue: #0071e3;   /* системный синий macOS (светлый режим) */
   --accent-blue-rgb: 0,113,227;
@@ -127,10 +130,6 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-@keyframes progressStripe {
-  from { background-position: 40px 0; }
-  to   { background-position: 0 0; }
-}
 @keyframes pulseBorder {
   0%,100% { opacity: 1; }
   50%      { opacity: 0.4; }
@@ -140,11 +139,20 @@ body[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12
   50%  { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
+.stat-count-pop { display: inline-block; animation: countPop 0.3s var(--ease-in-out); }
 
 /* ── Page transition ─────────────────────────────── */
 .page-enter { animation: fadeInUp 0.38s cubic-bezier(0.4,0,0.2,1) both; }
-.fade-in-up { animation: fadeInUp 0.35s ease forwards; }
-.fade-in    { animation: fadeIn 0.3s ease forwards; }
+.fade-in-up { animation: fadeInUp 0.35s var(--ease-out) forwards; }
+.fade-in    { animation: fadeIn 0.3s var(--ease-out) forwards; }
+
+/* ── prefers-reduced-motion ──────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter, .fade-in-up, .fade-in, .login-card, .stagger-item {
+    animation-duration: 0.001ms !important;
+    animation-name: fadeIn !important;
+  }
+}
 
 /* ── Stagger ─────────────────────────────────────── */
 .stagger-container .stagger-item:nth-child(1) { animation-delay:   0ms; }
@@ -300,25 +308,26 @@ body[data-theme='light'] .ant-tag-processing { color: #0071e3 !important; }
   border: none !important;
   box-shadow: none !important;
   font-weight: 600 !important;
-  transition: filter 0.15s ease !important;
+  transition: filter 0.15s ease, transform 0.12s var(--ease-out) !important;
 }
 .ant-btn-primary:hover {
   background: var(--accent-blue) !important;
   filter: brightness(1.12);
   box-shadow: none !important;
 }
-.ant-btn-primary:active { filter: brightness(0.94); }
+.ant-btn-primary:active { filter: brightness(0.94); transform: scale(0.97); }
 .ant-btn-default {
   background: rgba(255,255,255,0.06) !important;
   border-color: rgba(255,255,255,0.12) !important;
   color: rgba(255,255,255,0.82) !important;
-  transition: all 0.2s ease !important;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.12s var(--ease-out) !important;
 }
 .ant-btn-default:hover {
   background: rgba(255,255,255,0.10) !important;
   border-color: rgba(255,255,255,0.22) !important;
   color: var(--text-1) !important;
 }
+.ant-btn-default:active { transform: scale(0.97); }
 .ant-btn-dangerous.ant-btn-default {
   border-color: rgba(255,69,58,0.40) !important; color: #ff453a !important;
 }
@@ -326,8 +335,15 @@ body[data-theme='light'] .ant-tag-processing { color: #0071e3 !important; }
   background: rgba(255,69,58,0.10) !important;
   border-color: rgba(255,69,58,0.60) !important;
 }
-.ant-btn-text { color: var(--text-2) !important; transition: all 0.2s ease !important; }
+.ant-btn-text {
+  color: var(--text-2) !important;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.12s var(--ease-out) !important;
+}
 .ant-btn-text:hover { background: var(--glass-1) !important; color: var(--text-1) !important; }
+.ant-btn-text:active, .ant-btn-dangerous.ant-btn-text:active { transform: scale(0.97); }
+
+/* Plain (non-antd) icon buttons — React Flow toolbar etc. */
+.panel-btn-press:active { transform: scale(0.92); }
 .ant-btn-link { font-weight: 500 !important; }
 
 /* ── Inputs / Select ─────────────────────────────── */
@@ -352,24 +368,29 @@ body[data-theme='light'] .ant-picker-focused {
 
 /* ── Modal ───────────────────────────────────────── */
 .ant-modal-content {
-  backdrop-filter: blur(40px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.6), var(--glass-shine) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35) !important;
 }
+body[data-theme='light'] .ant-modal-content { box-shadow: 0 8px 24px rgba(0,0,0,0.14) !important; }
 
 /* ── Select popup / Dropdown ─────────────────────── */
 .ant-select-dropdown, .ant-dropdown-menu {
-  backdrop-filter: blur(24px) !important;
   border: 1px solid var(--glass-border) !important;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.45) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.30) !important;
+}
+body[data-theme='light'] .ant-select-dropdown,
+body[data-theme='light'] .ant-dropdown-menu {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
 }
 
 /* ── Notifications / Message ─────────────────────── */
 .ant-notification-notice,
 .ant-message-notice-content {
-  backdrop-filter: blur(24px) !important;
   border: 1px solid var(--glass-border) !important;
-  box-shadow: 0 12px 36px rgba(0,0,0,0.4) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.30) !important;
+}
+body[data-theme='light'] .ant-notification-notice,
+body[data-theme='light'] .ant-message-notice-content {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
 }
 
 /* ── Progress ────────────────────────────────────── */
@@ -529,9 +550,15 @@ body[data-theme='light'] .react-flow__controls-button:hover {
 .stat-card {
   border-radius: 10px !important; cursor: pointer;
   min-height: 148px !important;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease-out) !important;
   border-color: var(--glass-border) !important;
 }
+.stat-card:hover {
+  border-color: var(--glass-border-hover) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18) !important;
+  transform: translateY(-2px) !important;
+}
+body[data-theme='light'] .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important; }
 .stat-card .ant-card-body {
   display: flex !important; flex-direction: column !important;
   justify-content: space-between !important; height: 100% !important;
@@ -559,11 +586,12 @@ body[data-theme='light'] .react-flow__controls-button:hover {
 }
 body[data-theme='light'] .stat-card-progress-track { background: rgba(0,0,0,0.06); }
 .stat-card-progress-fill {
-  height: 100%; border-radius: 3px;
-  transition: width 0.7s cubic-bezier(0.16,1,0.3,1);
+  height: 100%; width: 100%; border-radius: 3px;
+  transform-origin: left;
+  transition: transform 0.7s cubic-bezier(0.16,1,0.3,1);
 }
 
-.quick-action-card { transition: all 0.22s cubic-bezier(0.4,0,0.2,1) !important; }
+.quick-action-card { transition: border-color 0.22s var(--ease-out), background 0.22s var(--ease-out), transform 0.22s var(--ease-out) !important; }
 .quick-action-card:hover { transform: translateY(-2px) translateX(2px) !important; }
 
 /* ═══════════════════════════════════════════════════
@@ -590,17 +618,16 @@ body[data-theme='light'] .seq-draft .ant-table-cell:first-child {
 .execution-row-running::before { background: var(--accent-blue); }
 .execution-row-waiting::before { background: var(--accent-amber); }
 
-/* Progress bar */
-.exec-progress-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.07); overflow: hidden; }
-.exec-progress-fill {
-  height: 100%; border-radius: 2px;
+/* ═══════════════════════════════════════════════════
+   МОНИТОРИНГ (InstancesDashboard) — тот же паттерн,
+   что у execution-row-running
+   ═══════════════════════════════════════════════════ */
+.instance-row-running { position: relative; }
+.instance-row-running::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; border-radius: 0 2px 2px 0;
   background: var(--accent-blue);
-  transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
-}
-.exec-progress-fill.active::after {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
-  background-size: 40px 100%; animation: progressStripe 0.8s linear infinite;
+  animation: pulseBorder 2s ease-in-out infinite;
 }
 
 /* Elapsed badge */
@@ -615,7 +642,7 @@ body[data-theme='light'] .elapsed-badge { color: #c2410c; }
 /* ═══════════════════════════════════════════════════
    DEMO PAGE
    ═══════════════════════════════════════════════════ */
-.demo-log-line { animation: slideInRight 0.18s ease forwards; }
+.demo-log-line { animation: slideInRight 0.18s var(--ease-out) forwards; }
 
 /* ═══════════════════════════════════════════════════
    USERS PAGE — STATS ROW
@@ -624,7 +651,7 @@ body[data-theme='light'] .elapsed-badge { color: #c2410c; }
   display: flex; gap: 24px; padding: 22px 24px; margin-top: 16px;
   background: rgba(255,255,255,0.025);
   border: 1px solid rgba(255,255,255,0.07); border-radius: 16px;
-  animation: fadeInUp 0.4s ease both;
+  animation: fadeInUp 0.4s var(--ease-out) both;
 }
 .users-stat-item { display: flex; flex-direction: column; gap: 3px; }
 .users-stat-num {
@@ -669,7 +696,7 @@ body[data-theme='light'] .audit-detail-code {
   background: var(--bg-surface);
   border: 1px solid var(--glass-border);
   box-shadow: 0 1px 3px rgba(0,0,0,0.24);
-  animation: fadeInUp 0.4s ease forwards;
+  animation: fadeInUp 0.35s var(--ease-out) forwards;
 }
 body[data-theme='light'] .login-card { box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .login-logo { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 32px; }
@@ -707,12 +734,6 @@ body[data-theme='light'] .btn-export { color: #248a3d !important; }
    ФИНАЛЬНЫЕ ШТРИХИ (Этап 5)
    ═══════════════════════════════════════════════════ */
 
-/* Задержки анимации для stat-карточек дашборда */
-.stat-card:nth-child(1) { animation-delay:   0ms; }
-.stat-card:nth-child(2) { animation-delay:  70ms; }
-.stat-card:nth-child(3) { animation-delay: 140ms; }
-.stat-card:nth-child(4) { animation-delay: 210ms; }
-
 /* Технические идентификаторы — моноширинный */
 .aircraft-id, .flight-id, .template-id {
   font-family: 'SF Mono','Fira Code','Cascadia Code','Consolas',monospace !important;
@@ -726,16 +747,7 @@ body[data-theme='light'] .btn-export { color: #248a3d !important; }
 
 /* Прогресс-бар */
 .ant-progress-inner { background: rgba(255,255,255,0.08) !important; }
-
-/* Кнопка «Назад» */
-.back-button {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  font-weight: 500 !important;
-  transition: all 0.2s ease !important;
-}
-.back-button:hover { transform: translateX(-2px) !important; }
+body[data-theme='light'] .ant-progress-inner { background: rgba(0,0,0,0.06) !important; }
 
 /* React Flow fullscreen — заполнить весь экран */
 .flow-container:fullscreen,

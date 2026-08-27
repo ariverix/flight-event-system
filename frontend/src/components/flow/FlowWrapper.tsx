@@ -37,6 +37,7 @@ const PanelBtn: React.FC<{
   <button
     title={title}
     onClick={onClick}
+    className="panel-btn-press"
     style={{
       background: 'transparent',
       border: 'none',
@@ -48,7 +49,7 @@ const PanelBtn: React.FC<{
       alignItems: 'center',
       justifyContent: 'center',
       fontSize: 14,
-      transition: 'all 0.15s ease',
+      transition: 'background 0.15s ease, color 0.15s ease, transform 0.12s var(--ease-out)',
       padding: 0,
     }}
     onMouseEnter={e => {
