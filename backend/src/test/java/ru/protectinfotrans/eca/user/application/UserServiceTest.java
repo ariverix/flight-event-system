@@ -38,6 +38,9 @@ class UserServiceTest {
     @Mock
     private AuditLogPort auditLogPort;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     // Реальный BCrypt-энкодер — тесты проверяют фактическое хеширование/сравнение пароля,
     // мок здесь не годится (нужна настоящая криптография для shouldHashPassword/checkPassword).
     // @Spy оборачивает реальный объект так, чтобы Mockito смог внедрить его через @InjectMocks.
@@ -251,6 +254,111 @@ class UserServiceTest {
             Long result = userService.findUserIdByUsername("unknown");
 
             assertThat(result).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("Change Password")
+    class ChangePassword {
+
+        @Test
+        @DisplayName("Should change password when current password is correct")
+        void shouldChangePasswordSuccessfully() {
+            String oldHash = passwordEncoder.encode("oldpassword");
+            User user = User.builder()
+                    .id(1L)
+                    .username("testuser")
+                    .passwordHash(oldHash)
+                    .build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+            when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            userService.changePassword(1L, "oldpassword", "newpassword");
+
+            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+            verify(userRepository).saveAndFlush(userCaptor.capture());
+            User saved = userCaptor.getValue();
+            assertThat(saved.getPasswordHash()).isNotEqualTo(oldHash);
+            assertThat(passwordEncoder.matches("newpassword", saved.getPasswordHash())).isTrue();
+
+            verify(auditLogPort).save(any(AuditLog.class));
+        }
+
+        @Test
+        @DisplayName("Should revoke all refresh tokens in the same call as the password change (atomicity, review P4-6 HIGH)")
+        void shouldRevokeAllRefreshTokensOnPasswordChange() {
+            String oldHash = passwordEncoder.encode("oldpassword");
+            User user = User.builder()
+                    .id(3L)
+                    .username("testuser")
+                    .passwordHash(oldHash)
+                    .build();
+
+            when(userRepository.findById(3L)).thenReturn(Optional.of(user));
+
+            userService.changePassword(3L, "oldpassword", "newpassword");
+
+            verify(refreshTokenService).revokeAllForUser(3L);
+        }
+
+        @Test
+        @DisplayName("Should create audit log entry with correct action/entity on password change")
+        void shouldCreateAuditLogOnPasswordChange() {
+            String oldHash = passwordEncoder.encode("oldpassword");
+            User user = User.builder()
+                    .id(7L)
+                    .username("audituser")
+                    .passwordHash(oldHash)
+                    .build();
+
+            when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+
+            userService.changePassword(7L, "oldpassword", "newpassword");
+
+            ArgumentCaptor<AuditLog> auditCaptor = ArgumentCaptor.forClass(AuditLog.class);
+            verify(auditLogPort).save(auditCaptor.capture());
+
+            AuditLog audit = auditCaptor.getValue();
+            assertThat(audit.getAction()).isEqualTo("USER_PASSWORD_CHANGED");
+            assertThat(audit.getEntityType()).isEqualTo("USER");
+            assertThat(audit.getEntityId()).isEqualTo(7L);
+            assertThat(audit.getUserId()).isEqualTo(7L);
+        }
+
+        @Test
+        @DisplayName("Should throw exception when user not found")
+        void shouldThrowExceptionWhenUserNotFound() {
+            when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.changePassword(999L, "old", "newpassword"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("User not found");
+
+            verify(userRepository, never()).save(any());
+            verify(auditLogPort, never()).save(any());
+            verify(refreshTokenService, never()).revokeAllForUser(any());
+        }
+
+        @Test
+        @DisplayName("Should throw exception when current password is incorrect")
+        void shouldThrowExceptionWhenCurrentPasswordIncorrect() {
+            String hash = passwordEncoder.encode("correctpassword");
+            User user = User.builder()
+                    .id(2L)
+                    .username("testuser")
+                    .passwordHash(hash)
+                    .build();
+
+            when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+
+            assertThatThrownBy(() -> userService.changePassword(2L, "wrongpassword", "newpassword"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Invalid current password");
+
+            verify(userRepository, never()).save(any());
+            verify(auditLogPort, never()).save(any());
+            verify(refreshTokenService, never()).revokeAllForUser(any());
         }
     }
 

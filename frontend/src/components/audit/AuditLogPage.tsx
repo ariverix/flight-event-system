@@ -48,6 +48,7 @@ const ACTION_LABELS: Record<string, string> = {
   TOGGLE_USER:         'Изменение статуса',
   USER_TOGGLED:        'Статус пользователя',
   USER_REGISTERED:     'Регистрация пользователя',
+  USER_PASSWORD_CHANGED: 'Смена пароля',
 };
 
 const ENTITY_TYPE_LABELS: Record<string, string> = {

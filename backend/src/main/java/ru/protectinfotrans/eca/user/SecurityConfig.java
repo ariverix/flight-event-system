@@ -83,6 +83,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/folders/**").hasAuthority("MANAGE_EVENT_HANDLING")
                         .requestMatchers("/api/v1/event-handlers/**").hasAuthority("MANAGE_EVENT_HANDLING")
                         .requestMatchers("/api/v1/auth/me").authenticated()
+                        .requestMatchers("/api/v1/auth/password").authenticated()
                         // P4-1 (закрытие backlog P0-3): default-DENY для всех прочих /api/** —
                         // будущий контроллер без явного matcher НЕ окажется открытым (раньше
                         // цепочка заканчивалась anyRequest().permitAll() = default-allow).

@@ -27,6 +27,7 @@ public class UserService implements UserLookupPort {
     private final ru.protectinfotrans.eca.user.port.out.AuditLogPort auditLogPort;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
+    private final RefreshTokenService refreshTokenService;
 
     /** @throws IllegalArgumentException если username уже занят */
     public User registerUser(String username, String password, String fullName, Role role) {
@@ -116,6 +117,52 @@ public class UserService implements UserLookupPort {
                 .build());
 
         return updatedUser;
+    }
+
+    /**
+     * Self-service смена пароля аутентифицированным пользователем (backlog из
+     * PRODUCTION_READINESS_REPORT.md, раздел "Безопасность").
+     *
+     * @param userId id текущего (self) пользователя
+     * @param currentPassword текущий пароль (для подтверждения владения аккаунтом)
+     * @param newPassword новый пароль (валидация длины — на уровне DTO)
+     * @throws IllegalArgumentException пользователь не найден ИЛИ текущий пароль неверен
+     *         (сообщение generic — "Invalid current password", без утечки существования юзера,
+     *         хотя здесь это self-service на своём же id, так что риска раскрытия нет)
+     */
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: id=" + userId));
+
+        if (!checkPassword(user, currentPassword)) {
+            log.warn("Password change failed: incorrect current password for user id={}", userId);
+            throw new IllegalArgumentException("Invalid current password");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        // saveAndFlush, а не save: revokeAllForUser ниже бьёт по БД bulk-запросом с
+        // @Modifying(clearAutomatically = true) — он detach'ит persistence context БЕЗ
+        // предварительного flush. Обычный save() на уже managed-сущности (merge) не пишет
+        // в БД немедленно — SQL откладывается до flush/commit. Без явного flush здесь
+        // clearAutomatically очистил бы контекст ДО того, как passwordHash реально попал
+        // бы в БД, и изменение пароля молча терялось бы (клиенту всё равно вернулся бы 204).
+        userRepository.saveAndFlush(user);
+
+        // в ТОЙ ЖЕ транзакции, что и смена пароля: без этого при сбое между двумя отдельными
+        // commit'ами пароль уже сменился бы, а старые refresh-токены остались бы живы —
+        // нарушение инварианта "смена пароля закрывает все сессии" (ревью P4-6, HIGH)
+        refreshTokenService.revokeAllForUser(userId);
+
+        log.info("Password changed for user: id={}, username={}", userId,
+                LogSanitizer.sanitize(user.getUsername()));
+
+        auditLogPort.save(ru.protectinfotrans.eca.AuditLog.builder()
+                .action("USER_PASSWORD_CHANGED")
+                // actor == entity: пользователь меняет свой собственный пароль
+                .userId(userId)
+                .entityType("USER")
+                .entityId(userId)
+                .build());
     }
 
     @Transactional(readOnly = true)

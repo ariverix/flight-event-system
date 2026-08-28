@@ -33,9 +33,10 @@ import java.util.Map;
  *
  * <p><b>Защищаемые классы путей</b> (per client IP, {@link RateLimitProperties}):
  * <ul>
- *   <li>{@code AUTH} — неаутентифицированные {@code /api/v1/auth/login|refresh|logout} (брутфорс);
- *       {@code /api/v1/auth/me} и {@code /register} исключены (аутентифицированы, не brute-force
- *       поверхность, а {@code /me} часто опрашивается фронтом).</li>
+ *   <li>{@code AUTH} — {@code /api/v1/auth/login|refresh|logout} (брутфорс) и {@code /password}
+ *       (PUT, P4-6: currentPassword — угадываемый секрет, тот же риск брутфорса, хоть эндпоинт и
+ *       требует валидный JWT); {@code /api/v1/auth/me} и {@code /register} исключены (аутентифицированы,
+ *       не brute-force поверхность, а {@code /me} часто опрашивается фронтом).</li>
  *   <li>{@code MESSAGES} — открытый {@code /api/v1/messages/**} (флуд). Потолок высокий (см.
  *       {@link RateLimitProperties}) — не режет штатный высокочастотный поток шлюза.</li>
  * </ul>
@@ -135,10 +136,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (uri.startsWith("/api/v1/messages")) {
             return Scope.MESSAGES;
         }
-        // только неаутентифицированные auth-пути (брутфорс); /me и /register исключены
+        // неаутентифицированные auth-пути (брутфорс) + /password: хоть и требует валидный JWT,
+        // сам currentPassword — угадываемый секрет (brute-force поверхность), поэтому лимитируем
+        // так же, как login. /me и /register остаются исключены (не brute-force поверхность).
         if (uri.equals("/api/v1/auth/login")
                 || uri.equals("/api/v1/auth/refresh")
-                || uri.equals("/api/v1/auth/logout")) {
+                || uri.equals("/api/v1/auth/logout")
+                || uri.equals("/api/v1/auth/password")) {
             return Scope.AUTH;
         }
         return Scope.NONE;

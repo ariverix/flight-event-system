@@ -1173,6 +1173,59 @@
         }
       }
     },
+    "/api/v1/auth/password" : {
+      "put" : {
+        "tags" : [ "Authentication" ],
+        "summary" : "Change password",
+        "description" : "Self-service смена пароля текущего аутентифицированного пользователя. Отзывает все refresh-токены пользователя (старые сессии не переживают смену пароля).",
+        "operationId" : "changePassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "400" : {
+            "description" : "Неверный текущий пароль или невалидный новый пароль",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Не аутентифицирован",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Превышен лимит попыток смены пароля (rate limit, брутфорс-защита)",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/register" : {
       "post" : {
         "tags" : [ "Authentication" ],
@@ -2418,6 +2471,20 @@
           }
         },
         "required" : [ "refreshToken" ]
+      },
+      "ChangePasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "currentPassword" : {
+            "type" : "string"
+          },
+          "newPassword" : {
+            "type" : "string",
+            "maxLength" : 2147483647,
+            "minLength" : 4
+          }
+        },
+        "required" : [ "currentPassword", "newPassword" ]
       },
       "LoginRequest" : {
         "type" : "object",
