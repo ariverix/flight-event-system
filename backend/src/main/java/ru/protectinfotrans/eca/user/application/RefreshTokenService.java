@@ -93,6 +93,18 @@ public class RefreshTokenService {
         }).orElse(null);
     }
 
+    /**
+     * Отозвать ВСЕ активные refresh-токены пользователя (используется при смене пароля —
+     * стандартная практика безопасности: старые сессии не должны переживать смену секрета
+     * аутентификации). Тонкая обёртка над {@link RefreshTokenRepositoryPort#revokeAllActiveForUser}
+     * (та же логика, что и в reuse-detection при {@link #rotate}, — не дублируем).
+     *
+     * @return число отозванных токенов
+     */
+    public int revokeAllForUser(Long userId) {
+        return repository.revokeAllActiveForUser(userId);
+    }
+
     private String generateToken() {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);

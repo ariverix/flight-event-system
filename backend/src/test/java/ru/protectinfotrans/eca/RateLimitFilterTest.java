@@ -140,6 +140,29 @@ class RateLimitFilterTest {
     }
 
     @Test
+    @DisplayName("P4-6: /auth/password (PUT) лимитируется как AUTH — currentPassword угадываемый, брутфорс-поверхность")
+    void authPasswordChangeIsRateLimited() throws Exception {
+        RateLimitFilter filter = filter();
+        FilterChain chain = mock(FilterChain.class);
+
+        // 2 разрешённых попытки смены пароля (auth capacity=2)
+        for (int i = 0; i < 2; i++) {
+            filter.doFilterInternal(request("/api/v1/auth/password", "PUT", "10.0.0.11"),
+                    mock(HttpServletResponse.class), chain);
+        }
+        verify(chain, times(2)).doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+
+        // 3-я — отклонена
+        StringWriter body = new StringWriter();
+        HttpServletResponse resp = responseCapturing(body);
+        filter.doFilterInternal(request("/api/v1/auth/password", "PUT", "10.0.0.11"), resp, chain);
+
+        verify(chain, times(2)).doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(resp).setStatus(429);
+        assertThat(rejected("auth")).isEqualTo(1.0);
+    }
+
+    @Test
     @DisplayName("/auth/me не лимитируется (аутентифицирован, часто опрашивается фронтом)")
     void authMeIsNotRateLimited() throws Exception {
         RateLimitFilter filter = filter();

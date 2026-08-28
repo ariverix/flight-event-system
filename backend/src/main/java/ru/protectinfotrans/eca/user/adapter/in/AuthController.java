@@ -20,6 +20,7 @@ import ru.protectinfotrans.eca.user.application.InvalidRefreshTokenException;
 import ru.protectinfotrans.eca.user.application.RefreshTokenService;
 import ru.protectinfotrans.eca.user.application.UserService;
 import ru.protectinfotrans.eca.user.domain.User;
+import ru.protectinfotrans.eca.user.dto.ChangePasswordRequest;
 import ru.protectinfotrans.eca.user.dto.LoginRequest;
 import ru.protectinfotrans.eca.user.dto.LoginResponse;
 import ru.protectinfotrans.eca.user.dto.RefreshRequest;
@@ -178,6 +179,59 @@ public class AuthController {
 
         UserResponse response = UserResponse.fromEntity(user);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Self-service смена пароля аутентифицированным пользователем (backlog из
+     * PRODUCTION_READINESS_REPORT.md, раздел "Безопасность" — "эндпоинта смены пароля нет").
+     *
+     * <p><b>HTTP-метод:</b> {@code PUT} — операция идемпотентно ЗАМЕНЯЕТ существующий под-ресурс
+     * "пароль" текущего пользователя (в отличие от login/refresh/logout в этом же контроллере,
+     * которые остаются {@code POST} как неидемпотентные действия над сессией/токенами).
+     *
+     * <p><b>Решение по токенам (revoke all vs keep current session):</b> после успешной смены пароля
+     * ВСЕ refresh-токены пользователя отзываются (внутри {@link UserService#changePassword} — в ТОЙ ЖЕ
+     * транзакции, что и сама смена пароля, чтобы сбой отзыва не мог оставить пароль уже изменённым, а
+     * старые сессии — живыми), новая пара токенов НЕ выдаётся — эндпоинт принимает только access-JWT
+     * (Authorization header), а не refresh-токен текущей сессии, поэтому нет возможности узнать, какую
+     * именно сессию "оставить в живых". Смена пароля — чувствительное действие (в т.ч. реакция на
+     * подозрение компрометации), поэтому по умолчанию безопаснее закрыть ВСЕ сессии, включая текущую
+     * (при следующем refresh — 401, потребуется re-login с новым паролем). Уже выданный access-токен
+     * продолжит работать до естественного истечения (короткий TTL) — это приемлемый компромисс, не
+     * полный logout "здесь и сейчас", но исключает пере-использование старых refresh-токенов после
+     * смены секрета.
+     */
+    @PutMapping("/password")
+    @ApiResponse(responseCode = "429", description = "Превышен лимит попыток смены пароля (rate limit, брутфорс-защита)")
+    @Operation(summary = "Change password", description = "Self-service смена пароля текущего "
+            + "аутентифицированного пользователя. Отзывает все refresh-токены пользователя "
+            + "(старые сессии не переживают смену пароля).")
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Not authenticated"));
+        }
+
+        User user = userService.findByUsername(auth.getName());
+        if (user == null) {
+            log.warn("Password change failed: authenticated user '{}' not found",
+                    LogSanitizer.sanitize(auth.getName()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "User not found"));
+        }
+
+        try {
+            userService.changePassword(user.getId(), request.currentPassword(), request.newPassword());
+        } catch (IllegalArgumentException e) {
+            log.warn("Password change failed for user '{}': {}",
+                    LogSanitizer.sanitize(auth.getName()), e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+
+        return ResponseEntity.noContent().build();
     }
 
     /**
