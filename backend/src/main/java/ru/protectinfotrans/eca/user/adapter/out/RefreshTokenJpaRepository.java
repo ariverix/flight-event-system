@@ -12,7 +12,15 @@ interface RefreshTokenJpaRepository extends JpaRepository<RefreshToken, Long> {
 
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
-    @Modifying(clearAutomatically = true)
+    /**
+     * {@code flushAutomatically = true}: без него {@code clearAutomatically} detach'ит
+     * persistence context ДО flush любых несохранённых изменений managed-сущностей — такое
+     * изменение молча теряется (найдено в ревью P4-6: {@code UserService.changePassword}
+     * страховался явным {@code saveAndFlush} на вызывающей стороне; здесь та же защита ставится
+     * на сам запрос — системно, для ЛЮБОГО будущего вызывающего кода с несохранёнными
+     * изменениями в той же транзакции, не только для смены пароля).
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE RefreshToken t SET t.revoked = true WHERE t.userId = :userId AND t.revoked = false")
     int revokeAllActiveForUser(@Param("userId") Long userId);
 }
