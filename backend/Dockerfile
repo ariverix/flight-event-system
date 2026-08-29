@@ -16,4 +16,10 @@ COPY --from=build /app/target/*.jar app.jar
 RUN addgroup -S app && adduser -S -G app app && chown -R app:app /app
 USER app
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# -Xss8m: ExecutionService.advanceExecution/executeTransition — прямая взаимная рекурсия
+# (внутри уже открытой @Transactional-транзакции, без переисполнения прокси на итерации) до
+# MAX_SYNCHRONOUS_TRANSITIONS=1000. Alpine (musl libc) даёт заметно меньший дефолтный размер
+# стека потока, чем glibc — тот же класс StackOverflowError, что воспроизводимо ловился в
+# тестах на GitHub Actions runners (2026-08-28, см. комментарий в backend/pom.xml
+# surefire-конфиге).
+ENTRYPOINT ["java", "-Xss8m", "-jar", "app.jar"]

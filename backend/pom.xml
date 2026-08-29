@@ -274,6 +274,18 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <!-- StackOverflowError на GitHub Actions runners (найдено 2026-08-28):
+                         ExecutionService.advanceExecution/executeTransition — прямая взаимная
+                         рекурсия (приватные перегрузки, вызываются внутри уже открытой
+                         @Transactional-транзакции — прокси НЕ переисполняется на каждой итерации)
+                         до MAX_SYNCHRONOUS_TRANSITIONS=1000. Локально (Windows, дефолтный -Xss)
+                         хватает, на CI-раннере (Linux) — нет: P1_2_..InfiniteLoopProtectionTests
+                         воспроизводимо падал StackOverflowError ДО того, как срабатывал лимит-чек.
+                         Эмпирически подтверждено: -Xss512k падает, -Xss1m проходит — 8m даёт
+                         большой запас. @{argLine} (не ${argLine}) — отложенное разрешение, чтобы
+                         подхватить javaagent, который jacoco:prepare-agent устанавливает в это же
+                         свойство позже в жизненном цикле сборки. -->
+                    <argLine>-Xss8m @{argLine}</argLine>
                     <environmentVariables>
                         <DOCKER_HOST>${docker.host}</DOCKER_HOST>
                     </environmentVariables>
