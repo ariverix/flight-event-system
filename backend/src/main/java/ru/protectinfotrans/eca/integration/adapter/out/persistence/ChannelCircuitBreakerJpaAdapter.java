@@ -70,10 +70,9 @@ public class ChannelCircuitBreakerJpaAdapter implements CircuitBreakerRepository
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordFailure(OutboundMessageType channel, boolean shouldOpen, int newConsecutiveFailures,
-                               LocalDateTime openedAt) {
+    public void recordFailure(OutboundMessageType channel, int failureThreshold, LocalDateTime now) {
         getOrCreate(channel);
-        jpaRepository.recordFailure(channel, shouldOpen, newConsecutiveFailures, openedAt);
+        jpaRepository.recordFailure(channel, failureThreshold, now);
     }
 
     @Override

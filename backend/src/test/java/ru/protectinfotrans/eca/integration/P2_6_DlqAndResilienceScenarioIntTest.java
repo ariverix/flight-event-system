@@ -15,6 +15,7 @@ import ru.protectinfotrans.eca.eventprocessor.port.in.MessageInputPort;
 import ru.protectinfotrans.eca.execution.port.out.MessageOutputPort;
 import ru.protectinfotrans.eca.integration.adapter.in.RawIncomingMessageRequest;
 import ru.protectinfotrans.eca.integration.adapter.in.RawMessageController;
+import ru.protectinfotrans.eca.integration.application.CircuitBreakerPolicy;
 import ru.protectinfotrans.eca.integration.application.DeadLetterQueueService;
 import ru.protectinfotrans.eca.integration.application.OutboundMessageDeliveryScheduler;
 import ru.protectinfotrans.eca.integration.domain.ChannelCircuitBreaker;
@@ -31,8 +32,14 @@ import ru.protectinfotrans.eca.integration.port.out.OutboundMessageRepositoryPor
 import ru.protectinfotrans.eca.sequence.domain.UplinkOrigin;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -345,9 +352,7 @@ class P2_6_DlqAndResilienceScenarioIntTest extends BaseIntegrationTest {
         void openBreakerBlocksFurtherCandidatesFailFast() {
             // форсируем OPEN напрямую — не зависим от деталей "сколько сбоев нужно", тестируем
             // именно блокировку.
-            for (int i = 0; i < 6; i++) {
-                circuitBreakerRepository.recordFailure(OutboundMessageType.UPLINK, i == 5, i + 1, LocalDateTime.now());
-            }
+            forceOpenBreaker(OutboundMessageType.UPLINK, LocalDateTime.now());
             ChannelCircuitBreaker forcedOpen = circuitBreakerRepository.getOrCreate(OutboundMessageType.UPLINK);
             assertThat(forcedOpen.getState()).isEqualTo(CircuitBreakerState.OPEN);
 
@@ -371,8 +376,7 @@ class P2_6_DlqAndResilienceScenarioIntTest extends BaseIntegrationTest {
         @DisplayName("после истечения таймаута восстановления — успешная HALF_OPEN проба закрывает breaker")
         void successfulProbeAfterTimeoutClosesBreaker() {
             // breaker OPEN с openedAt далеко в прошлом — таймаут восстановления (30с) точно истёк
-            circuitBreakerRepository.recordFailure(OutboundMessageType.UPLINK, true, 5,
-                    LocalDateTime.now().minusMinutes(5));
+            forceOpenBreaker(OutboundMessageType.UPLINK, LocalDateTime.now().minusMinutes(5));
             ChannelCircuitBreaker openLongAgo = circuitBreakerRepository.getOrCreate(OutboundMessageType.UPLINK);
             assertThat(openLongAgo.getState()).isEqualTo(CircuitBreakerState.OPEN);
 
@@ -397,7 +401,7 @@ class P2_6_DlqAndResilienceScenarioIntTest extends BaseIntegrationTest {
         @DisplayName("после истечения таймаута — провалившаяся HALF_OPEN проба снова открывает breaker с новым openedAt")
         void failedProbeAfterTimeoutReopensBreakerWithFreshTimeout() {
             LocalDateTime originalOpenedAt = LocalDateTime.now().minusMinutes(5);
-            circuitBreakerRepository.recordFailure(OutboundMessageType.UPLINK, true, 5, originalOpenedAt);
+            forceOpenBreaker(OutboundMessageType.UPLINK, originalOpenedAt);
 
             boolean enqueued = messageOutputPort.sendUplink(AIRCRAFT_ID, "CLEARANCE",
                     Map.of("__simulateFailure", true), UplinkOrigin.COMPUTER_GENERATED);
@@ -413,6 +417,70 @@ class P2_6_DlqAndResilienceScenarioIntTest extends BaseIntegrationTest {
 
             OutboundMessage afterFailedProbeMessage = outboundMessageRepository.findById(id).orElseThrow();
             assertThat(afterFailedProbeMessage.getAttempts()).isEqualTo(1);
+        }
+
+        // ============================================================
+        // Issue #1: lost-update гонка на recordFailure под конкуренцией
+        // ============================================================
+        @Test
+        @DisplayName("Issue #1: два конкурентных recordFailure одного канала не теряют инкремент "
+                + "(lost-update гонка нескольких deliverOne/реплик на канал)")
+        void concurrentRecordFailureDoesNotLoseUpdates() throws Exception {
+            // Раньше recordFailure принимал уже вычисленное вызывающей стороной абсолютное
+            // consecutiveFailures (снимок+1 над снимком, прочитанным ДО этого вызова) — два
+            // конкурентных вызова recordFailure того же канала оба вычисляли "снимок+1" НАД ОДНИМ
+            // И ТЕМ ЖЕ устаревшим снимком и оба писали ОДНО И ТО ЖЕ число (classic lost update):
+            // итоговый consecutiveFailures оставался 1 вместо 2, хотя произошло два реальных сбоя.
+            // Сейчас recordFailure — атомарный SQL-инкремент, читающий текущую строку в момент
+            // UPDATE (row-level lock в Postgres сериализует конкурентные UPDATE того же channel),
+            // поэтому эта гонка невозможна конструктивно — тест это доказывает на реальном Postgres.
+            OutboundMessageType channel = OutboundMessageType.UPLINK;
+            circuitBreakerRepository.getOrCreate(channel); // baseline CLOSED/0, до порога (5) далеко
+
+            int concurrentFailures = 2;
+            CyclicBarrier barrier = new CyclicBarrier(concurrentFailures);
+            ExecutorService pool = Executors.newFixedThreadPool(concurrentFailures);
+            try {
+                List<Future<?>> futures = new ArrayList<>();
+                for (int i = 0; i < concurrentFailures; i++) {
+                    futures.add(pool.submit(() -> {
+                        // барьер гарантирует, что оба потока стартуют recordFailure одновременно —
+                        // максимизирует шанс реального пересечения транзакций на одном канале,
+                        // а не случайное последовательное выполнение.
+                        barrier.await(5, TimeUnit.SECONDS);
+                        circuitBreakerRepository.recordFailure(channel,
+                                CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD, LocalDateTime.now());
+                        return null;
+                    }));
+                }
+                for (Future<?> future : futures) {
+                    future.get(10, TimeUnit.SECONDS);
+                }
+            } finally {
+                pool.shutdown();
+            }
+
+            ChannelCircuitBreaker after = circuitBreakerRepository.getOrCreate(channel);
+            assertThat(after.getConsecutiveFailures())
+                    .as("оба конкурентных сбоя должны быть учтены — ни один инкремент не потерян")
+                    .isEqualTo(concurrentFailures);
+        }
+
+        /**
+         * Issue #1: форсирует OPEN для канала через атомарные {@code recordFailure} вызовы (та же
+         * точка входа, что использует {@code OutboundMessageDeliveryScheduler} в реальном пути) —
+         * вместо ручной установки абсолютного счётчика/{@code shouldOpen} (устаревший API ДО
+         * фикса lost-update гонки, см. javadoc {@code CircuitBreakerRepositoryPort#recordFailure}).
+         * {@code openedAt} на ПОСЛЕДНЕМ (порогопересекающем) вызове определяет итоговый
+         * {@code opened_at} — предыдущие вызовы не переводят канал в OPEN, поэтому их {@code now}
+         * не влияет на итоговый снимок.
+         */
+        private void forceOpenBreaker(OutboundMessageType channel, LocalDateTime openedAt) {
+            for (int i = 0; i < CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD - 1; i++) {
+                circuitBreakerRepository.recordFailure(channel, CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD,
+                        LocalDateTime.now());
+            }
+            circuitBreakerRepository.recordFailure(channel, CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD, openedAt);
         }
     }
 }

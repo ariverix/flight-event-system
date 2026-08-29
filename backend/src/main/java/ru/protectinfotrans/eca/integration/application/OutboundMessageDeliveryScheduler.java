@@ -220,10 +220,14 @@ public class OutboundMessageDeliveryScheduler {
                 log.error("Outbound message {} delivery failed (channel={})", id, channel, e);
             }
 
-            CircuitBreakerPolicy.Snapshot afterFailure = circuitBreakerPolicy.onFailure(snapshot, LocalDateTime.now());
-            boolean shouldOpen = afterFailure.state() == ru.protectinfotrans.eca.integration.domain.CircuitBreakerState.OPEN;
-            circuitBreakerRepository.recordFailure(channel, shouldOpen, afterFailure.consecutiveFailures(),
-                    afterFailure.openedAt());
+            // Issue #1: НЕ вычисляем новое значение счётчика/shouldOpen здесь над snapshot,
+            // прочитанным в начале deliverOne (строка 170) — под конкуренцией двух deliverOne
+            // того же канала это был lost update (см. javadoc CircuitBreakerRepositoryPort
+            // #recordFailure/ChannelCircuitBreakerJpaRepository#recordFailure). Инкремент и
+            // переход состояния теперь целиком атомарны внутри одного SQL UPDATE — снимок нужен
+            // ТОЛЬКО для decideBeforeAttempt (решение ДО попытки), не для записи результата ПОСЛЕ.
+            circuitBreakerRepository.recordFailure(channel, circuitBreakerPolicy.failureThreshold(),
+                    LocalDateTime.now());
 
             LocalDateTime nextAttemptTime = LocalDateTime.now().plus(backoffPolicy.delayFor(message.getAttempts()));
             repository.markFailed(id, e.getMessage(), MAX_ATTEMPTS, nextAttemptTime);

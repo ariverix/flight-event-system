@@ -8,6 +8,7 @@ import org.springframework.boot.test.autoconfigure.actuate.observability.AutoCon
 import org.springframework.http.ResponseEntity;
 import ru.protectinfotrans.eca.BaseIntegrationTest;
 import ru.protectinfotrans.eca.execution.port.out.MessageOutputPort;
+import ru.protectinfotrans.eca.integration.application.CircuitBreakerPolicy;
 import ru.protectinfotrans.eca.integration.application.OutboundMessageDeliveryScheduler;
 import ru.protectinfotrans.eca.integration.domain.ChannelCircuitBreaker;
 import ru.protectinfotrans.eca.integration.domain.CircuitBreakerState;
@@ -166,16 +167,14 @@ class P5_4_ChannelChaosIntTest extends BaseIntegrationTest {
     @Test
     @DisplayName("OPEN breaker: дальнейшие сообщения канала блокируются fail-fast (PENDING, attempts=0)")
     void openBreaker_blocksFurtherDeliveries_failFast() {
-        // Принудительно устанавливаем OPEN breaker через 6 recordFailure-вызовов
-        // (последний с shouldOpen=true и openedAt=now) — быстро, без 5 реальных сбоев.
-        // Паттерн из P2_6_DlqAndResilienceScenarioIntTest: всегда передаём LocalDateTime.now()
-        // (openedAt используется только при shouldOpen=true, но параметр должен быть non-null).
-        for (int i = 0; i < 5; i++) {
+        // Issue #1: recordFailure теперь атомарный SQL-инкремент (не принимает готовое
+        // абсолютное значение счётчика/shouldOpen, см. javadoc CircuitBreakerRepositoryPort
+        // #recordFailure) — DEFAULT_FAILURE_THRESHOLD(=5) вызовов подряд из CLOSED сами
+        // переводят канал в OPEN на последнем вызове, быстро, без 5 реальных сбоев доставки.
+        for (int i = 0; i < CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD; i++) {
             circuitBreakerRepository.recordFailure(
-                    OutboundMessageType.UPLINK, false, i + 1, LocalDateTime.now());
+                    OutboundMessageType.UPLINK, CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD, LocalDateTime.now());
         }
-        circuitBreakerRepository.recordFailure(
-                OutboundMessageType.UPLINK, true, 5, LocalDateTime.now());
 
         ChannelCircuitBreaker forcedOpen = circuitBreakerRepository.getOrCreate(OutboundMessageType.UPLINK);
         assertThat(forcedOpen.getState()).isEqualTo(CircuitBreakerState.OPEN);

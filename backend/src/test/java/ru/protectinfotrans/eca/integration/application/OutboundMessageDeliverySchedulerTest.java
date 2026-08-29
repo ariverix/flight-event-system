@@ -26,7 +26,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -196,7 +195,7 @@ class OutboundMessageDeliverySchedulerTest {
 
             verify(repository).markSent(eq(1L), any());
             verify(repository, never()).markFailed(anyLong(), anyString(), anyInt(), any());
-            verify(circuitBreakerRepository, never()).recordFailure(any(), anyBoolean(), anyInt(), any());
+            verify(circuitBreakerRepository, never()).recordFailure(any(), anyInt(), any());
         }
 
         @Test
@@ -226,15 +225,18 @@ class OutboundMessageDeliverySchedulerTest {
             // delayFor(1) = 10s — не "прямо сейчас", строго в будущем относительно момента сбоя
             assertThat(nextAttemptCaptor.getValue()).isAfter(before.plusSeconds(9));
 
-            ArgumentCaptor<Integer> failuresCaptor = ArgumentCaptor.forClass(Integer.class);
-            verify(circuitBreakerRepository).recordFailure(eq(OutboundMessageType.UPLINK), eq(false),
-                    failuresCaptor.capture(), any());
-            assertThat(failuresCaptor.getValue()).isEqualTo(1); // 0 (CLOSED, consecutiveFailures=0) + 1
+            // Issue #1: scheduler больше НЕ вычисляет новое значение счётчика над снимком,
+            // прочитанным ДО попытки (это и была lost-update гонка) — просто просит атомарный
+            // инкремент/переход состояния в БД с порогом политики, см. javadoc
+            // CircuitBreakerRepositoryPort#recordFailure.
+            verify(circuitBreakerRepository).recordFailure(eq(OutboundMessageType.UPLINK),
+                    eq(CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD), any());
         }
 
         @Test
-        @DisplayName("серия сбоев достигает порога -> recordFailure(shouldOpen=true) открывает breaker")
-        void repeatedFailuresOpenCircuitBreakerAtThreshold() {
+        @DisplayName("сбой рядом с порогом -> recordFailure всё равно вызывается с порогом политики "
+                + "(само 'открылся ли breaker' теперь решает атомарный SQL в БД, а не scheduler над снимком)")
+        void repeatedFailuresStillDelegateThresholdDecisionToRepository() {
             OutboundMessage message = OutboundMessage.builder()
                     .id(1L)
                     .messageType(OutboundMessageType.UPLINK)
@@ -244,6 +246,10 @@ class OutboundMessageDeliverySchedulerTest {
                     .attempts(4)
                     .build();
 
+            // Issue #1: снимок ниже порога (consecutiveFailures=4) — сценарий, где старый код
+            // читал снимок и вычислял shouldOpen=true над ним. Новый код НЕ читает
+            // consecutiveFailures снимка для recordFailure вообще — он больше не источник истины
+            // для записи результата (только для decideBeforeAttempt).
             ChannelCircuitBreaker almostOpen = ChannelCircuitBreaker.builder()
                     .channel(OutboundMessageType.UPLINK)
                     .state(CircuitBreakerState.CLOSED)
@@ -256,7 +262,8 @@ class OutboundMessageDeliverySchedulerTest {
 
             scheduler.deliverOne(1L);
 
-            verify(circuitBreakerRepository).recordFailure(eq(OutboundMessageType.UPLINK), eq(true), eq(5), any());
+            verify(circuitBreakerRepository).recordFailure(eq(OutboundMessageType.UPLINK),
+                    eq(CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD), any());
         }
     }
 
@@ -511,8 +518,8 @@ class OutboundMessageDeliverySchedulerTest {
 
             // breaker считает это обычным сбоем канала (та же механика P2-6, что и для любого
             // другого сбоя simulateChannelSend)
-            verify(circuitBreakerRepository).recordFailure(eq(OutboundMessageType.UPLINK), eq(false),
-                    eq(1), any());
+            verify(circuitBreakerRepository).recordFailure(eq(OutboundMessageType.UPLINK),
+                    eq(CircuitBreakerPolicy.DEFAULT_FAILURE_THRESHOLD), any());
         }
     }
 

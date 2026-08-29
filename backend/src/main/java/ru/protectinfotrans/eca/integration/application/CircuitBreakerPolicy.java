@@ -51,6 +51,17 @@ public final class CircuitBreakerPolicy {
         this.openTimeout = openTimeout;
     }
 
+    /**
+     * Issue #1: порог подряд идущих сбоев, открывающий breaker для ЭТОГО экземпляра политики —
+     * вызывающая сторона ({@code OutboundMessageDeliveryScheduler}) передаёт его в
+     * {@code CircuitBreakerRepositoryPort#recordFailure}, чтобы атомарный SQL-инкремент/переход
+     * состояния (см. его javadoc) использовал тот же порог, что и {@link #decideBeforeAttempt}/
+     * {@link #onFailure} этой политики, а не рассинхронизированную копию константы.
+     */
+    public int failureThreshold() {
+        return failureThreshold;
+    }
+
     /** Неизменяемый снимок текущего состояния breaker канала на момент решения. */
     public record Snapshot(CircuitBreakerState state, int consecutiveFailures, LocalDateTime openedAt) {
         public static Snapshot closedFresh() {

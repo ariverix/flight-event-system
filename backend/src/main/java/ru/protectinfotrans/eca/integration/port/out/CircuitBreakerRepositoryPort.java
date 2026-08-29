@@ -27,13 +27,23 @@ public interface CircuitBreakerRepositoryPort {
     void recordSuccess(OutboundMessageType channel);
 
     /**
-     * Сбой -> либо инкремент счётчика (CLOSED), либо открытие/повторное открытие (см.
-     * {@code CircuitBreakerPolicy#onFailure}). {@code openedAt} передаётся вызывающей стороной
-     * (вычислен через {@code CircuitBreakerPolicy}), чтобы вся арифметика порогов оставалась в
-     * чистом, юнит-тестируемом классе политики, а не в репозитории.
+     * Issue #1: атомарный инкремент {@code consecutiveFailures} + переход состояния — ОДНИМ
+     * SQL {@code UPDATE}, целиком читающим текущее состояние строки канала В МОМЕНТ выполнения
+     * (см. {@code ChannelCircuitBreakerJpaRepository#recordFailure} для полного обоснования и
+     * SQL). Раньше метод принимал уже вычисленное вызывающей стороной абсолютное
+     * {@code newConsecutiveFailures} (снимок+1 над снимком, прочитанным ДО попытки доставки) —
+     * под конкуренцией двух {@code deliverOne} того же канала (в т.ч. из разных реплик в HA,
+     * P6-1) это была classic lost-update гонка: оба потока писали одно и то же число, часть
+     * реальных сбоев не засчитывалась, и breaker мог не открыться при достижении порога.
+     * Сигнатура намеренно НЕ принимает вычисленное значение счётчика/{@code shouldOpen} —
+     * сама возможность передать устаревший снимок исключена конструктивно.
+     *
+     * @param failureThreshold порог подряд идущих сбоев, открывающий breaker (см.
+     *                         {@code CircuitBreakerPolicy#DEFAULT_FAILURE_THRESHOLD})
+     * @param now              момент сбоя — используется как новый {@code openedAt}, ТОЛЬКО
+     *                         если этот вызов переводит канал в {@code OPEN} прямо сейчас
      */
-    void recordFailure(OutboundMessageType channel, boolean shouldOpen, int newConsecutiveFailures,
-                        LocalDateTime openedAt);
+    void recordFailure(OutboundMessageType channel, int failureThreshold, LocalDateTime now);
 
     /**
      * Атомарный claim единственной HALF_OPEN пробной попытки — условный UPDATE
