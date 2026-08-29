@@ -87,6 +87,8 @@ class P2_6_DlqAndResilienceScenarioIntTest extends BaseIntegrationTest {
     private CircuitBreakerRepositoryPort circuitBreakerRepository;
 
     private static final String AIRCRAFT_ID = "VP-BQR";
+    private static final long BREAKER_CONVERGENCE_TIMEOUT_MS = 5000;
+    private static final long BREAKER_POLL_INTERVAL_MS = 100;
 
     // ============================================================
     // 1. Сбойное входящее -> DLQ, не теряется
@@ -301,7 +303,7 @@ class P2_6_DlqAndResilienceScenarioIntTest extends BaseIntegrationTest {
 
         @Test
         @DisplayName("серия сбоев одного канала открывает breaker (durable channel_circuit_breakers)")
-        void seriesOfFailuresOpensBreaker() {
+        void seriesOfFailuresOpensBreaker() throws InterruptedException {
             // DEFAULT_FAILURE_THRESHOLD=5 — 5 независимых сообщений того же канала (UPLINK),
             // каждое сбойно доставляется -> 5-й сбой открывает breaker.
             for (int i = 0; i < 5; i++) {
@@ -310,12 +312,29 @@ class P2_6_DlqAndResilienceScenarioIntTest extends BaseIntegrationTest {
                 assertThat(enqueued).isTrue();
             }
 
-            // 5 тиков — каждый забирает максимум один из накопленных PENDING-кандидатов и валит его
-            for (int i = 0; i < 5; i++) {
+            // Раньше — фиксированные "5 тиков, каждый забирает ровно один кандидат". На CI
+            // (не локально) воспроизводимо ловилась гонка: часть из 5 кандидатов оказывалась
+            // забрана не явным тиком теста, а каким-то параллельным вызовом `deliverOne`
+            // (в логах CI-рана — "delivery failed" с посторонним thread/correlationId; точный
+            // источник конкурентного тика не подтверждён статическим анализом, предположительно
+            // фоновая докатка Spring Modulith). Итог по сути не меняется — `claimPending`
+            // гарантирует ровно одну обработку на сообщение, `recordFailure` считает каждый
+            // реальный сбой независимо от того, какой поток его исполнил, — но при ровно 5 явных
+            // тиках теста брейкер иногда не успевал открыться к моменту проверки. Поэтому —
+            // поллим до сходимости, а не ровно 5 раз: то, ЧТО именно исполняет тик доставки, для
+            // теста не важно, важен итоговый durable-снимок.
+            ChannelCircuitBreaker breaker = null;
+            long deadline = System.currentTimeMillis() + BREAKER_CONVERGENCE_TIMEOUT_MS;
+            while (System.currentTimeMillis() < deadline) {
                 deliveryScheduler.pollPendingMessages();
+                breaker = circuitBreakerRepository.getOrCreate(OutboundMessageType.UPLINK);
+                if (breaker.getState() == CircuitBreakerState.OPEN) {
+                    break;
+                }
+                Thread.sleep(BREAKER_POLL_INTERVAL_MS);
             }
 
-            ChannelCircuitBreaker breaker = circuitBreakerRepository.getOrCreate(OutboundMessageType.UPLINK);
+            assertThat(breaker).isNotNull();
             assertThat(breaker.getState()).isEqualTo(CircuitBreakerState.OPEN);
             assertThat(breaker.getConsecutiveFailures()).isGreaterThanOrEqualTo(5);
             assertThat(breaker.getOpenedAt()).isNotNull();
