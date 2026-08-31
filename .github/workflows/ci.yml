@@ -28,6 +28,12 @@ jobs:
   backend:
     name: Backend (build, test, Modulith-verify, coverage gate)
     runs-on: ubuntu-latest
+    # Без явного лимита GitHub даёт дефолт 360 мин. Обнаружено 2026-08-31: job реально повис на
+    # 50+ мин (Flyway clean/migrate race — фоновый leader-election/wait-timeout запрос упёрся в
+    # уже удалённую соседним тестом таблицу, DROP следующего теста встал в ожидание лока). Обычная
+    # длительность ~11-15 мин локально; 25 мин — запас с кратным покрытием, не заслон нормального
+    # прогона.
+    timeout-minutes: 25
 
     # БД для интеграционных тестов: BaseIntegrationTest подключается к
     # jdbc:postgresql://localhost:5432/eca_test (eca_user/eca_password) напрямую,
@@ -126,6 +132,8 @@ jobs:
   security-scan:
     name: Security scan (OWASP Dependency-Check, SpotBugs/FindSecBugs, Semgrep)
     runs-on: ubuntu-latest
+    # Без явного лимита — дефолт GitHub 360 мин. NVD-апдейт обычно ~30-35 мин; 45 — запас.
+    timeout-minutes: 45
     # P4-4 (RUN_PLAN.md): фейл сборки на High/Critical. Отдельный job — сканы медленные
     # (Dependency-Check скачивает базу NVD) и не должны замедлять основной backend-гейт.
     permissions:
