@@ -457,7 +457,11 @@ class P2_6_DlqAndResilienceScenarioIntTest extends BaseIntegrationTest {
                     future.get(10, TimeUnit.SECONDS);
                 }
             } finally {
-                pool.shutdown();
+                // shutdownNow(), не просто shutdown() — если future.get() выше сам бросит
+                // TimeoutException (истечёт раньше, чем завершится recordFailure под нагрузкой),
+                // задача останется висеть в пуле; см. разбор зависания backend job в CI на 50+ мин
+                // (2026-08-31) — тот же паттерн в P1_5/P1_6/P2_3.
+                pool.shutdownNow();
             }
 
             ChannelCircuitBreaker after = circuitBreakerRepository.getOrCreate(channel);

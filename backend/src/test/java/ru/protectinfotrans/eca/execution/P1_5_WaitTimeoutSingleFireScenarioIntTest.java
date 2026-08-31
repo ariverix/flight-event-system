@@ -125,6 +125,7 @@ class P1_5_WaitTimeoutSingleFireScenarioIntTest extends BaseIntegrationTest {
             CountDownLatch readyLatch = new CountDownLatch(concurrentAttempts);
             CountDownLatch startLatch = new CountDownLatch(1);
             AtomicInteger exceptions = new AtomicInteger(0);
+            boolean poolTerminated;
 
             try {
                 for (int i = 0; i < concurrentAttempts; i++) {
@@ -144,9 +145,18 @@ class P1_5_WaitTimeoutSingleFireScenarioIntTest extends BaseIntegrationTest {
                 assertThat(readyLatch.await(10, TimeUnit.SECONDS)).isTrue();
                 startLatch.countDown();
             } finally {
+                // shutdownNow() ВСЕГДА (не только если awaitTermination не уложился в срок) —
+                // 2026-08-31: assertThat(...).isTrue() внутри finally бросает AssertionError на
+                // таймауте ДО того, как что-либо успевает прервать зависшие потоки пула; они
+                // переживают границу теста и продолжают бить в БД, натыкаясь на flyway.clean()
+                // СЛЕДУЮЩЕГО теста (CI видел зависание backend job на 50+ мин именно так —
+                // осиротевший "pool-N-thread-*" делал запросы к уже удалённым/ещё не
+                // смигрированным таблицам). Assertion вынесен НАРУЖУ finally.
                 pool.shutdown();
-                assertThat(pool.awaitTermination(15, TimeUnit.SECONDS)).isTrue();
+                poolTerminated = pool.awaitTermination(15, TimeUnit.SECONDS);
+                pool.shutdownNow();
             }
+            assertThat(poolTerminated).as("пул потоков должен завершиться в срок штатно").isTrue();
 
             assertThat(exceptions.get()).isZero();
 
@@ -180,6 +190,7 @@ class P1_5_WaitTimeoutSingleFireScenarioIntTest extends BaseIntegrationTest {
             CountDownLatch readyLatch = new CountDownLatch(concurrentTicks);
             CountDownLatch startLatch = new CountDownLatch(1);
             AtomicInteger exceptions = new AtomicInteger(0);
+            boolean poolTerminated;
 
             try {
                 for (int i = 0; i < concurrentTicks; i++) {
@@ -199,9 +210,12 @@ class P1_5_WaitTimeoutSingleFireScenarioIntTest extends BaseIntegrationTest {
                 assertThat(readyLatch.await(10, TimeUnit.SECONDS)).isTrue();
                 startLatch.countDown();
             } finally {
+                // shutdownNow() ВСЕГДА — см. комментарий у первого такого блока выше в этом файле.
                 pool.shutdown();
-                assertThat(pool.awaitTermination(15, TimeUnit.SECONDS)).isTrue();
+                poolTerminated = pool.awaitTermination(15, TimeUnit.SECONDS);
+                pool.shutdownNow();
             }
+            assertThat(poolTerminated).as("пул потоков должен завершиться в срок штатно").isTrue();
 
             assertThat(exceptions.get()).isZero();
 

@@ -312,6 +312,7 @@ class P2_3_OutboundGatewayScenarioIntTest extends BaseIntegrationTest {
             CountDownLatch startLatch = new CountDownLatch(1);
             AtomicInteger exceptions = new AtomicInteger(0);
             AtomicInteger claimedCount = new AtomicInteger(0);
+            boolean poolTerminated;
 
             try {
                 for (int i = 0; i < concurrentAttempts; i++) {
@@ -332,9 +333,14 @@ class P2_3_OutboundGatewayScenarioIntTest extends BaseIntegrationTest {
                 assertThat(readyLatch.await(10, TimeUnit.SECONDS)).isTrue();
                 startLatch.countDown();
             } finally {
+                // shutdownNow() ВСЕГДА — см. комментарий у аналогичного блока в
+                // P1_5_WaitTimeoutSingleFireScenarioIntTest (2026-08-31, разбор зависания backend
+                // job в CI на 50+ мин: осиротевший пул тредов пережил границу теста).
                 pool.shutdown();
-                assertThat(pool.awaitTermination(15, TimeUnit.SECONDS)).isTrue();
+                poolTerminated = pool.awaitTermination(15, TimeUnit.SECONDS);
+                pool.shutdownNow();
             }
+            assertThat(poolTerminated).as("пул потоков должен завершиться в срок штатно").isTrue();
 
             assertThat(exceptions.get()).isZero();
             // КЛЮЧЕВАЯ ПРОВЕРКА: несмотря на 8 конкурентных попыток, ровно один claim удался
@@ -366,6 +372,7 @@ class P2_3_OutboundGatewayScenarioIntTest extends BaseIntegrationTest {
             CountDownLatch readyLatch = new CountDownLatch(concurrentTicks);
             CountDownLatch startLatch = new CountDownLatch(1);
             AtomicInteger exceptions = new AtomicInteger(0);
+            boolean poolTerminated;
 
             try {
                 for (int i = 0; i < concurrentTicks; i++) {
@@ -384,9 +391,12 @@ class P2_3_OutboundGatewayScenarioIntTest extends BaseIntegrationTest {
                 assertThat(readyLatch.await(10, TimeUnit.SECONDS)).isTrue();
                 startLatch.countDown();
             } finally {
+                // shutdownNow() ВСЕГДА — см. комментарий у аналогичного блока выше в этом файле.
                 pool.shutdown();
-                assertThat(pool.awaitTermination(15, TimeUnit.SECONDS)).isTrue();
+                poolTerminated = pool.awaitTermination(15, TimeUnit.SECONDS);
+                pool.shutdownNow();
             }
+            assertThat(poolTerminated).as("пул потоков должен завершиться в срок штатно").isTrue();
 
             assertThat(exceptions.get()).isZero();
 

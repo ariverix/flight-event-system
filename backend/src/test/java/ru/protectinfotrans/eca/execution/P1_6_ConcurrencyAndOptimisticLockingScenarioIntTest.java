@@ -156,6 +156,7 @@ class P1_6_ConcurrencyAndOptimisticLockingScenarioIntTest extends BaseIntegratio
         CountDownLatch readyLatch = new CountDownLatch(threads);
         CountDownLatch startLatch = new CountDownLatch(1);
         AtomicInteger exceptions = new AtomicInteger(0);
+        boolean poolTerminated;
 
         try {
             for (int i = 0; i < threads; i++) {
@@ -174,9 +175,15 @@ class P1_6_ConcurrencyAndOptimisticLockingScenarioIntTest extends BaseIntegratio
             assertThat(readyLatch.await(15, TimeUnit.SECONDS)).isTrue();
             startLatch.countDown();
         } finally {
+            // shutdownNow() ВСЕГДА, не только на неудачном awaitTermination — 2026-08-31: assertThat
+            // внутри finally бросал AssertionError на таймауте ДО прерывания зависших потоков; они
+            // переживали границу теста и продолжали трогать БД во время flyway.clean() следующего
+            // теста (найдено при разборе зависания backend job в CI на 50+ мин).
             pool.shutdown();
-            assertThat(pool.awaitTermination(60, TimeUnit.SECONDS)).isTrue();
+            poolTerminated = pool.awaitTermination(60, TimeUnit.SECONDS);
+            pool.shutdownNow();
         }
+        assertThat(poolTerminated).as("пул потоков должен завершиться в срок штатно").isTrue();
 
         assertThat(exceptions.get())
                 .as("ни одна из %d конкурентных задач не должна выбросить непойманное исключение", threads)
