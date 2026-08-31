@@ -156,23 +156,26 @@
 - **P7 aircraft-bindings (TODO из P7-3)**: привязка к бортам через UI ждёт backend-эндпоинтов списка бортов; при необходимости — отдельный тикет после UAT. **Закрыто Фазами 5–6 прогона 2026-07-03** (GET /api/v1/aircraft + AircraftPicker).
 - **LOW-заметки ревью Фазы 6 (2026-07-04, не блокирующие)**: ~~(1) `MessageLog.tsx` без собственного компонентного теста — интеграция AircraftPicker покрыта только E2E `aircraft-filter.spec.ts`~~ — **ЗАКРЫТО 2026-07-07**: компонентный тест `MessageLog.test.tsx` (8 тестов: mount-загрузка, интеграция AircraftPicker → перезапрос с aircraftId, фильтр типа, пагинация, «Обновить», ошибка→notification, empty-state, превью metadataJson); reviewer PASS. ~~Новый LOW из этого ревью: у Select «Тип сообщения» нет `aria-label` (тест выбирает его по индексу combobox).~~ — **ЗАКРЫТО 2026-08-26**: добавлен `aria-label="Тип сообщения"` на `Select` в `MessageLog.tsx`; тест переведён с `getAllByRole('combobox')[1]` на `getByRole('combobox', { name: 'Тип сообщения' })` — устойчив к порядку комбобоксов на странице. (2) `AircraftPicker` при внешне заданном `value` вне загруженных options показывает «сырой» tail number без обогащённого лейбла до первого fetch — при необходимости персистентного выбора рассмотреть `labelInValue`.
 - ~~**Frontend ErrorBoundary отсутствует** (пробел аудита фазы 0, `IMPROVEMENT_PLAN.md`: lazy-роуты без boundary)~~ — **ЗАКРЫТО 2026-08-26**: `ErrorBoundary` (class-компонент, `componentDidCatch` + `getDerivedStateFromError`) оборачивает `<Outlet />` в `AppLayout` — падение любого lazy-роута (в т.ч. неудачная загрузка чанка при деплое) теперь показывает AntD `Result` с кнопкой перезагрузки вместо белого экрана всего приложения; сайдбар/шапка остаются рабочими. Сброс состояния ошибки при смене маршрута — бесплатно, через уже существующий `key={location.pathname}` на родительском div. i18n RU/EN (`errorBoundaryTitle/Subtitle/Reload` в `dict.ts`). Тест `ErrorBoundary.test.tsx` (3: рендер детей без ошибки, фолбэк при исключении, кнопка вызывает `window.location.reload()`).
-- **НЕ ЗАКРЫТО, 2026-08-31**: backend job в CI завис на 50+ мин (прогон коммита `77d8059`,
-  отменён вручную и перезапущен). Postgres-лог обрывается сразу после планового checkpoint
-  (11:44:58 UTC) — до обрыва видны `INSERT INTO leader_election` / `SELECT FROM
-  execution_instances`/`outbound_messages` с `ERROR: relation "..." does not exist`: фоновый
-  компонент (leader election heartbeat или wait-timeout поллер) одного теста бьётся в таблицы,
-  уже удалённые Flyway `clean()` СЛЕДУЮЩЕГО теста — тот же класс гонки, что описан выше
-  (`@Scheduled` авто-тик и Flyway clean, «подвисал ~28 мин»), но на другом тесте/компоненте —
-  похоже, фикс через `app.scheduling.enabled=false` не покрывает все пути (возможно, этот
-  конкретный тест вызывает leader-election/поллер напрямую, в обход отключённого `@Scheduled`).
-  Локальный `mvn verify` на том же коммите прошёл штатно (Windows, другая среда) — воспроизвести
-  и найти конкретный тест/компонент не удалось в рамках этой сессии (задача была про CVE/E2E
-  фиксы, не про эту гонку). Защита от повторного бессмысленного сжигания CI-минут добавлена
-  (`timeout-minutes: 25` на backend, `45` на security-scan — раньше не было лимита, дефолт
-  GitHub 360 мин). **Follow-up:** найти конкретный тест (кандидаты — `P6_1_LeaderElectionIntTest`,
-  `P1_5_WaitTimeoutSingleFireScenarioIntTest`, `P2_3_OutboundGatewayScenarioIntTest` — используют
-  leader_election/execution_instances/outbound_messages напрямую) и обеспечить, чтобы его фоновые
-  вызовы не переживали границу теста.
+- ~~**Зависание backend job в CI на 50+ мин**~~ — **ЗАКРЫТО 2026-08-31** (`7062ded`). Первичная
+  находка (прогон `77d8059`, отменён вручную): Postgres-лог обрывается сразу после планового
+  checkpoint (11:44:58 UTC) — до обрыва `INSERT INTO leader_election` / `SELECT FROM
+  execution_instances`/`outbound_messages` с `ERROR: relation "..." does not exist`.
+  **Настоящая причина** (не `@Scheduled`/`app.scheduling.enabled` — тот гейт работает штатно):
+  5 concurrency-сценариев (`P1_5_WaitTimeoutSingleFireScenarioIntTest` ×2,
+  `P1_6_ConcurrencyAndOptimisticLockingScenarioIntTest`, `P2_3_OutboundGatewayScenarioIntTest` ×2)
+  создают `ExecutorService` и вызывают `executionService.checkWaitTimeouts()`/
+  `deliveryScheduler.pollPendingMessages()` напрямую (тесты обходят `@Scheduled`-гейт, см. javadoc
+  `SchedulingConfig`) — но `finally { pool.shutdown(); assertThat(pool.awaitTermination(N,
+  SECONDS)).isTrue(); }` не прерывает уже запущенные задачи: `shutdown()` только перестаёт
+  принимать новые, а при неудачном ожидании (вероятнее под I/O-нагрузкой, как раз checkpoint)
+  `assertThat` бросает `AssertionError` ДО какого-либо прерывания — осиротевшие потоки
+  (`pool-N-thread-M` в логе, прямая улика — не имя Spring-планировщика) переживают тестовый метод
+  и продолжают бить в БД, пока следующий `@BeforeEach` уже делает `flyway.clean()+migrate()`.
+  Первая ошибка зависшего прогона — "column ei1_0.triggering_message_id does not exist" (миграция
+  V23 ещё не применилась в момент запроса осиротевшего потока) — прямое доказательство. Фикс:
+  assertion вынесен из `finally`, `pool.shutdownNow()` вызывается безусловно (P1_9/
+  `GatewayIdempotencyIntTest` уже использовали этот безопасный паттерн). Верификация: точечный
+  прогон всех 4 файлов — 36/36 зелёные.
 
 *Обновлено: 2026-08-31 (диагностика CI: branch protection, CVE tomcat/swagger-ui, E2E backend-crash
 диагностика, зависание backend job — см. записи выше и BLOCKERS.md).*
