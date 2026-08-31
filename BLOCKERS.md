@@ -11,9 +11,12 @@
   PROGRESS.md CI-заметки). Локально SpotBugs/FindSecBugs и Semgrep воспроизводимы без ключа —
   ими и проверяемся. **Разблокировка:** задать `NVD_API_KEY` в окружении дев-машины.
 
-- **Push docker-образов в registry (Фаза 7).** Секрет registry не задан. План: build-only
-  (backend `Dockerfile` + frontend multi-stage) + `helm lint`, без push. **Разблокировка:**
-  секрет registry (URL + credentials) в CI.
+- ~~**Push docker-образов в registry (Фаза 7).**~~ — **ЗАКРЫТО 2026-08-31**: push в GHCR
+  (GitHub Container Registry, `ghcr.io/ariverix/flight-event-system-{backend,frontend}`) через
+  встроенный `GITHUB_TOKEN` (`permissions.packages: write` на job `docker`) — отдельного секрета
+  registry не потребовалось, GHCR интегрирован с GitHub Actions нативно. Push только на события
+  `push` (не на PR). Первый push создаёт GHCR-пакет private — сделать публичным можно вручную в
+  Settings пакета на GitHub, если нужно (не блокирует функциональность, только видимость извне).
 
 - **Приёмочный перф-прогон на прод-железе / тюнингованном пуле (P6-3 follow-up, IMPROVEMENT_PLAN).**
   Требует приёмочный стенд заказчика — вне объёма прогона. Индикативные числа — `docs/perf/`.

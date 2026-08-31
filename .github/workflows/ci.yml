@@ -358,9 +358,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Фаза 7: сборка обоих образов (multi-stage и non-root — уже из P8-1) + helm lint.
-    # BUILD-ONLY: секрет registry не задан — push отсутствует осознанно
-    # (см. BLOCKERS.md «Push docker-образов в registry (Фаза 7)»). При появлении секрета:
-    # docker/login-action + docker push + тег из github.sha.
+    # 2026-08-31: push в GHCR (GitHub Container Registry) через встроенный GITHUB_TOKEN — не
+    # требует отдельного секрета registry (см. BLOCKERS.md «Push docker-образов в registry»,
+    # закрыто этим коммитом). Только на push в main (не на PR — форк без permissions.packages не
+    # смог бы пушить всё равно, а мы explicit'но не пытаемся). Первый push создаёт GHCR-пакет как
+    # private по умолчанию — сделать публичным можно вручную в Settings пакета при желании.
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout
@@ -380,3 +385,27 @@ jobs:
           helm lint deploy/helm/eca-system
           helm lint deploy/helm/eca-system -f deploy/helm/eca-system/values-staging.yaml
           helm lint deploy/helm/eca-system -f deploy/helm/eca-system/values-prod.yaml
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push images to GHCR
+        if: github.event_name == 'push'
+        run: |
+          BACKEND_IMAGE=ghcr.io/${{ github.repository_owner }}/flight-event-system-backend
+          FRONTEND_IMAGE=ghcr.io/${{ github.repository_owner }}/flight-event-system-frontend
+
+          docker tag eca-backend:${{ github.sha }} "$BACKEND_IMAGE:${{ github.sha }}"
+          docker tag eca-backend:${{ github.sha }} "$BACKEND_IMAGE:latest"
+          docker tag eca-frontend:${{ github.sha }} "$FRONTEND_IMAGE:${{ github.sha }}"
+          docker tag eca-frontend:${{ github.sha }} "$FRONTEND_IMAGE:latest"
+
+          docker push "$BACKEND_IMAGE:${{ github.sha }}"
+          docker push "$BACKEND_IMAGE:latest"
+          docker push "$FRONTEND_IMAGE:${{ github.sha }}"
+          docker push "$FRONTEND_IMAGE:latest"
