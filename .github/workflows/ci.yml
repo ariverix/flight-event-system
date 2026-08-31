@@ -286,7 +286,15 @@ jobs:
         run: |
           # Явный паттерн вместо target/*.jar: локальный -Psecurity-scan оставляет в target
           # посторонний findsecbugs-plugin-*.jar — глоб не должен его захватывать.
-          nohup java -jar target/eca-system-*.jar > "$GITHUB_WORKSPACE/backend-e2e.log" 2>&1 &
+          # -Xss8m: тот же фикс StackOverflowError на GitHub Actions runners, что в
+          # backend/pom.xml (surefire) и backend/Dockerfile (ENTRYPOINT) — здесь до сих пор не
+          # применялся, т.к. job запускает jar напрямую через `java -jar`, минуя оба места.
+          # -Xmx768m: явный потолок кучи (обнаружено 2026-08-31: backend молча умирал без единой
+          # строки в лог — ни исключения, ни shutdown-сообщения — через ~5-8с после первого
+          # запроса, ровно когда стартует Chromium для Playwright; без -Xmx JVM сайзит кучу от
+          # видимой раннеру памяти и вместе с Chromium+Node+Postgres на том же раннере это похоже
+          # на OOM-killer, а не на само приложение — явный кэп снижает шанс стать жертвой).
+          nohup java -Xss8m -Xmx768m -jar target/eca-system-*.jar > "$GITHUB_WORKSPACE/backend-e2e.log" 2>&1 &
 
       - name: Install frontend dependencies
         working-directory: frontend
