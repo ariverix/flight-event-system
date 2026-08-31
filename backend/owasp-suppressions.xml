@@ -179,7 +179,14 @@
       ============================================================================
       ГРУППА: CVE-2026-59313 — Spring Framework 6.2.x (EOL-ветка), фикса нет на нашей линии
       ============================================================================
-      Найдено 2026-08-31: spring-core-6.2.19.jar / spring-web-6.2.19.jar, NVD CVSS 9.8.
+      Найдено 2026-08-31: NVD матчит эту CVE на весь релиз Spring Framework 6.2.19 — как минимум
+      spring-core/spring-web (первая находка), затем spring-tx/spring-webmvc (та же CVE, другие
+      модули того же релиза, обнаружено при повторном прогоне) — не точечно на 1-2 jar. Паттерн
+      ниже покрывает весь groupId org.springframework (14 артефактов 6.2.19 в проекте: aop,
+      aspects, beans, context, core, expression, jcl, jdbc, messaging, orm, tx, web, webmvc,
+      websocket) вместо перечисления каждого по отдельности — привязка к конкретному <cve>
+      сохраняет точечность подавления (не открывает дверь другим CVE этих же артефактов).
+      CVSS 9.8.
 
       Суть по официальному advisory Spring: content spoofing в SSE (Server-Sent Events)
       поддержке функционального Spring MVC (введено в 5.3.2, 2020) — атакующий может испортить
@@ -210,7 +217,7 @@
         не 9.8 из NVD). Проект SSE не использует (raw WebSocket вместо него). Фикс только в
         Framework 7.0.9 / Boot 4.x — мажорный апгрейд, EOL-ветка 6.2.x патча не получит.
         Риск принят до перехода на Boot 4 (отдельный ADR).</notes>
-        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-(core|web)@.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
         <cve>CVE-2026-59313</cve>
     </suppress>
 
