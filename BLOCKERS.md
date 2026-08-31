@@ -18,15 +18,16 @@
 - **Приёмочный перф-прогон на прод-железе / тюнингованном пуле (P6-3 follow-up, IMPROVEMENT_PLAN).**
   Требует приёмочный стенд заказчика — вне объёма прогона. Индикативные числа — `docs/perf/`.
 
-- **Branch protection: required status checks (Фаза 7, MEDIUM ревью).** Jobs `backend`,
-  `frontend`, `e2e` гейтят мёрж только если добавлены в required checks в настройках
-  GitHub (Branch Protection на `main`) — это НЕ код, а настройка репозитория.
-  **Уточнение 2026-08-26** (`gh` теперь авторизован): `gh api repos/.../branches/main/protection`
-  → 403 "Upgrade to GitHub Pro or make this repository public to enable this feature" —
-  это не забытая настройка, а ограничение тарифа (приватный репо + free plan не поддерживает
-  branch protection). **Разблокировка (Денис, владелец репо):** либо GitHub Pro/Team,
-  либо сделать репозиторий публичным — затем Settings → Branches → main → Require status
-  checks → отметить `backend`, `frontend`, `e2e` (и по желанию `security-scan`, `docker`).
+- ~~**Branch protection: required status checks (Фаза 7, MEDIUM ревью).**~~ —
+  **ЗАКРЫТО 2026-08-31** (решение Дениса): репозиторий переведён в public
+  (`gh repo edit --visibility public`, GitHub Free не поддерживал branch protection на
+  приватных репо — 403 "Upgrade to GitHub Pro or make this repository public"). На `main`
+  включена защита ветки: required status checks (strict/up-to-date) —
+  `Backend (build, test, Modulith-verify, coverage gate)`,
+  `Frontend (typecheck, lint, vitest, build)`,
+  `E2E (Playwright smoke против реального стека)`; force-push и удаление ветки запрещены.
+  `security-scan`/`docker` в required checks не добавлены (не входили в решение) — можно
+  добавить отдельным шагом при необходимости.
 
 ## Требуют решения Дениса
 
