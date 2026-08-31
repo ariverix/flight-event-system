@@ -295,6 +295,24 @@ jobs:
           # видимой раннеру памяти и вместе с Chromium+Node+Postgres на том же раннере это похоже
           # на OOM-killer, а не на само приложение — явный кэп снижает шанс стать жертвой).
           nohup java -Xss8m -Xmx768m -jar target/eca-system-*.jar > "$GITHUB_WORKSPACE/backend-e2e.log" 2>&1 &
+          echo $! > "$GITHUB_WORKSPACE/backend.pid"
+
+      # Диагностика (2026-08-31): -Xss8m/-Xmx768m не помогли — backend всё равно молча умирает
+      # без единой строки в логе через несколько секунд после первого запроса (см. фикс выше).
+      # Полная тишина (ни исключения) — сигнатура SIGKILL извне процесса, а не JVM-исключения.
+      # Пишем free/ps раз в 2с в фоне на весь job, чтобы на failure увидеть, что происходило
+      # с памятью раннера в момент смерти; dmesg (если доступен без sudo-пароля) отдельно
+      # покажет OOM-killer напрямую.
+      - name: Start memory monitor (background, для диагностики падения backend)
+        run: |
+          ( while true; do
+              date -u +%H:%M:%S
+              free -h
+              ps -eo pid,comm,rss --sort=-rss | head -8
+              echo ---
+              sleep 2
+            done ) > "$GITHUB_WORKSPACE/mem-monitor.log" 2>&1 &
+          echo $! > "$GITHUB_WORKSPACE/mem-monitor.pid"
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -330,12 +348,22 @@ jobs:
             frontend/playwright-report/
           retention-days: 14
 
+      - name: Stop memory monitor and capture dmesg (диагностика)
+        if: always()
+        run: |
+          kill "$(cat mem-monitor.pid)" 2>/dev/null || true
+          sudo dmesg -T 2>/dev/null | grep -iE 'killed process|out of memory|oom' > oom-dmesg.log || echo "dmesg недоступен или пусто" > oom-dmesg.log
+          echo "backend PID $(cat backend.pid 2>/dev/null) alive: $(kill -0 "$(cat backend.pid 2>/dev/null)" 2>/dev/null && echo yes || echo no)" >> oom-dmesg.log
+
       - name: Upload backend log
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-e2e-log
-          path: backend-e2e.log
+          path: |
+            backend-e2e.log
+            mem-monitor.log
+            oom-dmesg.log
           retention-days: 14
 
   docker:
