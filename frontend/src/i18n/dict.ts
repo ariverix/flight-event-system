@@ -486,6 +486,66 @@ const EDITOR_RU = {
   tlDetailsTimeLabel:     'Время',
   tlDetailsTemplateLabel: 'Шаблон',
 
+  // ── AuditLogPage ─────────────────────────────────────────────────────────────
+  auditPageTitle:       'Журнал аудита',
+  auditRecordsWord:     'записей',
+  auditEntityFilterPlaceholder: 'Тип сущности',
+  auditActionFilterPlaceholder: 'Тип операции',
+  auditExportCsvBtn:    'Экспорт CSV',
+  auditSystemUser:      'Система',
+  auditEmptyText:       'Записей аудита нет',
+  auditEmptyHint:       'Действия в системе будут отражены здесь',
+  auditExportedPrefix:  'Экспортировано',
+  auditLoadError:       'Ошибка загрузки журнала аудита',
+  auditColAction:       'Операция',
+  auditColEntity:       'Сущность',
+  auditColUser:         'Пользователь',
+  auditColDetails:      'Детали',
+  auditCsvHeaders: [
+    'ID', 'Операция', 'Тип сущности', 'ID сущности', 'Пользователь', 'Детали', 'Время',
+  ] as string[],
+
+  auditEntityLabels: {
+    SEQUENCE:  'Последовательность',
+    EXECUTION: 'Выполнение',
+    USER:      'Пользователь',
+  } as Record<string, string>,
+
+  auditActionLabels: {
+    CREATE_SEQUENCE:       'Создана последовательность',
+    UPDATE_SEQUENCE:       'Обновлена последовательность',
+    DELETE_SEQUENCE:       'Удалена последовательность',
+    ACTIVATE_SEQUENCE:     'Активирована',
+    DEACTIVATE_SEQUENCE:   'Деактивирована',
+    ADD_STEP:              'Добавлен шаг',
+    UPDATE_STEP:           'Изменён шаг',
+    DELETE_STEP:           'Удалён шаг',
+    REORDER_STEPS:         'Порядок шагов изменён',
+    EXECUTION_STARTED:     'Выполнение начато',
+    EXECUTION_COMPLETED:   'Выполнение завершено',
+    EXECUTION_ABORTED:     'Выполнение прервано',
+    USER_LOGIN:            'Вход в систему',
+    CREATE_USER:           'Создан пользователь',
+    TOGGLE_USER:           'Изменение статуса',
+    USER_TOGGLED:          'Статус пользователя',
+    USER_REGISTERED:       'Регистрация пользователя',
+    USER_PASSWORD_CHANGED: 'Смена пароля',
+  } as Record<string, string>,
+
+  // Отдельные формулировки для дропдауна фильтра (не совпадают текстом с
+  // auditActionLabels — там прошедшее время для ленты событий, здесь
+  // существительное для списка фильтра).
+  auditActionFilterLabels: {
+    CREATE_SEQUENCE:     'Создание последовательности',
+    ACTIVATE_SEQUENCE:   'Активация',
+    DEACTIVATE_SEQUENCE: 'Деактивация',
+    DELETE_SEQUENCE:     'Удаление',
+    EXECUTION_STARTED:   'Старт выполнения',
+    EXECUTION_COMPLETED: 'Завершение',
+    EXECUTION_ABORTED:   'Прерывание',
+    USER_LOGIN:          'Вход в систему',
+  } as Record<string, string>,
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -963,6 +1023,63 @@ const EDITOR_EN = {
   tlDetailsTypeLabel:     'Type',
   tlDetailsTimeLabel:     'Time',
   tlDetailsTemplateLabel: 'Template',
+
+  // ── AuditLogPage ─────────────────────────────────────────────────────────────
+  auditPageTitle:       'Audit Log',
+  auditRecordsWord:     'records',
+  auditEntityFilterPlaceholder: 'Entity type',
+  auditActionFilterPlaceholder: 'Action type',
+  auditExportCsvBtn:    'Export CSV',
+  auditSystemUser:      'System',
+  auditEmptyText:       'No audit records',
+  auditEmptyHint:       'System actions will be shown here',
+  auditExportedPrefix:  'Exported',
+  auditLoadError:       'Failed to load audit log',
+  auditColAction:       'Action',
+  auditColEntity:       'Entity',
+  auditColUser:         'User',
+  auditColDetails:      'Details',
+  auditCsvHeaders: [
+    'ID', 'Action', 'Entity type', 'Entity ID', 'User', 'Details', 'Time',
+  ] as string[],
+
+  auditEntityLabels: {
+    SEQUENCE:  'Sequence',
+    EXECUTION: 'Execution',
+    USER:      'User',
+  } as Record<string, string>,
+
+  auditActionLabels: {
+    CREATE_SEQUENCE:       'Sequence created',
+    UPDATE_SEQUENCE:       'Sequence updated',
+    DELETE_SEQUENCE:       'Sequence deleted',
+    ACTIVATE_SEQUENCE:     'Activated',
+    DEACTIVATE_SEQUENCE:   'Deactivated',
+    ADD_STEP:              'Step added',
+    UPDATE_STEP:           'Step updated',
+    DELETE_STEP:           'Step deleted',
+    REORDER_STEPS:         'Step order changed',
+    EXECUTION_STARTED:     'Execution started',
+    EXECUTION_COMPLETED:   'Execution completed',
+    EXECUTION_ABORTED:     'Execution aborted',
+    USER_LOGIN:            'Signed in',
+    CREATE_USER:           'User created',
+    TOGGLE_USER:           'Status changed',
+    USER_TOGGLED:          'User status',
+    USER_REGISTERED:       'User registered',
+    USER_PASSWORD_CHANGED: 'Password changed',
+  } as Record<string, string>,
+
+  auditActionFilterLabels: {
+    CREATE_SEQUENCE:     'Sequence creation',
+    ACTIVATE_SEQUENCE:   'Activation',
+    DEACTIVATE_SEQUENCE: 'Deactivation',
+    DELETE_SEQUENCE:     'Deletion',
+    EXECUTION_STARTED:   'Execution start',
+    EXECUTION_COMPLETED: 'Completion',
+    EXECUTION_ABORTED:   'Abort',
+    USER_LOGIN:          'Sign in',
+  } as Record<string, string>,
 
   roles: {
     ADMIN:    'Administrator',
