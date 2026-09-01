@@ -10,6 +10,7 @@ import { StepForm } from './StepForm';
 import { SequenceFlow } from './SequenceFlow';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 const STEP_TYPE_COLOR: Record<string, string> = {
   ACTION:   'blue',
@@ -17,14 +18,14 @@ const STEP_TYPE_COLOR: Record<string, string> = {
   WAIT:     'purple',
 };
 
-const STEP_TYPE_LABEL: Record<string, string> = {
-  ACTION:   'Действие',
-  EVALUATE: 'Оценка',
-  WAIT:     'Ожидание',
-};
-
 export const SequenceForm: React.FC = () => {
   const notification = useNotification();
+  const d = useEditorI18n();
+  const STEP_TYPE_LABEL: Record<string, string> = {
+    ACTION:   d.stepTypeAction,
+    EVALUATE: d.stepTypeEvaluate,
+    WAIT:     d.stepTypeWait,
+  };
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [sequence, setSequence] = useState<SequenceResponse | null>(null);
@@ -53,7 +54,7 @@ export const SequenceForm: React.FC = () => {
       });
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка загрузки последовательности',
+        message: d.seqFormLoadError,
         description: error.response?.data?.message || error.message,
       });
       navigate('/sequences');
@@ -78,16 +79,16 @@ export const SequenceForm: React.FC = () => {
 
       if (isEditMode && id) {
         await sequenceApi.updateSequence(parseInt(id), request);
-        notification.success({ message: 'Последовательность обновлена' });
+        notification.success({ message: d.seqFormUpdateSuccess });
         await loadSequence();
       } else {
         const newSeq = await sequenceApi.createSequence(request);
-        notification.success({ message: 'Последовательность создана' });
+        notification.success({ message: d.seqFormCreateSuccess });
         navigate(`/sequences/${newSeq.id}`);
       }
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка сохранения',
+        message: d.seqFormSaveError,
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -100,17 +101,17 @@ export const SequenceForm: React.FC = () => {
     try {
       if (editingStep) {
         await sequenceApi.updateStep(sequence.id, editingStep.id, stepData);
-        notification.success({ message: 'Шаг обновлён' });
+        notification.success({ message: d.seqFormStepUpdateSuccess });
       } else {
         await sequenceApi.addStep(sequence.id, stepData);
-        notification.success({ message: 'Шаг добавлен' });
+        notification.success({ message: d.seqFormStepAddSuccess });
       }
       setIsStepModalOpen(false);
       setEditingStep(null);
       void loadSequence();
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка сохранения шага',
+        message: d.seqFormStepSaveError,
         description: error.response?.data?.message || error.message,
       });
     }
@@ -128,7 +129,7 @@ export const SequenceForm: React.FC = () => {
       void loadSequence();
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка изменения порядка шагов',
+        message: d.seqFormReorderError,
         description: error.response?.data?.message || error.message,
       });
     }
@@ -138,11 +139,11 @@ export const SequenceForm: React.FC = () => {
     if (!sequence) return;
     try {
       await sequenceApi.deleteStep(sequence.id, stepId);
-      notification.success({ message: 'Шаг удалён' });
+      notification.success({ message: d.seqFormStepDeleteSuccess });
       void loadSequence();
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка удаления шага',
+        message: d.seqFormStepDeleteError,
         description: error.response?.data?.message || error.message,
       });
     }
@@ -151,7 +152,7 @@ export const SequenceForm: React.FC = () => {
   const stepColumns = [
     { title: '№', dataIndex: 'orderIndex', key: 'orderIndex', width: 60 },
     {
-      title: 'Тип',
+      title: d.tlDetailsTypeLabel,
       dataIndex: 'stepType',
       key: 'stepType',
       render: (type: string) => (
@@ -159,7 +160,7 @@ export const SequenceForm: React.FC = () => {
       ),
     },
     {
-      title: 'Конфигурация',
+      title: d.seqFormConfigCol,
       dataIndex: 'configJson',
       key: 'configJson',
       ellipsis: true,
@@ -178,7 +179,7 @@ export const SequenceForm: React.FC = () => {
       },
     },
     {
-      title: 'При успехе',
+      title: d.seqFormOnSuccessCol,
       dataIndex: 'onSuccessAction',
       key: 'onSuccessAction',
       render: (action: string, record: StepResponse) => (
@@ -189,7 +190,7 @@ export const SequenceForm: React.FC = () => {
       ),
     },
     {
-      title: 'При ошибке',
+      title: d.seqFormOnFailureCol,
       dataIndex: 'onFailureAction',
       key: 'onFailureAction',
       render: (action: string, record: StepResponse) => (
@@ -200,7 +201,7 @@ export const SequenceForm: React.FC = () => {
       ),
     },
     {
-      title: 'Действия',
+      title: d.seqColActions,
       key: 'actions',
       width: 280,
       render: (_: any, record: StepResponse) => {
@@ -215,7 +216,7 @@ export const SequenceForm: React.FC = () => {
                 icon={<ArrowUpOutlined />}
                 disabled={idx === 0}
                 onClick={() => handleMoveStep(record.id, 'up')}
-                title="Переместить вверх"
+                title={d.seqFormMoveUpTooltip}
               />
             )}
             {isAdmin && (
@@ -224,7 +225,7 @@ export const SequenceForm: React.FC = () => {
                 icon={<ArrowDownOutlined />}
                 disabled={idx === sortedSteps.length - 1}
                 onClick={() => handleMoveStep(record.id, 'down')}
-                title="Переместить вниз"
+                title={d.seqFormMoveDownTooltip}
               />
             )}
             {isAdmin && (
@@ -233,7 +234,7 @@ export const SequenceForm: React.FC = () => {
                 icon={<EditOutlined />}
                 onClick={() => { setEditingStep(record); setIsStepModalOpen(true); }}
               >
-                Изменить
+                {d.editStep}
               </Button>
             )}
             {isAdmin && (
@@ -243,7 +244,7 @@ export const SequenceForm: React.FC = () => {
                 icon={<DeleteOutlined />}
                 onClick={() => handleDeleteStep(record.id)}
               >
-                Удалить
+                {d.deleteStep}
               </Button>
             )}
           </Space>
@@ -255,32 +256,32 @@ export const SequenceForm: React.FC = () => {
   return (
     <div className="fade-in-up">
       <h2 className="page-title" style={{ marginBottom: 20 }}>
-        {isEditMode ? 'Редактировать последовательность' : 'Создать последовательность'}
+        {isEditMode ? d.seqFormTitleEdit : d.seqFormTitleCreate}
       </h2>
 
       <Card style={{ marginBottom: 16, borderColor: c.borderSecondary }}>
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
             name="name"
-            label="Название последовательности"
-            rules={[{ required: true, message: 'Введите название' }]}
+            label={d.seqFormNameLabel}
+            rules={[{ required: true, message: d.seqFormNameRequired }]}
           >
-            <Input placeholder="Например: Мониторинг полёта AFL123" />
+            <Input placeholder={d.seqFormNamePlaceholder} />
           </Form.Item>
 
           <Form.Item
             name="description"
-            label="Описание"
-            rules={[{ required: true, message: 'Введите описание' }]}
+            label={d.seqColDescription}
+            rules={[{ required: true, message: d.seqFormDescRequired }]}
           >
-            <Input.TextArea rows={3} placeholder="Краткое описание назначения последовательности" />
+            <Input.TextArea rows={3} placeholder={d.seqFormDescPlaceholder} />
           </Form.Item>
 
-          <Form.Item name="startCriteriaJson" label="Критерий запуска (JSON)">
+          <Form.Item name="startCriteriaJson" label={d.seqFormStartCriteriaLabel}>
             <CriteriaEditor />
           </Form.Item>
 
-          <Form.Item name="stopCriteriaJson" label="Критерий остановки (JSON)">
+          <Form.Item name="stopCriteriaJson" label={d.seqFormStopCriteriaLabel}>
             <CriteriaEditor />
           </Form.Item>
 
@@ -288,7 +289,7 @@ export const SequenceForm: React.FC = () => {
             <Space>
               {isAdmin && (
                 <Button type="primary" htmlType="submit" loading={loading}>
-                  {isEditMode ? 'Сохранить' : 'Создать'} последовательность
+                  {isEditMode ? d.seqFormSubmitSave : d.seqFormTitleCreate}
                 </Button>
               )}
               {isEditMode && id && (
@@ -296,11 +297,11 @@ export const SequenceForm: React.FC = () => {
                   icon={<ApartmentOutlined />}
                   onClick={() => navigate(`/sequences/${id}/editor`)}
                 >
-                  Открыть в редакторе
+                  {d.openEditor}
                 </Button>
               )}
               <Button onClick={() => navigate('/sequences')}>
-                {isAdmin ? 'Отмена' : 'Назад'}
+                {isAdmin ? d.usersCancelBtn : d.seqFormBackBtn}
               </Button>
             </Space>
           </Form.Item>
@@ -310,7 +311,7 @@ export const SequenceForm: React.FC = () => {
       {sequence && (
         <>
           <Card
-            title={<span style={{ color: c.text }}>Шаги последовательности</span>}
+            title={<span style={{ color: c.text }}>{d.seqFormStepsCardTitle}</span>}
             style={{ marginBottom: 16, borderColor: c.borderSecondary }}
           >
             {isAdmin && (
@@ -320,7 +321,7 @@ export const SequenceForm: React.FC = () => {
                 onClick={() => { setEditingStep(null); setIsStepModalOpen(true); }}
                 style={{ marginBottom: 16, width: '100%' }}
               >
-                Добавить шаг
+                {d.addStep}
               </Button>
             )}
 
@@ -335,7 +336,7 @@ export const SequenceForm: React.FC = () => {
 
           {sequence.steps.length > 0 && (
             <Card
-              title={<span style={{ color: c.text }}>Визуальная схема</span>}
+              title={<span style={{ color: c.text }}>{d.seqFormVisualSchemaCardTitle}</span>}
               style={{ borderColor: c.borderSecondary }}
             >
               <SequenceFlow steps={sequence.steps} />
@@ -345,7 +346,7 @@ export const SequenceForm: React.FC = () => {
       )}
 
       <Modal
-        title={editingStep ? 'Редактировать шаг' : 'Добавить шаг'}
+        title={editingStep ? d.seqFormEditStepModalTitle : d.addStep}
         open={isStepModalOpen}
         onCancel={() => { setIsStepModalOpen(false); setEditingStep(null); }}
         footer={null}
