@@ -181,6 +181,30 @@ describe('ping → pong', () => {
   });
 });
 
+// ── (d) Exponential backoff ───────────────────────────────────────────────────
+describe('reconnect backoff', () => {
+  it('первый reconnect срабатывает ровно через 1000 мс', () => {
+    vi.useFakeTimers();
+    const client = new WsClient('ws://localhost:8080');
+    client.connect();
+
+    // Имитируем закрытие (в реальном WS readyState становится CLOSED=3)
+    currentMock.readyState = 3;
+    mockConstructor.mockClear();
+    currentMock.onclose!();
+
+    // До 1000 мс — нового WebSocket нет
+    vi.advanceTimersByTime(999);
+    expect(mockConstructor).not.toHaveBeenCalled();
+
+    // Ровно в 1000 мс — новый WebSocket создаётся
+    vi.advanceTimersByTime(1);
+    expect(mockConstructor).toHaveBeenCalledOnce();
+
+    client.disconnect();
+  });
+});
+
 // ── (e) disconnect() → connect() — переиспользование инстанса ────────────────
 describe('disconnect() затем connect()', () => {
   it('после disconnect() следующий connect() снова открывает соединение', () => {
@@ -206,27 +230,35 @@ describe('disconnect() затем connect()', () => {
     vi.advanceTimersByTime(60_000);
     expect(mockConstructor).not.toHaveBeenCalled();
   });
-});
 
-// ── (d) Exponential backoff ───────────────────────────────────────────────────
-describe('reconnect backoff', () => {
-  it('первый reconnect срабатывает ровно через 1000 мс', () => {
+  it('поздний onclose от сокета, закрытого через disconnect(), не глушит heartbeat уже открытого нового сокета', () => {
     vi.useFakeTimers();
     const client = new WsClient('ws://localhost:8080');
+
     client.connect();
+    const socketA = currentMock;
+    socketA.readyState = 1; // OPEN
+    socketA.onopen!();
 
-    // Имитируем закрытие (в реальном WS readyState становится CLOSED=3)
-    currentMock.readyState = 3;
+    client.disconnect(); // this.socket = null, но браузер ещё не доставил close-event сокета A
+
     mockConstructor.mockClear();
-    currentMock.onclose!();
+    client.connect();
+    const socketB = currentMock;
+    socketB.readyState = 1; // OPEN
+    socketB.onopen!(); // запускает heartbeat для B
 
-    // До 1000 мс — нового WebSocket нет
-    vi.advanceTimersByTime(999);
-    expect(mockConstructor).not.toHaveBeenCalled();
+    // Heartbeat B работает
+    vi.advanceTimersByTime(30_000);
+    expect(socketB.send).toHaveBeenCalledTimes(1);
+    socketB.send.mockClear();
 
-    // Ровно в 1000 мс — новый WebSocket создаётся
-    vi.advanceTimersByTime(1);
-    expect(mockConstructor).toHaveBeenCalledOnce();
+    // Браузер только сейчас доставляет отложенный close СТАРОГО сокета A
+    socketA.onclose?.();
+
+    // Heartbeat B должен продолжать работать как ни в чём не бывало
+    vi.advanceTimersByTime(30_000);
+    expect(socketB.send).toHaveBeenCalledTimes(1);
 
     client.disconnect();
   });

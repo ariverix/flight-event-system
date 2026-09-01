@@ -77,7 +77,17 @@ export class WsClient {
     this.destroyed = true;
     this.stopPing();
     if (this.retryTimer !== null) clearTimeout(this.retryTimer);
-    this.socket?.close();
+    if (this.socket) {
+      // Отвязываем обработчики ДО close(): браузер доставляет close-event
+      // асинхронно и может сделать это уже после того, как connect() успеет
+      // открыть новый сокет — без отвязки старый onclose среагирует на чужое
+      // состояние (остановит ping нового сокета, распланирует лишний reconnect).
+      this.socket.onopen = null;
+      this.socket.onmessage = null;
+      this.socket.onclose = null;
+      this.socket.onerror = null;
+      this.socket.close();
+    }
     this.socket = null;
   }
 
