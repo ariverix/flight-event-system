@@ -635,6 +635,26 @@ const EDITOR_RU = {
   dashSvcOutboxStatus:    'Активна',
   dashAllSystemsOk:       'Все системы работают нормально',
 
+  // ── TimelinePage ─────────────────────────────────────────────────────────────
+  tlPageTitle:            'Хронология полёта',
+  tlPageSubtitle:         'Живая лента событий с воспроизведением истории',
+  tlToStartTooltip:       'В начало',
+  tlPlayBtn:              'Воспроизвести',
+  tlPauseBtn:             'Пауза',
+  tlToEndTooltip:         'Показать все',
+  tlSpeedLabel:           'Скорость:',
+  tlReloadTooltip:        'Перезагрузить данные',
+  tlEventsHeading:        'События',
+  tlEmptyNoEventsPrefix:  'Нет событий для борта',
+  tlEmptyNoEventsHint:    'Попробуйте другой борт или отправьте событие через Симулятор',
+  tlEmptyPressPlay:       'Нажмите ▶ для воспроизведения',
+  tlEventsInHistorySuffix: 'событий в истории',
+  tlStatsHeading:         'Статистика',
+  tlStatMessages:         'Сообщений',
+  tlStatStarts:           'Запусков',
+  tlStatSteps:            'Шагов',
+  tlStatErrors:           'Ошибок',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -1256,6 +1276,26 @@ const EDITOR_EN = {
   dashSvcOutbox:          'Outbox publication',
   dashSvcOutboxStatus:    'Active',
   dashAllSystemsOk:       'All systems operating normally',
+
+  // ── TimelinePage ─────────────────────────────────────────────────────────────
+  tlPageTitle:            'Flight Timeline',
+  tlPageSubtitle:         'Live event feed with history playback',
+  tlToStartTooltip:       'To start',
+  tlPlayBtn:              'Play',
+  tlPauseBtn:             'Pause',
+  tlToEndTooltip:         'Show all',
+  tlSpeedLabel:           'Speed:',
+  tlReloadTooltip:        'Reload data',
+  tlEventsHeading:        'Events',
+  tlEmptyNoEventsPrefix:  'No events for aircraft',
+  tlEmptyNoEventsHint:    'Try another aircraft or send an event via the Simulator',
+  tlEmptyPressPlay:       'Press ▶ to play',
+  tlEventsInHistorySuffix: 'events in history',
+  tlStatsHeading:         'Statistics',
+  tlStatMessages:         'Messages',
+  tlStatStarts:           'Starts',
+  tlStatSteps:            'Steps',
+  tlStatErrors:           'Errors',
 
   roles: {
     ADMIN:    'Administrator',

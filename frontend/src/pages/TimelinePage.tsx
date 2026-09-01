@@ -8,21 +8,22 @@ import {
 import { useTimeline } from '../hooks/useTimeline';
 import { TLEventCard } from '../components/timeline/TLEventCard';
 import { useTheme } from '../context/ThemeContext';
+import { useEditorI18n } from '../i18n/useEditorI18n';
 
 const AIRCRAFT = ['SU9876', 'RA-89050', 'SU1234', 'VP-BQR', 'CHECK-001'];
 const SPEEDS   = [0.5, 1, 2, 4];
 
-
-const STAT_CONFIG = [
-  { key: 'MESSAGE_RECEIVED',    label: 'Сообщений',  color: 'var(--accent-blue)' },
-  { key: 'EXECUTION_STARTED',   label: 'Запусков',   color: 'var(--accent-green)' },
-  { key: 'STEP_COMPLETED',      label: 'Шагов',      color: 'var(--accent-purple)' },
-  { key: 'EXECUTION_COMPLETED', label: 'Завершено',  color: 'var(--accent-green)' },
-  { key: 'EXECUTION_FAILED',    label: 'Ошибок',     color: 'var(--accent-red)' },
-];
-
 export const TimelinePage: React.FC = () => {
   const { isDark } = useTheme();
+  const d = useEditorI18n();
+
+  const STAT_CONFIG = [
+    { key: 'MESSAGE_RECEIVED',    label: d.tlStatMessages,               color: 'var(--accent-blue)' },
+    { key: 'EXECUTION_STARTED',   label: d.tlStatStarts,                 color: 'var(--accent-green)' },
+    { key: 'STEP_COMPLETED',      label: d.tlStatSteps,                  color: 'var(--accent-purple)' },
+    { key: 'EXECUTION_COMPLETED', label: d.tlEventTypes.EXECUTION_COMPLETED, color: 'var(--accent-green)' },
+    { key: 'EXECUTION_FAILED',    label: d.tlStatErrors,                 color: 'var(--accent-red)' },
+  ];
   const [aircraft, setAircraft] = useState<string>(AIRCRAFT[0]);
   const scrollRef  = useRef<HTMLDivElement>(null);
   const prevShown  = useRef(0);
@@ -101,10 +102,10 @@ export const TimelinePage: React.FC = () => {
         <div>
           <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <RadarChartOutlined style={{ color: 'var(--accent-blue)', fontSize: 22 }} />
-            Хронология полёта
+            {d.tlPageTitle}
           </h2>
           <p style={{ color: c.textMuted, margin: 0, fontSize: 13 }}>
-            Живая лента событий с воспроизведением истории
+            {d.tlPageSubtitle}
           </p>
         </div>
 
@@ -135,7 +136,7 @@ export const TimelinePage: React.FC = () => {
             icon={<ReloadOutlined />}
             onClick={tl.reset}
             disabled={tl.shown === 0 && !tl.playing}
-            title="В начало"
+            title={d.tlToStartTooltip}
           />
           <Button
             type="primary"
@@ -150,20 +151,20 @@ export const TimelinePage: React.FC = () => {
               color: tl.playing ? 'var(--accent-amber)' : undefined,
             }}
           >
-            {tl.playing ? 'Пауза' : 'Воспроизвести'}
+            {tl.playing ? d.tlPauseBtn : d.tlPlayBtn}
           </Button>
           <Button
             icon={<StepForwardOutlined />}
             onClick={tl.toEnd}
             disabled={tl.shown === tl.total}
-            title="Показать все"
+            title={d.tlToEndTooltip}
           />
         </div>
 
         {/* Кнопки скорости */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: c.textMuted, whiteSpace: 'nowrap' }}>
-            Скорость:
+            {d.tlSpeedLabel}
           </span>
           {SPEEDS.map(s => {
             const active = tl.speed === s;
@@ -215,7 +216,7 @@ export const TimelinePage: React.FC = () => {
           icon={<ReloadOutlined />}
           onClick={() => { tl.reset(); tl.reload(); }}
           loading={tl.loading}
-          title="Перезагрузить данные"
+          title={d.tlReloadTooltip}
         />
       </div>
 
@@ -239,7 +240,7 @@ export const TimelinePage: React.FC = () => {
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
               {tl.playing && <Badge status="processing" />}
-              События
+              {d.tlEventsHeading}
             </h3>
             <span style={{
               fontFamily: 'monospace', fontWeight: 700, fontSize: 13,
@@ -256,16 +257,16 @@ export const TimelinePage: React.FC = () => {
             {!tl.loading && tl.total === 0 && !tl.error && (
               <div style={{ textAlign: 'center', padding: '64px 0', color: c.textDim }}>
                 <ClockCircleOutlined style={{ fontSize: 48, opacity: 0.35, display: 'block', margin: '0 auto 16px' }} />
-                <div style={{ fontSize: 15, marginBottom: 6 }}>Нет событий для борта {aircraft}</div>
-                <div style={{ fontSize: 13 }}>Попробуйте другой борт или отправьте событие через Симулятор</div>
+                <div style={{ fontSize: 15, marginBottom: 6 }}>{d.tlEmptyNoEventsPrefix} {aircraft}</div>
+                <div style={{ fontSize: 13 }}>{d.tlEmptyNoEventsHint}</div>
               </div>
             )}
 
             {!tl.loading && tl.total > 0 && tl.shown === 0 && (
               <div style={{ textAlign: 'center', padding: '64px 0', color: c.textDim }}>
                 <PlayCircleOutlined style={{ fontSize: 48, opacity: 0.35, display: 'block', margin: '0 auto 16px' }} />
-                <div style={{ fontSize: 15, marginBottom: 6 }}>Нажмите ▶ для воспроизведения</div>
-                <div style={{ fontSize: 13 }}>{tl.total} событий в истории</div>
+                <div style={{ fontSize: 15, marginBottom: 6 }}>{d.tlEmptyPressPlay}</div>
+                <div style={{ fontSize: 13 }}>{tl.total} {d.tlEventsInHistorySuffix}</div>
               </div>
             )}
 
@@ -289,7 +290,7 @@ export const TimelinePage: React.FC = () => {
           padding: '20px',
         }}>
           <h3 style={{ fontSize: 13, fontWeight: 600, color: c.headingColor, margin: '0 0 14px' }}>
-            Статистика
+            {d.tlStatsHeading}
           </h3>
 
           {STAT_CONFIG.map(s => {
