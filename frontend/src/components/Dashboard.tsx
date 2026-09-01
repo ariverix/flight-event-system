@@ -19,6 +19,7 @@ import { messageApi } from '../api/messageApi';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../context/ThemeContext';
 import { ExecutionInstanceResponse, ExecutionStatus } from '../types/execution';
+import { useEditorI18n } from '../i18n/useEditorI18n';
 
 const { Text } = Typography;
 
@@ -31,13 +32,6 @@ interface Stats {
   executionsToday: number;
   successRate: number | null;
 }
-
-const EXEC_STATUS_LABEL: Record<string, string> = {
-  RUNNING:   'Выполняется',
-  COMPLETED: 'Завершено',
-  ABORTED:   'Прервано',
-  WAITING:   'Ожидание',
-};
 
 const EXEC_STATUS_COLOR: Record<string, string> = {
   RUNNING:   'processing',
@@ -91,6 +85,7 @@ const AnimatedStat: React.FC<{
 };
 
 export const Dashboard: React.FC = () => {
+  const d = useEditorI18n();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats>({
     activeSequences: 0,
@@ -187,36 +182,36 @@ export const Dashboard: React.FC = () => {
 
   const statCards = [
     {
-      title: 'Всего сценариев',
+      title: d.dashStatTotalSeq,
       value: stats.totalSequences,
-      sub: 'последовательностей в системе',
+      sub: d.dashSubTotalSeq,
       color: blue,
       icon: <OrderedListOutlined />,
       href: '/sequences',
     },
     {
-      title: 'Активных сценариев',
+      title: d.dashStatActiveSeq,
       value: stats.activeSequences,
-      sub: `из ${stats.totalSequences} всего`,
+      sub: `${d.paginationOf} ${stats.totalSequences} ${d.dashSubOfTotalSuffix}`,
       color: green,
       icon: <PlayCircleOutlined />,
       pulse: stats.activeSequences > 0,
       href: '/sequences',
     },
     {
-      title: 'Выполнений сегодня',
+      title: d.dashStatExecToday,
       value: stats.executionsToday,
-      sub: stats.runningExecutions > 0 ? `${stats.runningExecutions} выполняется сейчас` : 'за текущие сутки',
+      sub: stats.runningExecutions > 0 ? `${stats.runningExecutions} ${d.dashRunningNowSuffix}` : d.dashSubExecTodayDefault,
       color: orange,
       icon: <RocketOutlined />,
       pulse: stats.runningExecutions > 0,
       href: '/executions',
     },
     {
-      title: 'Процент успеха',
+      title: d.dashStatSuccessRate,
       value: stats.successRate ?? 0,
       suffix: '%',
-      sub: stats.successRate === null ? 'нет завершённых выполнений' : `${stats.completedExecutions} успешных`,
+      sub: stats.successRate === null ? d.dashSubNoCompleted : `${stats.completedExecutions} ${d.dashSuccessfulSuffix}`,
       color: stats.successRate === null || stats.successRate >= 80 ? green : stats.successRate >= 50 ? orange : red,
       icon: <CheckCircleOutlined />,
       href: '/executions',
@@ -228,13 +223,13 @@ export const Dashboard: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h2 className="page-title" style={{ marginBottom: 2 }}>Панель управления</h2>
+          <h2 className="page-title" style={{ marginBottom: 2 }}>{d.dashHomeTitle}</h2>
           <Text style={{ color: c.textMuted, fontSize: 13 }}>
             {user?.fullName} · {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}
           </Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={loadStats} loading={loading}>
-          Обновить
+          {d.refreshBtn}
         </Button>
       </div>
 
@@ -285,16 +280,16 @@ export const Dashboard: React.FC = () => {
         {/* Quick nav */}
         <Col xs={24} lg={10}>
           <Card
-            title={<span style={{ color: c.text }}>Быстрые действия</span>}
+            title={<span style={{ color: c.text }}>{d.dashQuickActionsTitle}</span>}
             style={{ borderColor: c.borderSecondary, height: '100%' }}
           >
             <Row gutter={[12, 10]}>
               {[
-                { label: 'Создать последовательность', desc: 'Новая ECA-последовательность', path: '/sequences/new', color: blue, icon: <OrderedListOutlined /> },
-                { label: 'Монитор выполнений',         desc: 'Просмотр активных экземпляров',       path: '/executions',      color: green, icon: <PlayCircleOutlined /> },
-                { label: 'Журнал сообщений',           desc: 'История входящих сообщений',          path: '/messages',        color: orange, icon: <MessageOutlined /> },
-                { label: 'Симулятор',                  desc: 'Отправить тестовое событие',          path: '/simulator',       color: purple, icon: <RocketOutlined /> },
-                { label: 'Демонстрация',               desc: 'Автоматический показ сценариев',      path: '/demo',            color: green, icon: <ExperimentOutlined /> },
+                { label: d.dashQaCreateSeqLabel, desc: d.dashQaCreateSeqDesc, path: '/sequences/new', color: blue, icon: <OrderedListOutlined /> },
+                { label: d.dashQaMonitorLabel,   desc: d.dashQaMonitorDesc,   path: '/executions',     color: green, icon: <PlayCircleOutlined /> },
+                { label: d.dashQaMessagesLabel,  desc: d.dashQaMessagesDesc,  path: '/messages',        color: orange, icon: <MessageOutlined /> },
+                { label: d.dashQaSimulatorLabel, desc: d.dashQaSimulatorDesc, path: '/simulator',       color: purple, icon: <RocketOutlined /> },
+                { label: d.dashQaDemoLabel,      desc: d.dashQaDemoDesc,      path: '/demo',            color: green, icon: <ExperimentOutlined /> },
               ].map(item => (
                 <Col xs={24} sm={12} xl={item.path === '/demo' ? 24 : 12} key={item.path}>
                   <div
@@ -345,10 +340,10 @@ export const Dashboard: React.FC = () => {
             {/* Recent executions */}
             <Col xs={24}>
               <Card
-                title={<span style={{ color: c.text }}>Последние выполнения</span>}
+                title={<span style={{ color: c.text }}>{d.dashRecentExecTitle}</span>}
                 extra={
                   <Button type="link" size="small" onClick={() => navigate('/executions')}>
-                    Все выполнения →
+                    {d.dashAllExecLink}
                   </Button>
                 }
                 style={{ borderColor: c.borderSecondary }}
@@ -358,7 +353,7 @@ export const Dashboard: React.FC = () => {
                 ) : (
                   <List
                     dataSource={recentExecutions}
-                    locale={{ emptyText: 'Выполнений ещё не было' }}
+                    locale={{ emptyText: d.dashRecentExecEmpty }}
                     renderItem={exec => (
                       <List.Item
                         style={{ padding: '8px 0', cursor: 'pointer', borderBottom: `1px solid ${c.borderSecondary}` }}
@@ -369,7 +364,7 @@ export const Dashboard: React.FC = () => {
                             color={EXEC_STATUS_COLOR[exec.status as ExecutionStatus]}
                             style={{ margin: 0, flexShrink: 0, minWidth: 90, textAlign: 'center' }}
                           >
-                            {EXEC_STATUS_LABEL[exec.status] ?? exec.status}
+                            {d.instanceStatuses[exec.status] ?? exec.status}
                           </Tag>
                           <Text style={{ color: c.text, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {exec.sequenceName}
@@ -392,15 +387,15 @@ export const Dashboard: React.FC = () => {
             {/* System status */}
             <Col xs={24}>
               <Card
-                title={<span style={{ color: c.text }}>Статус системы</span>}
+                title={<span style={{ color: c.text }}>{d.dashSystemStatusTitle}</span>}
                 style={{ borderColor: c.borderSecondary }}
               >
                 <Space direction="vertical" style={{ width: '100%' }} size={10}>
                   {[
-                    { label: 'Сервер приложений', status: 'Онлайн',    color: green },
-                    { label: 'База данных',        status: 'Подключена', color: green },
-                    { label: 'Движок правил',      status: 'Активен',   color: green },
-                    { label: 'Outbox-публикация',  status: 'Активна',   color: green },
+                    { label: d.dashSvcAppServer,   status: d.dashSvcAppServerStatus,   color: green },
+                    { label: d.dashSvcDatabase,    status: d.dashSvcDatabaseStatus,    color: green },
+                    { label: d.dashSvcRulesEngine, status: d.dashSvcRulesEngineStatus, color: green },
+                    { label: d.dashSvcOutbox,      status: d.dashSvcOutboxStatus,      color: green },
                   ].map(item => (
                     <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Text style={{ color: c.textMuted, fontSize: 13 }}>{item.label}</Text>
@@ -413,7 +408,7 @@ export const Dashboard: React.FC = () => {
                   <Divider style={{ margin: '4px 0', borderColor: c.borderSecondary }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ color: c.textDimmer, fontSize: 11 }}>ECA v1.0.0</Text>
-                    <Text style={{ color: c.textDimmer, fontSize: 11 }}>Все системы работают нормально</Text>
+                    <Text style={{ color: c.textDimmer, fontSize: 11 }}>{d.dashAllSystemsOk}</Text>
                   </div>
                 </Space>
               </Card>
