@@ -559,6 +559,18 @@ const EDITOR_RU = {
   execEmptyText:         'Выполнений нет',
   execEmptyHint:         'Запустите сценарий через Симулятор или Демонстрацию',
 
+  // ── MessageLog ───────────────────────────────────────────────────────────────
+  msgLogTitle:          'Журнал сообщений',
+  msgColAircraftIdent:  'Идент. ВС',
+  msgColReceived:       'Получено',
+  msgColMetadata:       'Метаданные',
+  msgTypeFilterLabel:   'Тип сообщения',
+  msgDateFrom:          'Дата от',
+  msgDateTo:            'Дата до',
+  msgEmptyText:         'Сообщений нет',
+  msgEmptyHint:         'Отправьте событие через Симулятор чтобы увидеть сообщения',
+  msgLoadError:         'Ошибка загрузки журнала',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -1106,6 +1118,18 @@ const EDITOR_EN = {
   execAutoRefreshNote:   'Auto-refresh — active executions present',
   execEmptyText:         'No executions',
   execEmptyHint:         'Run a scenario via the Simulator or Demo',
+
+  // ── MessageLog ───────────────────────────────────────────────────────────────
+  msgLogTitle:          'Message Log',
+  msgColAircraftIdent:  'Aircraft ID',
+  msgColReceived:       'Received',
+  msgColMetadata:       'Metadata',
+  msgTypeFilterLabel:   'Message type',
+  msgDateFrom:          'Date from',
+  msgDateTo:            'Date to',
+  msgEmptyText:         'No messages',
+  msgEmptyHint:         'Send an event via the Simulator to see messages here',
+  msgLoadError:         'Failed to load message log',
 
   roles: {
     ADMIN:    'Administrator',

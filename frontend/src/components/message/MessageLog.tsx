@@ -7,14 +7,9 @@ import { AircraftPicker } from '../sequence/AircraftPicker';
 import { MessageResponse } from '../../types/message';
 import { MessageType } from '../../types/sequence';
 import type { Dayjs } from 'dayjs';
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 const { RangePicker } = DatePicker;
-
-const MSG_TYPE_LABEL: Record<string, string> = {
-  DOWNLINK: 'Нисходящая',
-  UPLINK:   'Восходящая',
-  GROUND:   'Наземная',
-};
 
 const MSG_TYPE_COLOR: Record<string, string> = {
   DOWNLINK: 'processing',
@@ -24,6 +19,7 @@ const MSG_TYPE_COLOR: Record<string, string> = {
 
 export const MessageLog: React.FC = () => {
   const notification = useNotification();
+  const d = useEditorI18n();
   const [messages, setMessages] = useState<MessageResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
@@ -43,7 +39,7 @@ export const MessageLog: React.FC = () => {
       setPagination(prev => ({ ...prev, current: page + 1, pageSize: size, total: data.totalElements }));
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка загрузки журнала',
+        message: d.msgLoadError,
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -69,37 +65,37 @@ export const MessageLog: React.FC = () => {
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     {
-      title: 'Тип',
+      title: d.tlDetailsTypeLabel,
       dataIndex: 'messageType',
       key: 'messageType',
       width: 130,
       render: (type: MessageType) => (
-        <Tag color={MSG_TYPE_COLOR[type] ?? 'default'}>{MSG_TYPE_LABEL[type] ?? type}</Tag>
+        <Tag color={MSG_TYPE_COLOR[type] ?? 'default'}>{d.tlDirLabels[type] ?? type}</Tag>
       ),
     },
     {
-      title: 'Шаблон',
+      title: d.tlDetailsTemplateLabel,
       dataIndex: 'templateName',
       key: 'templateName',
       ellipsis: { showTitle: false },
       render: (v: string) => <span title={v} style={{ fontWeight: 500 }}>{v}</span>,
     },
     {
-      title: 'Идент. ВС',
+      title: d.msgColAircraftIdent,
       dataIndex: 'aircraftId',
       key: 'aircraftId',
       width: 120,
       render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>✈ {v}</span>,
     },
     {
-      title: 'Рейс',
+      title: d.colFlight,
       dataIndex: 'flightNumber',
       key: 'flightNumber',
       width: 100,
       render: (v: string | null) => v || <span style={{ color: 'var(--text-3)' }}>—</span>,
     },
     {
-      title: 'Получено',
+      title: d.msgColReceived,
       dataIndex: 'receivedAt',
       key: 'receivedAt',
       width: 155,
@@ -110,7 +106,7 @@ export const MessageLog: React.FC = () => {
       ),
     },
     {
-      title: 'Метаданные',
+      title: d.msgColMetadata,
       dataIndex: 'metadataJson',
       key: 'metadataJson',
       ellipsis: true,
@@ -142,7 +138,7 @@ export const MessageLog: React.FC = () => {
   return (
     <div className="fade-in-up">
       <div className="page-header">
-        <h2 className="page-title">Журнал сообщений</h2>
+        <h2 className="page-title">{d.msgLogTitle}</h2>
         <Space wrap>
           {/* Фаза 6 (aircraft-bindings): фильтр по борту — выбор из известных tail numbers
               (GET /api/v1/aircraft) вместо свободного текста */}
@@ -153,28 +149,28 @@ export const MessageLog: React.FC = () => {
             />
           </div>
           <Select
-            aria-label="Тип сообщения"
-            placeholder="Тип сообщения"
+            aria-label={d.msgTypeFilterLabel}
+            placeholder={d.msgTypeFilterLabel}
             style={{ width: 165 }}
             allowClear
             onChange={setMessageTypeFilter}
             value={messageTypeFilter}
           >
-            <Select.Option value="DOWNLINK">Нисходящая</Select.Option>
-            <Select.Option value="UPLINK">Восходящая</Select.Option>
-            <Select.Option value="GROUND">Наземная</Select.Option>
+            <Select.Option value="DOWNLINK">{d.tlDirLabels.DOWNLINK}</Select.Option>
+            <Select.Option value="UPLINK">{d.tlDirLabels.UPLINK}</Select.Option>
+            <Select.Option value="GROUND">{d.tlDirLabels.GROUND}</Select.Option>
           </Select>
           <RangePicker
             onChange={(dates) => setDateRange(dates as [Dayjs | null, Dayjs | null])}
             format="DD.MM.YYYY"
-            placeholder={['Дата от', 'Дата до']}
+            placeholder={[d.msgDateFrom, d.msgDateTo]}
           />
           <Button icon={<ReloadOutlined />} onClick={() => {
             const s = dateRange?.[0]?.format('YYYY-MM-DD');
             const e = dateRange?.[1]?.format('YYYY-MM-DD');
             loadMessages(pagination.current - 1, pagination.pageSize, aircraftIdFilter, messageTypeFilter, s, e);
           }}>
-            Обновить
+            {d.refreshBtn}
           </Button>
         </Space>
       </div>
@@ -192,16 +188,16 @@ export const MessageLog: React.FC = () => {
             emptyText: (
               <div style={{ padding: '40px 0', textAlign: 'center' }}>
                 <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
-                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Сообщений нет</div>
+                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>{d.msgEmptyText}</div>
                 <div style={{ color: 'var(--text-4)', fontSize: 12, marginTop: 4 }}>
-                  Отправьте событие через Симулятор чтобы увидеть сообщения
+                  {d.msgEmptyHint}
                 </div>
               </div>
             ),
           }}
           pagination={{
             ...pagination,
-            showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+            showTotal: (total, range) => `${range[0]}–${range[1]} ${d.paginationOf} ${total}`,
           }}
           onChange={handleTableChange}
         />
