@@ -711,6 +711,27 @@ const EDITOR_RU = {
   seqFormStepDeleteSuccess: 'Шаг удалён',
   seqFormStepDeleteError:   'Ошибка удаления шага',
 
+  // ── StepForm (legacy, форма шага внутри SequenceForm) ───────────────────────
+  // Alert-уровни этой формы (INFO/WARNING/CRITICAL) не совпадают со спекой
+  // паритета SITA (No/Low/Medium/High/Critical, см. CLAUDE.md и d.alertLevels,
+  // уже используемые в StepFormV2) — расхождение существовало до этой правки,
+  // здесь только переведено дословно, значения enum не тронуты.
+  legacyAlertLevels: {
+    INFO:     'Информация',
+    WARNING:  'Предупреждение',
+    CRITICAL: 'Критический',
+  } as Record<string, string>,
+  seqStepParamsLabel:        'Параметры (JSON)',
+  seqStepTemplatePlaceholder: 'Например: WEATHER_UPDATE',
+  seqStepTemplateRequired:   'Введите шаблон',
+  seqStepDurationSecondsLabel: 'Длительность (секунды)',
+  seqStepCriterionTypeRequired: 'Выберите тип критерия',
+  seqStepThresholdSecondsLabel: 'Порог (секунды)',
+  seqStepTimeoutRequired:     'Введите тайм-аут',
+  seqStepGotoStepRequired:    'Введите номер шага',
+  seqStepConfigPreviewDivider: 'Превью конфига шага',
+  seqStepConfigPreviewNote:   'configJson (будет сохранено в БД):',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -1408,6 +1429,23 @@ const EDITOR_EN = {
   seqFormReorderError:      'Failed to reorder steps',
   seqFormStepDeleteSuccess: 'Step deleted',
   seqFormStepDeleteError:   'Failed to delete step',
+
+  // ── StepForm (legacy, форма шага внутри SequenceForm) ───────────────────────
+  legacyAlertLevels: {
+    INFO:     'Info',
+    WARNING:  'Warning',
+    CRITICAL: 'Critical',
+  } as Record<string, string>,
+  seqStepParamsLabel:        'Parameters (JSON)',
+  seqStepTemplatePlaceholder: 'e.g. WEATHER_UPDATE',
+  seqStepTemplateRequired:   'Enter a template',
+  seqStepDurationSecondsLabel: 'Duration (seconds)',
+  seqStepCriterionTypeRequired: 'Select a criterion type',
+  seqStepThresholdSecondsLabel: 'Threshold (seconds)',
+  seqStepTimeoutRequired:     'Enter a timeout',
+  seqStepGotoStepRequired:    'Enter a step number',
+  seqStepConfigPreviewDivider: 'Step config preview',
+  seqStepConfigPreviewNote:   'configJson (will be saved to the DB):',
 
   roles: {
     ADMIN:    'Administrator',
