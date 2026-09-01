@@ -7,16 +7,18 @@ import {
 } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 import type { TLEventType } from '../../hooks/useTimeline';
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 // Цветовая конфигурация по типу события — системные цвета macOS через CSS
 // custom properties (var(--accent-*)), поэтому не зависит от темы в JS:
 // браузер подставляет тёмный/светлый оттенок акцента сам.
-const EVENT_CFG: Record<TLEventType, { icon: React.ReactNode; color: string; bg: string; bd: string; label: string }> = {
-  MESSAGE_RECEIVED:    { icon:<MessageOutlined />,     color:'var(--accent-blue)',   bg:'rgba(var(--accent-blue-rgb), 0.10)',   bd:'rgba(var(--accent-blue-rgb), 0.28)',   label:'Сообщение'  },
-  EXECUTION_STARTED:   { icon:<PlayCircleOutlined />,  color:'var(--accent-green)',  bg:'rgba(var(--accent-green-rgb), 0.10)',  bd:'rgba(var(--accent-green-rgb), 0.28)',  label:'Запуск'     },
-  STEP_COMPLETED:      { icon:<ThunderboltOutlined />, color:'var(--accent-purple)', bg:'rgba(var(--accent-purple-rgb), 0.10)', bd:'rgba(var(--accent-purple-rgb), 0.28)', label:'Шаг'        },
-  EXECUTION_COMPLETED: { icon:<CheckCircleOutlined />, color:'var(--accent-green)',  bg:'rgba(var(--accent-green-rgb), 0.12)',  bd:'rgba(var(--accent-green-rgb), 0.32)',  label:'Завершено'  },
-  EXECUTION_FAILED:    { icon:<CloseCircleOutlined />, color:'var(--accent-red)',    bg:'rgba(var(--accent-red-rgb), 0.12)',    bd:'rgba(var(--accent-red-rgb), 0.32)',    label:'Ошибка'     },
+// Лейбл (переводимый текст) берётся отдельно из словаря — d.tlEventTypes[type].
+const EVENT_CFG: Record<TLEventType, { icon: React.ReactNode; color: string; bg: string; bd: string }> = {
+  MESSAGE_RECEIVED:    { icon:<MessageOutlined />,     color:'var(--accent-blue)',   bg:'rgba(var(--accent-blue-rgb), 0.10)',   bd:'rgba(var(--accent-blue-rgb), 0.28)'   },
+  EXECUTION_STARTED:   { icon:<PlayCircleOutlined />,  color:'var(--accent-green)',  bg:'rgba(var(--accent-green-rgb), 0.10)',  bd:'rgba(var(--accent-green-rgb), 0.28)'  },
+  STEP_COMPLETED:      { icon:<ThunderboltOutlined />, color:'var(--accent-purple)', bg:'rgba(var(--accent-purple-rgb), 0.10)', bd:'rgba(var(--accent-purple-rgb), 0.28)' },
+  EXECUTION_COMPLETED: { icon:<CheckCircleOutlined />, color:'var(--accent-green)',  bg:'rgba(var(--accent-green-rgb), 0.12)',  bd:'rgba(var(--accent-green-rgb), 0.32)'  },
+  EXECUTION_FAILED:    { icon:<CloseCircleOutlined />, color:'var(--accent-red)',    bg:'rgba(var(--accent-red-rgb), 0.12)',    bd:'rgba(var(--accent-red-rgb), 0.32)'    },
 };
 
 const fmtTime = (iso: string) => {
@@ -25,10 +27,11 @@ const fmtTime = (iso: string) => {
   } catch { return '??:??'; }
 };
 
-const DIR_LABEL: Record<string, { text: string; color: string; bg: string; bd: string }> = {
-  GROUND:   { text: 'Наземная',   color: 'var(--accent-amber)',  bg: 'rgba(var(--accent-amber-rgb), 0.12)',  bd: 'rgba(var(--accent-amber-rgb), 0.25)' },
-  DOWNLINK: { text: 'Нисходящая', color: 'var(--accent-blue)',   bg: 'rgba(var(--accent-blue-rgb), 0.12)',   bd: 'rgba(var(--accent-blue-rgb), 0.25)' },
-  UPLINK:   { text: 'Восходящая', color: 'var(--accent-purple)', bg: 'rgba(var(--accent-purple-rgb), 0.12)', bd: 'rgba(var(--accent-purple-rgb), 0.25)' },
+// Цвета направления — переводимый текст берётся отдельно из d.tlDirLabels[dir].
+const DIR_COLOR: Record<string, { color: string; bg: string; bd: string }> = {
+  GROUND:   { color: 'var(--accent-amber)',  bg: 'rgba(var(--accent-amber-rgb), 0.12)',  bd: 'rgba(var(--accent-amber-rgb), 0.25)' },
+  DOWNLINK: { color: 'var(--accent-blue)',   bg: 'rgba(var(--accent-blue-rgb), 0.12)',   bd: 'rgba(var(--accent-blue-rgb), 0.25)' },
+  UPLINK:   { color: 'var(--accent-purple)', bg: 'rgba(var(--accent-purple-rgb), 0.12)', bd: 'rgba(var(--accent-purple-rgb), 0.25)' },
 };
 
 const STEP_TYPE_CFG: Record<string, { label: string; color: string; bg: string; bd: string }> = {
@@ -37,23 +40,24 @@ const STEP_TYPE_CFG: Record<string, { label: string; color: string; bg: string; 
   EVALUATE: { label: '🔍 EVAL',  color: 'var(--accent-purple)', bg: 'rgba(var(--accent-purple-rgb), 0.10)', bd: 'rgba(var(--accent-purple-rgb), 0.28)' },
 };
 
-interface EventBodyProps { event: any; textMain: string; textMuted: string; isDark: boolean }
+interface EventBodyProps { event: any; textMain: string; textMuted: string; isDark: boolean; i18n: ReturnType<typeof useEditorI18n> }
 
-const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDark }) => {
+const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDark, i18n }) => {
   switch (event.type as TLEventType) {
     case 'MESSAGE_RECEIVED':
       return (
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: textMain, fontFamily: 'monospace', marginBottom: 5 }}>
-            {event.msgTemplate || 'Неизвестный шаблон'}
+            {event.msgTemplate || i18n.tlUnknownTemplate}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {event.msgDirection && (() => {
-              const d = DIR_LABEL[event.msgDirection.toUpperCase()]
-                ?? { text: event.msgDirection, color: '#8e8e93', bg: 'rgba(142,142,147,0.12)', bd: 'rgba(142,142,147,0.25)' };
+              const dirKey = event.msgDirection.toUpperCase();
+              const c = DIR_COLOR[dirKey] ?? { color: '#8e8e93', bg: 'rgba(142,142,147,0.12)', bd: 'rgba(142,142,147,0.25)' };
+              const text = i18n.tlDirLabels[dirKey] ?? event.msgDirection;
               return (
-                <Tag style={{ background: d.bg, border: `1px solid ${d.bd}`, color: d.color, borderRadius: 6, fontSize: 11, fontWeight: 600, padding: '1px 8px' }}>
-                  {d.text}
+                <Tag style={{ background: c.bg, border: `1px solid ${c.bd}`, color: c.color, borderRadius: 6, fontSize: 11, fontWeight: 600, padding: '1px 8px' }}>
+                  {text}
                 </Tag>
               );
             })()}
@@ -70,11 +74,11 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDar
       return (
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 5 }}>
-            {event.seqName || `Выполнение #${event.execId}`}
+            {event.seqName || `${i18n.tlExecutionPrefix} #${event.execId}`}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Tag style={{ background:'rgba(var(--accent-green-rgb), 0.10)', border:'1px solid rgba(var(--accent-green-rgb), 0.28)', color:'var(--accent-green)', borderRadius:6, fontSize:11, fontWeight:600 }}>
-              Запуск последовательности
+              {i18n.tlSeqStartedTag}
             </Tag>
             <span style={{ fontSize: 11, color: textMuted, fontFamily: 'monospace' }}>#{event.execId}</span>
           </div>
@@ -86,7 +90,7 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDar
       return (
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 5 }}>
-            {event.stepLabel || `Шаг ${event.stepNum}`}
+            {event.stepLabel || `${i18n.eventStep} ${event.stepNum}`}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <Tag style={{
@@ -94,7 +98,7 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDar
               border: `1px solid ${isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'}`,
               color: textMuted, borderRadius:6, fontSize:11,
             }}>
-              Шаг {event.stepNum}
+              {i18n.eventStep} {event.stepNum}
             </Tag>
             {event.stepType && (
               <Tag style={{ background: stCfg.bg, border:`1px solid ${stCfg.bd}`, color: stCfg.color, borderRadius:6, fontSize:11, fontWeight:600 }}>
@@ -107,7 +111,7 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDar
               color: event.stepResult === 'SUCCESS' ? 'var(--accent-green)' : 'var(--accent-red)',
               borderRadius: 6, fontSize: 11, fontWeight: 600,
             }}>
-              {event.stepResult === 'SUCCESS' ? '✓ Успех' : '✗ Ошибка'}
+              {event.stepResult === 'SUCCESS' ? `✓ ${i18n.tlSuccessWord}` : `✗ ${i18n.tlEventTypes.EXECUTION_FAILED}`}
             </Tag>
             {event.seqName && <span style={{ fontSize: 11, color: textMuted }}>{event.seqName}</span>}
           </div>
@@ -119,9 +123,9 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDar
       return (
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 4 }}>
-            ✓ {event.seqName || `Выполнение #${event.execId}`}
+            ✓ {event.seqName || `${i18n.tlExecutionPrefix} #${event.execId}`}
           </div>
-          <span style={{ fontSize: 12, color: 'var(--accent-green)', fontWeight: 500 }}>Последовательность успешно завершена</span>
+          <span style={{ fontSize: 12, color: 'var(--accent-green)', fontWeight: 500 }}>{i18n.tlSeqCompletedDesc}</span>
         </div>
       );
 
@@ -129,14 +133,14 @@ const EventBody: React.FC<EventBodyProps> = ({ event, textMain, textMuted, isDar
       return (
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 4 }}>
-            ✗ {event.seqName || `Выполнение #${event.execId}`}
+            ✗ {event.seqName || `${i18n.tlExecutionPrefix} #${event.execId}`}
           </div>
-          <span style={{ fontSize: 12, color: 'var(--accent-red)', fontWeight: 500 }}>Выполнение завершено с ошибкой</span>
+          <span style={{ fontSize: 12, color: 'var(--accent-red)', fontWeight: 500 }}>{i18n.tlSeqFailedDesc}</span>
         </div>
       );
 
     default:
-      return <div style={{ fontSize: 13, color: textMuted }}>Событие: {(event as any).type}</div>;
+      return <div style={{ fontSize: 13, color: textMuted }}>{i18n.tlUnknownEventPrefix}: {(event as any).type}</div>;
   }
 };
 
@@ -148,6 +152,7 @@ interface TLEventCardProps {
 
 export const TLEventCard = memo(({ event, isNew = false, showConnector = true }: TLEventCardProps) => {
   const { isDark } = useTheme();
+  const i18n = useEditorI18n();
   const [expanded, setExpanded] = useState(false);
 
   const textMain   = isDark ? 'rgba(255,255,255,0.88)' : '#1d1d1f';
@@ -158,8 +163,9 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
   const connLine   = isDark ? 'rgba(255,255,255,0.06)'  : 'rgba(0,0,0,0.06)';
   const detailsBg  = isDark ? 'rgba(255,255,255,0.04)'  : 'rgba(0,0,0,0.04)';
 
-  const cfg = EVENT_CFG[event.type as TLEventType]
-    ?? { icon:<ThunderboltOutlined />, color:'#8e8e93', bg:'rgba(142,142,147,0.10)', bd:'rgba(142,142,147,0.28)', label: event.type };
+  const cfgVisual = EVENT_CFG[event.type as TLEventType]
+    ?? { icon:<ThunderboltOutlined />, color:'#8e8e93', bg:'rgba(142,142,147,0.10)', bd:'rgba(142,142,147,0.28)' };
+  const cfg = { ...cfgVisual, label: i18n.tlEventTypes[event.type] ?? event.type };
 
   return (
     <div style={{
@@ -221,7 +227,7 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
         </div>
 
         {/* Основной контент — всегда видим */}
-        <EventBody event={event} textMain={textMain} textMuted={textMuted} isDark={isDark} />
+        <EventBody event={event} textMain={textMain} textMuted={textMuted} isDark={isDark} i18n={i18n} />
 
         {/* Детали при раскрытии */}
         {expanded && (
@@ -232,13 +238,13 @@ export const TLEventCard = memo(({ event, isNew = false, showConnector = true }:
           }}>
             <div style={{ fontSize: 11, fontFamily: 'monospace', color: textMuted, lineHeight: 1.7 }}>
               <div><strong>ID:</strong> {event.id}</div>
-              <div><strong>Тип:</strong> {event.type}</div>
-              <div><strong>Борт:</strong> {event.aircraftId}</div>
-              {event.flightNumber && <div><strong>Рейс:</strong> {event.flightNumber}</div>}
-              {event.execId      && <div><strong>Выполнение:</strong> #{event.execId}</div>}
-              <div><strong>Время:</strong> {event.timestamp}</div>
-              {event.msgTemplate && <div><strong>Шаблон:</strong> {event.msgTemplate}</div>}
-              {event.stepLabel   && <div><strong>Шаг:</strong> {event.stepLabel}</div>}
+              <div><strong>{i18n.tlDetailsTypeLabel}:</strong> {event.type}</div>
+              <div><strong>{i18n.colAircraft}:</strong> {event.aircraftId}</div>
+              {event.flightNumber && <div><strong>{i18n.colFlight}:</strong> {event.flightNumber}</div>}
+              {event.execId      && <div><strong>{i18n.tlExecutionPrefix}:</strong> #{event.execId}</div>}
+              <div><strong>{i18n.tlDetailsTimeLabel}:</strong> {event.timestamp}</div>
+              {event.msgTemplate && <div><strong>{i18n.tlDetailsTemplateLabel}:</strong> {event.msgTemplate}</div>}
+              {event.stepLabel   && <div><strong>{i18n.eventStep}:</strong> {event.stepLabel}</div>}
             </div>
           </div>
         )}

@@ -462,6 +462,30 @@ const EDITOR_RU = {
     unreached: 'Не достигнут',
   } as Record<string, string>,
 
+  // ── TLEventCard ──────────────────────────────────────────────────────────────
+  tlEventTypes: {
+    MESSAGE_RECEIVED:    'Сообщение',
+    EXECUTION_STARTED:   'Запуск',
+    STEP_COMPLETED:      'Шаг',
+    EXECUTION_COMPLETED: 'Завершено',
+    EXECUTION_FAILED:    'Ошибка',
+  } as Record<string, string>,
+  tlDirLabels: {
+    GROUND:   'Наземная',
+    DOWNLINK: 'Нисходящая',
+    UPLINK:   'Восходящая',
+  } as Record<string, string>,
+  tlUnknownTemplate:   'Неизвестный шаблон',
+  tlExecutionPrefix:   'Выполнение',
+  tlSeqStartedTag:     'Запуск последовательности',
+  tlSuccessWord:       'Успех',
+  tlSeqCompletedDesc:  'Последовательность успешно завершена',
+  tlSeqFailedDesc:     'Выполнение завершено с ошибкой',
+  tlUnknownEventPrefix: 'Событие',
+  tlDetailsTypeLabel:     'Тип',
+  tlDetailsTimeLabel:     'Время',
+  tlDetailsTemplateLabel: 'Шаблон',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -915,6 +939,30 @@ const EDITOR_EN = {
     failure:   'Failed',
     unreached: 'Not reached',
   } as Record<string, string>,
+
+  // ── TLEventCard ──────────────────────────────────────────────────────────────
+  tlEventTypes: {
+    MESSAGE_RECEIVED:    'Message',
+    EXECUTION_STARTED:   'Start',
+    STEP_COMPLETED:      'Step',
+    EXECUTION_COMPLETED: 'Completed',
+    EXECUTION_FAILED:    'Failed',
+  } as Record<string, string>,
+  tlDirLabels: {
+    GROUND:   'Ground',
+    DOWNLINK: 'Downlink',
+    UPLINK:   'Uplink',
+  } as Record<string, string>,
+  tlUnknownTemplate:   'Unknown template',
+  tlExecutionPrefix:   'Execution',
+  tlSeqStartedTag:     'Sequence started',
+  tlSuccessWord:       'Success',
+  tlSeqCompletedDesc:  'Sequence completed successfully',
+  tlSeqFailedDesc:     'Execution completed with an error',
+  tlUnknownEventPrefix: 'Event',
+  tlDetailsTypeLabel:     'Type',
+  tlDetailsTimeLabel:     'Time',
+  tlDetailsTemplateLabel: 'Template',
 
   roles: {
     ADMIN:    'Administrator',
