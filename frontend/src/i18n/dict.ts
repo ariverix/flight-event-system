@@ -402,6 +402,16 @@ const EDITOR_RU = {
   loginErrorDefault:      'Неверное имя пользователя или пароль',
   loginFooter:            '© 2026 Система ЕСА · Event Control Automation',
 
+  // ── ProfilePage ──────────────────────────────────────────────────────────────
+  profileLoadError:        'Ошибка загрузки профиля',
+  profileCredentialsCard:  'Учётные данные',
+  profileUsernameLabel:    'Имя пользователя',
+  profileFullNameLabel:    'Полное имя',
+  profileRoleLabel:        'Роль в системе',
+  profileRegisteredLabel:  'Зарегистрирован',
+  profileStatusActive:     'Активен',
+  profileStatusDisabled:   'Отключён',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -795,6 +805,16 @@ const EDITOR_EN = {
   loginErrorTitle:        'Sign-in failed',
   loginErrorDefault:      'Invalid username or password',
   loginFooter:            '© 2026 ECA System · Event Control Automation',
+
+  // ── ProfilePage ──────────────────────────────────────────────────────────────
+  profileLoadError:        'Failed to load profile',
+  profileCredentialsCard:  'Credentials',
+  profileUsernameLabel:    'Username',
+  profileFullNameLabel:    'Full name',
+  profileRoleLabel:        'System role',
+  profileRegisteredLabel:  'Registered',
+  profileStatusActive:     'Active',
+  profileStatusDisabled:   'Disabled',
 
   roles: {
     ADMIN:    'Administrator',
