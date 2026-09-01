@@ -24,7 +24,7 @@ const TYPE_LABEL: Record<string, string> = {
   WAIT:     'WAIT',
 };
 
-export const CustomStepNode: React.FC<NodeProps> = ({ data }) => {
+const CustomStepNodeImpl: React.FC<NodeProps> = ({ data }) => {
   const { isDark } = useTheme();
   const d = data as StepNodeData;
   const tok = getStateTokens(d.state, isDark);
@@ -125,7 +125,10 @@ export const CustomStepNode: React.FC<NodeProps> = ({ data }) => {
   );
 };
 
-export const CustomEndNode: React.FC<NodeProps> = ({ data }) => {
+/** Мемоизирован по аналогии с ExecutionFlow/SequenceFlow — граф может содержать десятки нод. */
+export const CustomStepNode = React.memo(CustomStepNodeImpl);
+
+const CustomEndNodeImpl: React.FC<NodeProps> = ({ data }) => {
   const { isDark } = useTheme();
   const d = data as { label: string; reached?: boolean };
   const reached = d.reached ?? false;
@@ -172,3 +175,5 @@ export const CustomEndNode: React.FC<NodeProps> = ({ data }) => {
     </>
   );
 };
+
+export const CustomEndNode = React.memo(CustomEndNodeImpl);

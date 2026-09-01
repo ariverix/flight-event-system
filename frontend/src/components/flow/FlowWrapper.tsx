@@ -14,6 +14,9 @@ import { LabeledEdge } from './LabeledEdge';
 import { PanelBtn } from './PanelBtn';
 
 const edgeTypes: EdgeTypes = { labeled: LabeledEdge };
+// Module-scope, а не {} инлайном в рендере — React Flow ремаунтит все кастомные
+// ноды, если ссылка на nodeTypes меняется на каждый рендер (см. её же warning).
+const EMPTY_NODE_TYPES: NodeTypes = {};
 
 export interface FlowWrapperProps {
   nodes: Node[];
@@ -164,7 +167,7 @@ export const FlowWrapper: React.FC<FlowWrapperProps> = props => {
 
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
-  const mergedNodeTypes: NodeTypes = customNodeTypes ?? {};
+  const mergedNodeTypes: NodeTypes = customNodeTypes ?? EMPTY_NODE_TYPES;
 
   const panelBorderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
   const panelBgColor     = isDark ? '#2c2c2e' : '#ffffff';

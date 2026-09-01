@@ -33,9 +33,10 @@ export class WsClient {
     this.url = url;
   }
 
-  /** Открыть соединение. Нет-оп, если URL не задан. */
+  /** Открыть соединение. Нет-оп, если URL не задан. Отменяет предыдущий disconnect(). */
   connect(): void {
-    if (!this.url || this.destroyed) return;
+    if (!this.url) return;
+    this.destroyed = false;
     if (this.socket && this.socket.readyState <= WebSocket.OPEN) return;
 
     try {
@@ -71,7 +72,7 @@ export class WsClient {
     };
   }
 
-  /** Закрыть соединение и освободить ресурсы. */
+  /** Закрыть соединение и освободить ресурсы. Подавляет авто-reconnect до следующего connect(). */
   disconnect(): void {
     this.destroyed = true;
     this.stopPing();

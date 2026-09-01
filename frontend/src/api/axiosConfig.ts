@@ -2,10 +2,12 @@
  * Singleton axios instance + интерсепторы.
  *
  * Токен читается из localStorage напрямую — не из store — чтобы избежать
- * циклических зависимостей (store → axios → store).
+ * циклических зависимостей (store → axios → store); authStore.ts ни от чего
+ * из api/ не зависит, поэтому импорт store только для clear() безопасен.
  * При переходе на refresh-flow (P7-5) интерсептор ответа добавит /auth/refresh.
  */
 import axios from 'axios';
+import { useAuthStore } from '../store/authStore';
 
 // ── Расширение глобального window для dev-утилит ──────────────────────────────
 declare global {
@@ -69,6 +71,7 @@ api.interceptors.response.use(
 
     if (status === 401) {
       localStorage.removeItem('jwt');
+      useAuthStore.getState().clear();
       window.location.href = '/login';
     }
     return Promise.reject(error);

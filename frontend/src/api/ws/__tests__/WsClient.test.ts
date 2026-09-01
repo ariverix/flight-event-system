@@ -181,6 +181,33 @@ describe('ping → pong', () => {
   });
 });
 
+// ── (e) disconnect() → connect() — переиспользование инстанса ────────────────
+describe('disconnect() затем connect()', () => {
+  it('после disconnect() следующий connect() снова открывает соединение', () => {
+    const client = new WsClient('ws://localhost:8080');
+    client.connect();
+    expect(mockConstructor).toHaveBeenCalledOnce();
+
+    client.disconnect();
+    mockConstructor.mockClear();
+
+    client.connect();
+    expect(mockConstructor).toHaveBeenCalledOnce();
+  });
+
+  it('после disconnect() автоматический reconnect по onclose не срабатывает', () => {
+    vi.useFakeTimers();
+    const client = new WsClient('ws://localhost:8080');
+    client.connect();
+
+    client.disconnect();
+    mockConstructor.mockClear();
+
+    vi.advanceTimersByTime(60_000);
+    expect(mockConstructor).not.toHaveBeenCalled();
+  });
+});
+
 // ── (d) Exponential backoff ───────────────────────────────────────────────────
 describe('reconnect backoff', () => {
   it('первый reconnect срабатывает ровно через 1000 мс', () => {
