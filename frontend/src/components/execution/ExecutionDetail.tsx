@@ -22,13 +22,6 @@ import { getExecutionStatusColor } from '../../utils/executionStatusColors';
 
 const { Text } = Typography;
 
-const STATUS_LABEL: Record<string, string> = {
-  RUNNING:   'Выполняется',
-  COMPLETED: 'Завершено',
-  ABORTED:   'Прервано',
-  WAITING:   'Ожидание',
-};
-
 const STATUS_COLOR: Record<string, string> = {
   RUNNING:   'processing',
   COMPLETED: 'success',
@@ -40,19 +33,6 @@ const STEP_TYPE_COLOR: Record<string, string> = {
   ACTION:   'blue',
   EVALUATE: 'gold',
   WAIT:     'purple',
-};
-
-const STEP_TYPE_LABEL: Record<string, string> = {
-  ACTION:   'Действие',
-  EVALUATE: 'Оценка',
-  WAIT:     'Ожидание',
-};
-
-const TRANSITION_LABEL: Record<string, string> = {
-  CONTINUE: 'Продолжить',
-  GOTO:     'Перейти',
-  END:      'Завершить',
-  ABORT:    'Прервать',
 };
 
 const TRANSITION_COLOR: Record<string, string> = {
@@ -94,21 +74,27 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
     height: 24, lineHeight: '22px', boxSizing: 'border-box',
   };
 
+  const stepTypeLabel = ({
+    ACTION:   d.stepTypeAction,
+    EVALUATE: d.stepTypeEvaluate,
+    WAIT:     d.stepTypeWait,
+  } as Record<string, string>)[se.stepType] ?? se.stepType;
+
   const header = (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <Tag color={STEP_TYPE_COLOR[se.stepType] ?? 'blue'} style={badgeStyle}>
-          {STEP_ICON[se.stepType] ?? null} {STEP_TYPE_LABEL[se.stepType] ?? se.stepType}
+          {STEP_ICON[se.stepType] ?? null} {stepTypeLabel}
         </Tag>
-        <Text style={{ color: c.text, fontWeight: 600 }}>Шаг {se.stepIndex}</Text>
+        <Text style={{ color: c.text, fontWeight: 600 }}>{d.eventStep} {se.stepIndex}</Text>
         {se.result && (
           <Tag color={se.result === 'SUCCESS' ? 'success' : 'error'} style={badgeStyle}>
-            {se.result === 'SUCCESS' ? 'Успех' : 'Ошибка'}
+            {se.result === 'SUCCESS' ? d.tlSuccessWord : d.tlEventTypes.EXECUTION_FAILED}
           </Tag>
         )}
         {se.transitionAction && (
           <Tag color={TRANSITION_COLOR[se.transitionAction] ?? 'default'} style={badgeStyle}>
-            {TRANSITION_LABEL[se.transitionAction] ?? se.transitionAction}
+            {d.execTransitions[se.transitionAction] ?? se.transitionAction}
             {se.transitionTarget !== null ? ` → ${se.transitionTarget}` : ''}
           </Tag>
         )}
@@ -129,7 +115,9 @@ const StepTimelineItem: React.FC<{ se: StepExecutionResponse; prevSe?: StepExecu
           if (dur > 0) return (
             <span style={{ fontSize: 11, color: c.muted, background: 'rgba(255,255,255,0.06)',
               borderRadius: 10, padding: '1px 7px', display: 'inline-flex', alignItems: 'center', height: 20, boxSizing: 'border-box' }}>
-              {dur >= 60 ? `${Math.floor(dur/60)}м ${dur%60}с` : `${dur}с`}
+              {dur >= 60
+                ? `${Math.floor(dur/60)}${d.durMinSuffix} ${dur%60}${d.durSecSuffix}`
+                : `${dur}${d.durSecSuffix}`}
             </span>
           );
         })()}
@@ -162,6 +150,7 @@ const getTimelineDot = (se: StepExecutionResponse): React.ReactNode => {
 
 export const ExecutionDetail: React.FC = () => {
   const notification = useNotification();
+  const d = useEditorI18n();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [execution, setExecution] = useState<ExecutionInstanceResponse | null>(null);
@@ -178,9 +167,9 @@ export const ExecutionDetail: React.FC = () => {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     const sec = s % 60;
-    if (h > 0) return `${h}ч ${m}м ${sec}с`;
-    if (m > 0) return `${m}м ${sec}с`;
-    return `${sec}с`;
+    if (h > 0) return `${h}${d.durHourSuffix} ${m}${d.durMinSuffix} ${sec}${d.durSecSuffix}`;
+    if (m > 0) return `${m}${d.durMinSuffix} ${sec}${d.durSecSuffix}`;
+    return `${sec}${d.durSecSuffix}`;
   };
 
   const loadExecution = useCallback(async () => {
@@ -193,7 +182,7 @@ export const ExecutionDetail: React.FC = () => {
       setSequence(seqData);
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка загрузки деталей выполнения',
+        message: d.execDetailLoadError,
         description: error.response?.data?.message || error.message,
       });
       navigate('/executions');
@@ -253,31 +242,31 @@ export const ExecutionDetail: React.FC = () => {
     <div className="fade-in-up">
       <div className="page-header" style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/executions')}>
-          Назад к выполнениям
+          {d.execBackBtn}
         </Button>
         <Button icon={<ReloadOutlined />} onClick={loadExecution} loading={loading}>
-          Обновить
+          {d.refreshBtn}
         </Button>
       </div>
 
       <Card
-        title={<span style={{ color: c.text }}>Детали выполнения</span>}
+        title={<span style={{ color: c.text }}>{d.execDetailsCard}</span>}
         style={{ marginBottom: 16, borderColor: c.borderSecondary }}
       >
         <Descriptions bordered column={2} size="small">
-          <Descriptions.Item label="ID выполнения">{execution.id}</Descriptions.Item>
-          <Descriptions.Item label="Статус">
+          <Descriptions.Item label={d.execIdLabel}>{execution.id}</Descriptions.Item>
+          <Descriptions.Item label={d.colStatus}>
             <Tag color={STATUS_COLOR[execution.status]}>
-              {STATUS_LABEL[execution.status] ?? execution.status}
+              {d.instanceStatuses[execution.status] ?? execution.status}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Последовательность">{execution.sequenceName}</Descriptions.Item>
-          <Descriptions.Item label="Идентификатор ВС">{execution.aircraftId}</Descriptions.Item>
-          <Descriptions.Item label="Номер рейса">{execution.flightNumber || '—'}</Descriptions.Item>
-          <Descriptions.Item label="Текущий шаг">
-            {execution.currentStepIndex !== null ? `Шаг ${execution.currentStepIndex}` : '—'}
+          <Descriptions.Item label={d.auditEntityLabels.SEQUENCE}>{execution.sequenceName}</Descriptions.Item>
+          <Descriptions.Item label={d.execAircraftIdLabel}>{execution.aircraftId}</Descriptions.Item>
+          <Descriptions.Item label={d.execFlightNumberLabel}>{execution.flightNumber || '—'}</Descriptions.Item>
+          <Descriptions.Item label={d.colStep}>
+            {execution.currentStepIndex !== null ? `${d.eventStep} ${execution.currentStepIndex}` : '—'}
           </Descriptions.Item>
-          <Descriptions.Item label="Прогресс" span={2}>
+          <Descriptions.Item label={d.execProgressLabel} span={2}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <Progress
@@ -293,7 +282,7 @@ export const ExecutionDetail: React.FC = () => {
                 />
               </div>
               <span style={{ fontSize: 12, color: c.muted, flexShrink: 0 }}>
-                {doneSteps}/{totalSteps} шагов
+                {doneSteps}/{totalSteps} {d.execStepsCountSuffix}
               </span>
               {elapsed > 0 && (
                 <span className="elapsed-badge">
@@ -303,15 +292,15 @@ export const ExecutionDetail: React.FC = () => {
               )}
             </div>
           </Descriptions.Item>
-          <Descriptions.Item label="Начало">
+          <Descriptions.Item label={d.colStarted}>
             {new Date(execution.startedAt).toLocaleString('ru-RU')}
           </Descriptions.Item>
-          <Descriptions.Item label="Завершение">
+          <Descriptions.Item label={d.execColCompleted}>
             {execution.completedAt
               ? new Date(execution.completedAt).toLocaleString('ru-RU')
-              : 'В процессе'}
+              : d.execInProgress}
           </Descriptions.Item>
-          <Descriptions.Item label="Контекст" span={2}>
+          <Descriptions.Item label={d.execContextLabel} span={2}>
             {(() => {
               try {
                 const parsed = JSON.parse(execution.contextJson);
@@ -334,7 +323,7 @@ export const ExecutionDetail: React.FC = () => {
       </Card>
 
       <Card
-        title={<span style={{ color: c.text }}>Визуальный прогресс</span>}
+        title={<span style={{ color: c.text }}>{d.execVisualProgressCard}</span>}
         style={{ marginBottom: 16, borderColor: c.borderSecondary }}
       >
         <ExecutionFlow
@@ -345,11 +334,11 @@ export const ExecutionDetail: React.FC = () => {
       </Card>
 
       <Card
-        title={<span style={{ color: c.text }}>История выполнения шагов</span>}
+        title={<span style={{ color: c.text }}>{d.execStepHistoryCard}</span>}
         style={{ borderColor: c.borderSecondary }}
       >
         {timelineItems.length === 0 ? (
-          <Text style={{ color: c.muted }}>Шаги ещё не выполнялись</Text>
+          <Text style={{ color: c.muted }}>{d.execNoStepsYet}</Text>
         ) : (
           <Timeline items={timelineItems} style={{ marginTop: 16 }} />
         )}

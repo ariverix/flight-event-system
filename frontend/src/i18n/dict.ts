@@ -655,6 +655,31 @@ const EDITOR_RU = {
   tlStatSteps:            'Шагов',
   tlStatErrors:           'Ошибок',
 
+  // ── ExecutionDetail ──────────────────────────────────────────────────────────
+  execDetailLoadError:  'Ошибка загрузки деталей выполнения',
+  execBackBtn:          'Назад к выполнениям',
+  execDetailsCard:      'Детали выполнения',
+  execIdLabel:          'ID выполнения',
+  execAircraftIdLabel:  'Идентификатор ВС',
+  execFlightNumberLabel: 'Номер рейса',
+  execProgressLabel:    'Прогресс',
+  execStepsCountSuffix: 'шагов',
+  execContextLabel:     'Контекст',
+  execVisualProgressCard: 'Визуальный прогресс',
+  execStepHistoryCard:  'История выполнения шагов',
+  execNoStepsYet:       'Шаги ещё не выполнялись',
+
+  execTransitions: {
+    CONTINUE: 'Продолжить',
+    GOTO:     'Перейти',
+    END:      'Завершить',
+    ABORT:    'Прервать',
+  } as Record<string, string>,
+
+  durHourSuffix: 'ч',
+  durMinSuffix:  'м',
+  durSecSuffix:  'с',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -1296,6 +1321,31 @@ const EDITOR_EN = {
   tlStatStarts:           'Starts',
   tlStatSteps:            'Steps',
   tlStatErrors:           'Errors',
+
+  // ── ExecutionDetail ──────────────────────────────────────────────────────────
+  execDetailLoadError:  'Failed to load execution details',
+  execBackBtn:          'Back to executions',
+  execDetailsCard:      'Execution details',
+  execIdLabel:          'Execution ID',
+  execAircraftIdLabel:  'Aircraft ID',
+  execFlightNumberLabel: 'Flight number',
+  execProgressLabel:    'Progress',
+  execStepsCountSuffix: 'steps',
+  execContextLabel:     'Context',
+  execVisualProgressCard: 'Visual progress',
+  execStepHistoryCard:  'Step execution history',
+  execNoStepsYet:       'No steps executed yet',
+
+  execTransitions: {
+    CONTINUE: 'Continue',
+    GOTO:     'Go to',
+    END:      'End',
+    ABORT:    'Abort',
+  } as Record<string, string>,
+
+  durHourSuffix: 'h',
+  durMinSuffix:  'm',
+  durSecSuffix:  's',
 
   roles: {
     ADMIN:    'Administrator',
