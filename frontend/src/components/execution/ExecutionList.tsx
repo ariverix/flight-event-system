@@ -10,13 +10,7 @@ import { usePolling } from '../../hooks/usePolling';
 import { useNavigate } from 'react-router-dom';
 import { executionApi } from '../../api/executionApi';
 import { ExecutionInstanceResponse, ExecutionStatus } from '../../types/execution';
-
-const STATUS_LABEL: Record<string, string> = {
-  RUNNING:   'Выполняется',
-  COMPLETED: 'Завершено',
-  ABORTED:   'Прервано',
-  WAITING:   'Ожидание',
-};
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 const STATUS_COLOR: Record<string, string> = {
   RUNNING:   'processing',
@@ -34,15 +28,16 @@ const StatusIcon: React.FC<{ status: ExecutionStatus }> = ({ status }) => {
 };
 
 const ExecutionHeader: React.FC<{ executions: ExecutionInstanceResponse[]; total: number }> = ({ executions, total }) => {
+  const d = useEditorI18n();
   const running   = executions.filter(e => e.status === 'RUNNING').length;
   const completed = executions.filter(e => e.status === 'COMPLETED').length;
   const aborted   = executions.filter(e => e.status === 'ABORTED').length;
 
   const chips = [
-    { label: 'Всего',       value: total,     color: 'var(--accent-indigo)' },
-    { label: 'Выполняется', value: running,   color: 'var(--accent-blue)' },
-    { label: 'Завершено',   value: completed, color: 'var(--accent-green)' },
-    { label: 'Прервано',    value: aborted,   color: 'var(--accent-red)' },
+    { label: d.execTotalLabel,          value: total,     color: 'var(--accent-indigo)' },
+    { label: d.instanceStatuses.RUNNING,   value: running,   color: 'var(--accent-blue)' },
+    { label: d.instanceStatuses.COMPLETED, value: completed, color: 'var(--accent-green)' },
+    { label: d.instanceStatuses.ABORTED,   value: aborted,   color: 'var(--accent-red)' },
   ];
 
   return (
@@ -72,6 +67,7 @@ const ExecutionHeader: React.FC<{ executions: ExecutionInstanceResponse[]; total
 
 export const ExecutionList: React.FC = () => {
   const notification = useNotification();
+  const d = useEditorI18n();
   const [executions, setExecutions] = useState<ExecutionInstanceResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
@@ -90,7 +86,7 @@ export const ExecutionList: React.FC = () => {
       setPagination(prev => ({ ...prev, current: page + 1, pageSize: size, total: data.totalElements }));
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка загрузки выполнений',
+        message: d.execLoadError,
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -116,14 +112,14 @@ export const ExecutionList: React.FC = () => {
       width: 55,
     },
     {
-      title: 'Последовательность',
+      title: d.auditEntityLabels.SEQUENCE,
       dataIndex: 'sequenceName',
       key: 'sequenceName',
       ellipsis: { showTitle: false },
       render: (v: string) => <span title={v}>{v}</span>,
     },
     {
-      title: 'Борт / Рейс',
+      title: d.execColAircraftFlight,
       key: 'aircraft',
       width: 140,
       render: (_: any, r: ExecutionInstanceResponse) => (
@@ -133,7 +129,7 @@ export const ExecutionList: React.FC = () => {
       ),
     },
     {
-      title: 'Статус',
+      title: d.colStatus,
       dataIndex: 'status',
       key: 'status',
       width: 150,
@@ -141,13 +137,13 @@ export const ExecutionList: React.FC = () => {
         <span style={{ display: 'inline-flex', alignItems: 'center' }}>
           <StatusIcon status={status} />
           <Tag color={STATUS_COLOR[status]} style={{ margin: 0 }}>
-            {STATUS_LABEL[status] ?? status}
+            {d.instanceStatuses[status] ?? status}
           </Tag>
         </span>
       ),
     },
     {
-      title: 'Шаг',
+      title: d.eventStep,
       dataIndex: 'currentStepIndex',
       key: 'currentStepIndex',
       width: 70,
@@ -156,7 +152,7 @@ export const ExecutionList: React.FC = () => {
         : <span style={{ color: 'var(--text-3)' }}>—</span>,
     },
     {
-      title: 'Начало',
+      title: d.colStarted,
       dataIndex: 'startedAt',
       key: 'startedAt',
       width: 135,
@@ -167,7 +163,7 @@ export const ExecutionList: React.FC = () => {
       ),
     },
     {
-      title: 'Завершение',
+      title: d.execColCompleted,
       dataIndex: 'completedAt',
       key: 'completedAt',
       width: 135,
@@ -176,7 +172,7 @@ export const ExecutionList: React.FC = () => {
           {new Date(date).toLocaleString('ru-RU')}
         </span>
       ) : (
-        <span style={{ color: 'var(--text-3)', fontSize: 12 }}>В процессе</span>
+        <span style={{ color: 'var(--text-3)', fontSize: 12 }}>{d.execInProgress}</span>
       ),
     },
     {
@@ -190,7 +186,7 @@ export const ExecutionList: React.FC = () => {
           icon={<EyeOutlined />}
           onClick={() => navigate(`/executions/${record.id}`)}
         >
-          Детали
+          {d.detailsBtn}
         </Button>
       ),
     },
@@ -199,31 +195,31 @@ export const ExecutionList: React.FC = () => {
   return (
     <div className="fade-in-up">
       <div className="page-header">
-        <h2 className="page-title">Экземпляры выполнений</h2>
+        <h2 className="page-title">{d.execListTitle}</h2>
         <Space wrap>
           <Input
-            placeholder="Фильтр по борту"
+            placeholder={d.execAircraftFilterPlaceholder}
             style={{ width: 180 }}
             allowClear
             onChange={(e) => setAircraftIdFilter(e.target.value || undefined)}
           />
           <Select
-            placeholder="Фильтр по статусу"
+            placeholder={d.execStatusFilterPlaceholder}
             style={{ width: 170 }}
             allowClear
             onChange={setStatusFilter}
             value={statusFilter}
           >
-            <Select.Option value="WAITING">Ожидание</Select.Option>
-            <Select.Option value="RUNNING">Выполняется</Select.Option>
-            <Select.Option value="COMPLETED">Завершено</Select.Option>
-            <Select.Option value="ABORTED">Прервано</Select.Option>
+            <Select.Option value="WAITING">{d.instanceStatuses.WAITING}</Select.Option>
+            <Select.Option value="RUNNING">{d.instanceStatuses.RUNNING}</Select.Option>
+            <Select.Option value="COMPLETED">{d.instanceStatuses.COMPLETED}</Select.Option>
+            <Select.Option value="ABORTED">{d.instanceStatuses.ABORTED}</Select.Option>
           </Select>
           <Button
             icon={<ReloadOutlined />}
             onClick={() => loadExecutions(pagination.current - 1, pagination.pageSize, statusFilter, aircraftIdFilter)}
           >
-            Обновить
+            {d.refreshBtn}
           </Button>
         </Space>
       </div>
@@ -231,7 +227,7 @@ export const ExecutionList: React.FC = () => {
       {hasActive && (
         <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-2)' }}>
           <span className="online-dot" />
-          Автообновление — есть активные выполнения
+          {d.execAutoRefreshNote}
         </div>
       )}
 
@@ -250,9 +246,9 @@ export const ExecutionList: React.FC = () => {
             emptyText: (
               <div style={{ padding: '40px 0', textAlign: 'center' }}>
                 <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
-                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Выполнений нет</div>
+                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>{d.execEmptyText}</div>
                 <div style={{ color: 'var(--text-4)', fontSize: 12, marginTop: 4 }}>
-                  Запустите сценарий через Симулятор или Демонстрацию
+                  {d.execEmptyHint}
                 </div>
               </div>
             ),
@@ -264,7 +260,7 @@ export const ExecutionList: React.FC = () => {
           }
           pagination={{
             ...pagination,
-            showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+            showTotal: (total, range) => `${range[0]}–${range[1]} ${d.paginationOf} ${total}`,
           }}
           onChange={(pg) => loadExecutions(pg.current! - 1, pg.pageSize!, statusFilter, aircraftIdFilter)}
         />

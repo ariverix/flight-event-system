@@ -546,6 +546,19 @@ const EDITOR_RU = {
     USER_LOGIN:          'Вход в систему',
   } as Record<string, string>,
 
+  // ── ExecutionList ────────────────────────────────────────────────────────────
+  execListTitle:       'Экземпляры выполнений',
+  execLoadError:        'Ошибка загрузки выполнений',
+  execTotalLabel:       'Всего',
+  execColAircraftFlight: 'Борт / Рейс',
+  execColCompleted:      'Завершение',
+  execInProgress:        'В процессе',
+  execAircraftFilterPlaceholder: 'Фильтр по борту',
+  execStatusFilterPlaceholder:   'Фильтр по статусу',
+  execAutoRefreshNote:   'Автообновление — есть активные выполнения',
+  execEmptyText:         'Выполнений нет',
+  execEmptyHint:         'Запустите сценарий через Симулятор или Демонстрацию',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -1080,6 +1093,19 @@ const EDITOR_EN = {
     EXECUTION_ABORTED:   'Abort',
     USER_LOGIN:          'Sign in',
   } as Record<string, string>,
+
+  // ── ExecutionList ────────────────────────────────────────────────────────────
+  execListTitle:       'Execution instances',
+  execLoadError:        'Failed to load executions',
+  execTotalLabel:       'Total',
+  execColAircraftFlight: 'Aircraft / Flight',
+  execColCompleted:      'Completed',
+  execInProgress:        'In progress',
+  execAircraftFilterPlaceholder: 'Filter by aircraft',
+  execStatusFilterPlaceholder:   'Filter by status',
+  execAutoRefreshNote:   'Auto-refresh — active executions present',
+  execEmptyText:         'No executions',
+  execEmptyHint:         'Run a scenario via the Simulator or Demo',
 
   roles: {
     ADMIN:    'Administrator',
