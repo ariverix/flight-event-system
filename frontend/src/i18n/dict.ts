@@ -444,6 +444,24 @@ const EDITOR_RU = {
   usersCreateSuccess:    'Пользователь создан успешно',
   usersCreateError:      'Ошибка создания пользователя',
 
+  // ── NodeDetailPanel ──────────────────────────────────────────────────────────
+  nodeEmptyTitleLine1: 'Нажмите на узел',
+  nodeEmptyTitleLine2: 'для просмотра деталей',
+  nodeEmptyHintLine1:  'Тип шага, конфигурация',
+  nodeEmptyHintLine2:  'и состояние выполнения',
+  nodeStepTypeLabel:   'Тип шага',
+  nodeOrderLabel:      'Порядковый номер',
+  nodeStepPrefix:      'Шаг',
+  nodeClickOtherHint:  'Нажмите на другой узел для просмотра',
+
+  nodeStates: {
+    idle:      'Ожидание',
+    active:    'Выполняется',
+    success:   'Завершено',
+    failure:   'Ошибка',
+    unreached: 'Не достигнут',
+  } as Record<string, string>,
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -879,6 +897,24 @@ const EDITOR_EN = {
   usersToggleError:      'Failed to update status',
   usersCreateSuccess:    'User created successfully',
   usersCreateError:      'Failed to create user',
+
+  // ── NodeDetailPanel ──────────────────────────────────────────────────────────
+  nodeEmptyTitleLine1: 'Click a node',
+  nodeEmptyTitleLine2: 'to view details',
+  nodeEmptyHintLine1:  'Step type, configuration',
+  nodeEmptyHintLine2:  'and execution state',
+  nodeStepTypeLabel:   'Step type',
+  nodeOrderLabel:      'Order number',
+  nodeStepPrefix:      'Step',
+  nodeClickOtherHint:  'Click another node to view',
+
+  nodeStates: {
+    idle:      'Pending',
+    active:    'Running',
+    success:   'Completed',
+    failure:   'Failed',
+    unreached: 'Not reached',
+  } as Record<string, string>,
 
   roles: {
     ADMIN:    'Administrator',

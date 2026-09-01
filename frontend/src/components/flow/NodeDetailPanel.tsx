@@ -3,6 +3,7 @@ import { Tag } from 'antd';
 import { ApartmentOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import type { Node } from '@xyflow/react';
 import { getTypeAccent, getStateTokens, type StepNodeState } from '../../utils/stepTypeColors';
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 interface NodeDetailPanelProps {
   selectedNode: Node | null;
@@ -15,6 +16,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   onClose,
   isDark,
 }) => {
+  const i18n = useEditorI18n();
   const t1 = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.82)';
   const t2 = isDark ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.50)';
   const t3 = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)';
@@ -34,10 +36,10 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
       }}>
         <ApartmentOutlined style={{ fontSize: 36, color: t3 }} />
         <div style={{ fontSize: 13, fontWeight: 500, color: t2, textAlign: 'center', lineHeight: 1.55 }}>
-          Нажмите на узел<br />для просмотра деталей
+          {i18n.nodeEmptyTitleLine1}<br />{i18n.nodeEmptyTitleLine2}
         </div>
         <div style={{ fontSize: 11, color: t3, textAlign: 'center', lineHeight: 1.6 }}>
-          Тип шага, конфигурация<br />и состояние выполнения
+          {i18n.nodeEmptyHintLine1}<br />{i18n.nodeEmptyHintLine2}
         </div>
       </div>
     );
@@ -52,22 +54,14 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
     || (selectedNode.type ? selectedNode.type.toUpperCase() : undefined);
   const rawState  = ((d.state as string | undefined) ?? 'idle') as StepNodeState;
 
-  const STATE_LABEL: Record<StepNodeState, string> = {
-    idle:      'Ожидание',
-    active:    'Выполняется',
-    success:   'Завершено',
-    failure:   'Ошибка',
-    unreached: 'Не достигнут',
-  };
-
   const sc = getStateTokens(rawState, isDark).border;
   const tc = stepType === 'ACTION' || stepType === 'EVALUATE' || stepType === 'WAIT'
     ? getTypeAccent(stepType, isDark)
     : t2;
 
   const detailRows: { label: string; value: string }[] = [
-    stepType && { label: 'Тип шага', value: stepType },
-    stepNum !== undefined && { label: 'Порядковый номер', value: `#${stepNum}` },
+    stepType && { label: i18n.nodeStepTypeLabel, value: stepType },
+    stepNum !== undefined && { label: i18n.nodeOrderLabel, value: `#${stepNum}` },
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
@@ -93,7 +87,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {stepNum !== undefined && (
-              <Tag style={{ fontSize: 10, margin: 0, lineHeight: '18px' }}>Шаг #{stepNum}</Tag>
+              <Tag style={{ fontSize: 10, margin: 0, lineHeight: '18px' }}>{i18n.nodeStepPrefix} #{stepNum}</Tag>
             )}
             {stepType && (
               <Tag style={{
@@ -140,7 +134,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             background: sc, display: 'inline-block', flexShrink: 0,
           }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: sc }}>
-            {STATE_LABEL[rawState] ?? rawState}
+            {i18n.nodeStates[rawState] ?? rawState}
           </span>
         </div>
 
@@ -163,7 +157,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
 
         <div style={{ marginTop: 18, fontSize: 11, color: t3, textAlign: 'center' }}>
           <InfoCircleOutlined style={{ marginRight: 4 }} />
-          Нажмите на другой узел для просмотра
+          {i18n.nodeClickOtherHint}
         </div>
       </div>
     </div>
