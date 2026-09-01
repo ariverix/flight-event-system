@@ -388,6 +388,20 @@ const EDITOR_RU = {
   errorBoundarySubtitle: 'Произошла непредвиденная ошибка. Попробуйте перезагрузить страницу.',
   errorBoundaryReload:   'Перезагрузить страницу',
 
+  // ── LoginPage ────────────────────────────────────────────────────────────────
+  loginAppTitle:          'СИСТЕМА ЕСА',
+  loginAppSubtitle:       'Управление последовательностями событий ВС',
+  loginUsernamePlaceholder: 'Имя пользователя',
+  loginUsernameRequired:  'Введите имя пользователя',
+  loginPasswordPlaceholder: 'Пароль',
+  loginPasswordRequired:  'Введите пароль',
+  loginSubmitBtn:         'Войти в систему',
+  loginSuccessTitle:      'Вход выполнен',
+  loginSuccessDesc:       'Добро пожаловать в Систему ЕСА!',
+  loginErrorTitle:        'Ошибка входа',
+  loginErrorDefault:      'Неверное имя пользователя или пароль',
+  loginFooter:            '© 2026 Система ЕСА · Event Control Automation',
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -767,6 +781,20 @@ const EDITOR_EN = {
   errorBoundaryTitle:    'Something went wrong',
   errorBoundarySubtitle: 'An unexpected error occurred. Try reloading the page.',
   errorBoundaryReload:   'Reload page',
+
+  // ── LoginPage ────────────────────────────────────────────────────────────────
+  loginAppTitle:          'ECA SYSTEM',
+  loginAppSubtitle:       'Aircraft event sequence management',
+  loginUsernamePlaceholder: 'Username',
+  loginUsernameRequired:  'Enter your username',
+  loginPasswordPlaceholder: 'Password',
+  loginPasswordRequired:  'Enter your password',
+  loginSubmitBtn:         'Sign in',
+  loginSuccessTitle:      'Signed in',
+  loginSuccessDesc:       'Welcome to ECA System!',
+  loginErrorTitle:        'Sign-in failed',
+  loginErrorDefault:      'Invalid username or password',
+  loginFooter:            '© 2026 ECA System · Event Control Automation',
 
   roles: {
     ADMIN:    'Administrator',

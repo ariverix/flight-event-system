@@ -5,6 +5,7 @@ import { UserOutlined, LockOutlined, RocketOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 export const LoginPage: React.FC = () => {
   const notification = useNotification();
@@ -12,6 +13,7 @@ export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { isDark } = useTheme();
+  const d = useEditorI18n();
 
   const c = isDark
     ? { border: 'rgba(255,255,255,0.14)', bgInput: '#2c2c2e', textDimmer: 'rgba(255,255,255,0.30)', borderSecondary: 'rgba(255,255,255,0.09)' }
@@ -22,14 +24,14 @@ export const LoginPage: React.FC = () => {
     try {
       await login(values.username, values.password);
       notification.success({
-        message: 'Вход выполнен',
-        description: 'Добро пожаловать в Систему ЕСА!',
+        message: d.loginSuccessTitle,
+        description: d.loginSuccessDesc,
       });
       navigate('/');
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка входа',
-        description: error.response?.data?.message || 'Неверное имя пользователя или пароль',
+        message: d.loginErrorTitle,
+        description: error.response?.data?.message || d.loginErrorDefault,
       });
     } finally {
       setLoading(false);
@@ -44,31 +46,31 @@ export const LoginPage: React.FC = () => {
           <div className="login-logo-icon">
             <RocketOutlined style={{ fontSize: 28 }} />
           </div>
-          <h1 className="login-title">СИСТЕМА ЕСА</h1>
+          <h1 className="login-title">{d.loginAppTitle}</h1>
           <p className="login-subtitle">
-            Управление последовательностями событий ВС
+            {d.loginAppSubtitle}
           </p>
         </div>
 
         <Form name="login" onFinish={onFinish} autoComplete="off" size="large">
           <Form.Item
             name="username"
-            rules={[{ required: true, message: 'Введите имя пользователя' }]}
+            rules={[{ required: true, message: d.loginUsernameRequired }]}
           >
             <Input
               prefix={<UserOutlined style={{ color: c.textDimmer }} />}
-              placeholder="Имя пользователя"
+              placeholder={d.loginUsernamePlaceholder}
               style={{ background: c.bgInput, border: `1px solid ${c.border}` }}
             />
           </Form.Item>
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: 'Введите пароль' }]}
+            rules={[{ required: true, message: d.loginPasswordRequired }]}
           >
             <Input.Password
               prefix={<LockOutlined style={{ color: c.textDimmer }} />}
-              placeholder="Пароль"
+              placeholder={d.loginPasswordPlaceholder}
               style={{ background: c.bgInput, border: `1px solid ${c.border}` }}
             />
           </Form.Item>
@@ -86,7 +88,7 @@ export const LoginPage: React.FC = () => {
                 letterSpacing: '0.03em',
               }}
             >
-              Войти в систему
+              {d.loginSubmitBtn}
             </Button>
           </Form.Item>
         </Form>
@@ -101,7 +103,7 @@ export const LoginPage: React.FC = () => {
             paddingTop: 16,
           }}
         >
-          © 2026 Система ЕСА · Event Control Automation
+          {d.loginFooter}
         </div>
       </div>
     </div>
