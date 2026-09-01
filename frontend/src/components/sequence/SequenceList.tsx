@@ -10,12 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { sequenceApi } from '../../api/sequenceApi';
 import { SequenceResponse, SequenceStatus } from '../../types/sequence';
 import { useAuth } from '../../hooks/useAuth';
-
-const STATUS_LABEL: Record<string, string> = {
-  ACTIVE:   'Активна',
-  INACTIVE: 'Неактивна',
-  DRAFT:    'Черновик',
-};
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 const STATUS_COLOR: Record<string, string> = {
   ACTIVE:   'success',
@@ -25,6 +20,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export const SequenceList: React.FC = () => {
   const notification = useNotification();
+  const d = useEditorI18n();
   const [sequences, setSequences] = useState<SequenceResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
@@ -41,7 +37,7 @@ export const SequenceList: React.FC = () => {
       setPagination(prev => ({ ...prev, current: page + 1, pageSize: size, total: data.totalElements }));
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка загрузки последовательностей',
+        message: d.seqLoadError,
         description: error.response?.data?.message || error.message,
       });
     } finally {
@@ -60,30 +56,30 @@ export const SequenceList: React.FC = () => {
   const handleDelete = async (id: number) => {
     try {
       await sequenceApi.deleteSequence(id);
-      notification.success({ message: 'Последовательность удалена' });
+      notification.success({ message: d.seqDeleteSuccess });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
-      notification.error({ message: 'Ошибка удаления', description: error.response?.data?.message || error.message });
+      notification.error({ message: d.seqDeleteError, description: error.response?.data?.message || error.message });
     }
   };
 
   const handleActivate = async (id: number) => {
     try {
       await sequenceApi.activateSequence(id);
-      notification.success({ message: 'Последовательность активирована' });
+      notification.success({ message: d.seqActivated });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
-      notification.error({ message: 'Ошибка активации', description: error.response?.data?.message || error.message });
+      notification.error({ message: d.seqActivateError, description: error.response?.data?.message || error.message });
     }
   };
 
   const handleDeactivate = async (id: number) => {
     try {
       await sequenceApi.deactivateSequence(id);
-      notification.success({ message: 'Последовательность деактивирована' });
+      notification.success({ message: d.seqDeactivated });
       loadSequences(pagination.current - 1, pagination.pageSize, statusFilter);
     } catch (error: any) {
-      notification.error({ message: 'Ошибка деактивации', description: error.response?.data?.message || error.message });
+      notification.error({ message: d.seqDeactivateError, description: error.response?.data?.message || error.message });
     }
   };
 
@@ -97,7 +93,7 @@ export const SequenceList: React.FC = () => {
 
   const columns = [
     {
-      title: 'Название',
+      title: d.seqColName,
       dataIndex: 'name',
       key: 'name',
       width: 200,
@@ -109,7 +105,7 @@ export const SequenceList: React.FC = () => {
       ),
     },
     {
-      title: 'Описание',
+      title: d.seqColDescription,
       dataIndex: 'description',
       key: 'description',
       width: '40%',
@@ -121,16 +117,16 @@ export const SequenceList: React.FC = () => {
       ),
     },
     {
-      title: 'Статус',
+      title: d.colStatus,
       dataIndex: 'status',
       key: 'status',
       width: 112,
       render: (status: SequenceStatus) => (
-        <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] ?? status}</Tag>
+        <Tag color={STATUS_COLOR[status]}>{d.seqStatuses[status] ?? status}</Tag>
       ),
     },
     {
-      title: 'Шаги',
+      title: d.steps,
       key: 'steps',
       width: 80,
       align: 'center' as const,
@@ -141,7 +137,7 @@ export const SequenceList: React.FC = () => {
       ),
     },
     {
-      title: 'Создан',
+      title: d.seqColCreated,
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 130,
@@ -152,7 +148,7 @@ export const SequenceList: React.FC = () => {
       ) : <span style={{ color: 'var(--text-3)' }}>—</span>,
     },
     {
-      title: 'Действия',
+      title: d.seqColActions,
       key: 'actions',
       width: isAdmin ? 280 : 100,
       fixed: 'right' as const,
@@ -162,36 +158,36 @@ export const SequenceList: React.FC = () => {
         <Space size={2} wrap={false}>
           <Button type="text" size="small" icon={<EyeOutlined />}
             onClick={e => { e.stopPropagation(); navigate(`/sequences/${record.id}`); }}>
-            Просмотр
+            {d.seqViewBtn}
           </Button>
           {isAdmin && (
             <Button type="text" size="small" icon={<EditOutlined />}
               onClick={e => { e.stopPropagation(); navigate(`/sequences/${record.id}/edit`); }}>
-              Изменить
+              {d.editStep}
             </Button>
           )}
           {isAdmin && (record.status === 'ACTIVE' ? (
             <Button type="text" size="small" icon={<PauseCircleOutlined />}
               onClick={e => { e.stopPropagation(); handleDeactivate(record.id); }}>
-              Деактив.
+              {d.seqListDeactivateBtn}
             </Button>
           ) : (
             <Button type="text" size="small" icon={<PlayCircleOutlined />}
               onClick={e => { e.stopPropagation(); handleActivate(record.id); }}
               disabled={(record.steps?.length ?? 0) === 0}>
-              Активировать
+              {d.seqActivateBtn}
             </Button>
           ))}
           {isAdmin && (
             <Popconfirm
-              title="Удалить последовательность?"
-              description="Это действие нельзя отменить."
+              title={d.seqDeleteConfirmTitle}
+              description={d.seqDeleteConfirmDesc}
               onConfirm={() => handleDelete(record.id)}
-              okText="Удалить" cancelText="Отмена"
+              okText={d.deleteStep} cancelText={d.usersCancelBtn}
               okButtonProps={{ danger: true }}>
               <Button type="text" size="small" danger icon={<DeleteOutlined />}
                 onClick={e => e.stopPropagation()}>
-                Удалить
+                {d.deleteStep}
               </Button>
             </Popconfirm>
           )}
@@ -203,10 +199,10 @@ export const SequenceList: React.FC = () => {
   return (
     <div className="fade-in-up">
       <div className="page-header">
-        <h2 className="page-title">Последовательности событий</h2>
+        <h2 className="page-title">{d.seqListTitle}</h2>
         <Space wrap>
           <Input.Search
-            placeholder="Поиск по названию"
+            placeholder={d.seqSearchPlaceholder}
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             onSearch={setSearchText}
@@ -214,19 +210,19 @@ export const SequenceList: React.FC = () => {
             allowClear
           />
           <Select
-            placeholder="Фильтр по статусу"
+            placeholder={d.execStatusFilterPlaceholder}
             style={{ width: 160 }}
             allowClear
             onChange={setStatusFilter}
             value={statusFilter}
           >
-            <Select.Option value="ACTIVE">Активна</Select.Option>
-            <Select.Option value="INACTIVE">Неактивна</Select.Option>
-            <Select.Option value="DRAFT">Черновик</Select.Option>
+            <Select.Option value="ACTIVE">{d.seqStatuses.ACTIVE}</Select.Option>
+            <Select.Option value="INACTIVE">{d.seqStatuses.INACTIVE}</Select.Option>
+            <Select.Option value="DRAFT">{d.seqStatuses.DRAFT}</Select.Option>
           </Select>
           {isAdmin && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/sequences/new')}>
-              Создать
+              {d.seqCreateBtn}
             </Button>
           )}
         </Space>
@@ -248,9 +244,9 @@ export const SequenceList: React.FC = () => {
             emptyText: (
               <div style={{ padding: '40px 0', textAlign: 'center' }}>
                 <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
-                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Последовательностей нет</div>
+                <div style={{ color: 'var(--text-3)', fontSize: 14 }}>{d.seqEmptyText}</div>
                 <div style={{ color: 'var(--text-4)', fontSize: 12, marginTop: 4 }}>
-                  {searchText ? 'Ничего не найдено по запросу' : 'Создайте первую последовательность событий'}
+                  {searchText ? d.seqEmptySearchHint : d.seqEmptyCreateHint}
                 </div>
               </div>
             ),
@@ -258,7 +254,7 @@ export const SequenceList: React.FC = () => {
           pagination={{
             ...pagination,
             total: filtered.length < sequences.length ? filtered.length : pagination.total,
-            showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+            showTotal: (total, range) => `${range[0]}–${range[1]} ${d.paginationOf} ${total}`,
           }}
           onChange={handleTableChange}
         />

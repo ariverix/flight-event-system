@@ -571,6 +571,33 @@ const EDITOR_RU = {
   msgEmptyHint:         'Отправьте событие через Симулятор чтобы увидеть сообщения',
   msgLoadError:         'Ошибка загрузки журнала',
 
+  // ── SequenceList ─────────────────────────────────────────────────────────────
+  seqListTitle:         'Последовательности событий',
+  seqColName:            'Название',
+  seqColDescription:     'Описание',
+  seqColCreated:         'Создан',
+  seqColActions:         'Действия',
+  seqViewBtn:            'Просмотр',
+  // seqActivateBtn/seqActivateError/seqDeactivateError/seqActivated/seqDeactivated
+  // уже определены выше (P7-3, используются SequenceEditor) — переиспользуются.
+  seqListDeactivateBtn:  'Деактив.',
+  seqDeleteConfirmTitle: 'Удалить последовательность?',
+  seqDeleteConfirmDesc:  'Это действие нельзя отменить.',
+  seqSearchPlaceholder:  'Поиск по названию',
+  seqCreateBtn:          'Создать',
+  seqEmptyText:          'Последовательностей нет',
+  seqEmptySearchHint:    'Ничего не найдено по запросу',
+  seqEmptyCreateHint:    'Создайте первую последовательность событий',
+  seqLoadError:          'Ошибка загрузки последовательностей',
+  seqDeleteSuccess:      'Последовательность удалена',
+  seqDeleteError:        'Ошибка удаления',
+
+  seqStatuses: {
+    ACTIVE:   'Активна',
+    INACTIVE: 'Неактивна',
+    DRAFT:    'Черновик',
+  } as Record<string, string>,
+
   roles: {
     ADMIN:    'Администратор',
     OPERATOR: 'Оператор',
@@ -1130,6 +1157,31 @@ const EDITOR_EN = {
   msgEmptyText:         'No messages',
   msgEmptyHint:         'Send an event via the Simulator to see messages here',
   msgLoadError:         'Failed to load message log',
+
+  // ── SequenceList ─────────────────────────────────────────────────────────────
+  seqListTitle:         'Event Sequences',
+  seqColName:            'Name',
+  seqColDescription:     'Description',
+  seqColCreated:         'Created',
+  seqColActions:         'Actions',
+  seqViewBtn:            'View',
+  seqListDeactivateBtn:  'Deactiv.',
+  seqDeleteConfirmTitle: 'Delete sequence?',
+  seqDeleteConfirmDesc:  'This action cannot be undone.',
+  seqSearchPlaceholder:  'Search by name',
+  seqCreateBtn:          'Create',
+  seqEmptyText:          'No sequences',
+  seqEmptySearchHint:    'No results for this search',
+  seqEmptyCreateHint:    'Create your first event sequence',
+  seqLoadError:          'Failed to load sequences',
+  seqDeleteSuccess:      'Sequence deleted',
+  seqDeleteError:        'Failed to delete',
+
+  seqStatuses: {
+    ACTIVE:   'Active',
+    INACTIVE: 'Inactive',
+    DRAFT:    'Draft',
+  } as Record<string, string>,
 
   roles: {
     ADMIN:    'Administrator',
