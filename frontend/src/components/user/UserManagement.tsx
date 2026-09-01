@@ -5,14 +5,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { UserAddOutlined, InboxOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/authApi';
 import { UserResponse, RegisterRequest } from '../../types/auth';
-
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN:    'Администратор',
-  OPERATOR: 'Оператор',
-};
+import { useEditorI18n } from '../../i18n/useEditorI18n';
 
 export const UserManagement: React.FC = () => {
   const notification = useNotification();
+  const d = useEditorI18n();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,12 +23,13 @@ export const UserManagement: React.FC = () => {
       setUsers(data);
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка загрузки пользователей',
+        message: d.usersLoadError,
         description: error.response?.data?.message || error.message,
       });
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
@@ -39,11 +37,11 @@ export const UserManagement: React.FC = () => {
   const handleToggleUser = async (userId: number) => {
     try {
       await authApi.toggleUser(userId);
-      notification.success({ message: 'Статус пользователя обновлён' });
+      notification.success({ message: d.usersToggleSuccess });
       loadUsers();
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка обновления статуса',
+        message: d.usersToggleError,
         description: error.response?.data?.message || error.message,
       });
     }
@@ -52,46 +50,46 @@ export const UserManagement: React.FC = () => {
   const handleCreateUser = async (values: RegisterRequest) => {
     try {
       await authApi.register(values);
-      notification.success({ message: 'Пользователь создан успешно' });
+      notification.success({ message: d.usersCreateSuccess });
       form.resetFields();
       setIsModalOpen(false);
       loadUsers();
     } catch (error: any) {
       notification.error({
-        message: 'Ошибка создания пользователя',
+        message: d.usersCreateError,
         description: error.response?.data?.message || error.message,
       });
     }
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-    { title: 'Логин', dataIndex: 'username', key: 'username' },
-    { title: 'Полное имя', dataIndex: 'fullName', key: 'fullName' },
+    { title: d.usersColId, dataIndex: 'id', key: 'id', width: 70 },
+    { title: d.usersLoginLabel, dataIndex: 'username', key: 'username' },
+    { title: d.profileFullNameLabel, dataIndex: 'fullName', key: 'fullName' },
     {
-      title: 'Роль',
+      title: d.usersColRole,
       dataIndex: 'role',
       key: 'role',
       render: (role: string) => (
-        <Tag color={role === 'ADMIN' ? 'red' : 'blue'}>{ROLE_LABEL[role] ?? role}</Tag>
+        <Tag color={role === 'ADMIN' ? 'red' : 'blue'}>{d.roles[role] ?? role}</Tag>
       ),
     },
     {
-      title: 'Статус',
+      title: d.usersColStatus,
       dataIndex: 'enabled',
       key: 'enabled',
       render: (enabled: boolean) => (
-        <Tag color={enabled ? 'green' : 'default'}>{enabled ? 'Активен' : 'Отключён'}</Tag>
+        <Tag color={enabled ? 'green' : 'default'}>{enabled ? d.profileStatusActive : d.profileStatusDisabled}</Tag>
       ),
     },
     {
-      title: 'Зарегистрирован',
+      title: d.profileRegisteredLabel,
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => new Date(date).toLocaleString('ru-RU'),
     },
     {
-      title: 'Активность',
+      title: d.usersColActions,
       key: 'actions',
       render: (_: any, record: UserResponse) => {
         const isSelf = record.username === currentUser?.username;
@@ -99,13 +97,13 @@ export const UserManagement: React.FC = () => {
           <Switch
             checked={record.enabled}
             onChange={() => handleToggleUser(record.id)}
-            checkedChildren="Вкл"
-            unCheckedChildren="Выкл"
+            checkedChildren={d.usersSwitchOn}
+            unCheckedChildren={d.usersSwitchOff}
             disabled={isSelf}
           />
         );
         return isSelf
-          ? <Tooltip title="Нельзя отключить собственную учётную запись">{switchEl}</Tooltip>
+          ? <Tooltip title={d.usersSelfToggleTooltip}>{switchEl}</Tooltip>
           : switchEl;
       },
     },
@@ -114,13 +112,13 @@ export const UserManagement: React.FC = () => {
   return (
     <div className="fade-in-up">
       <div className="page-header">
-        <h2 className="page-title">Управление пользователями</h2>
+        <h2 className="page-title">{d.usersPageTitle}</h2>
         <Button
           type="primary"
           icon={<UserAddOutlined />}
           onClick={() => setIsModalOpen(true)}
         >
-          Добавить пользователя
+          {d.usersAddBtn}
         </Button>
       </div>
 
@@ -134,13 +132,13 @@ export const UserManagement: React.FC = () => {
           emptyText: (
             <div style={{ padding: '40px 0', textAlign: 'center' }}>
               <InboxOutlined style={{ fontSize: 40, color: 'var(--text-4)', marginBottom: 12, display: 'block' }} />
-              <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Пользователей нет</div>
+              <div style={{ color: 'var(--text-3)', fontSize: 14 }}>{d.usersEmptyText}</div>
             </div>
           ),
         }}
         pagination={{
           pageSize: 10,
-          showTotal: (total, range) => `${range[0]}–${range[1]} из ${total}`,
+          showTotal: (total, range) => `${range[0]}–${range[1]} ${d.paginationOf} ${total}`,
         }}
       />
 
@@ -148,31 +146,31 @@ export const UserManagement: React.FC = () => {
         <div className="users-stats-row">
           <div className="users-stat-item">
             <span className="users-stat-num">{users.length}</span>
-            <span className="users-stat-label">Всего пользователей</span>
+            <span className="users-stat-label">{d.usersStatTotal}</span>
           </div>
           <div className="users-stat-item">
             <span className="users-stat-num green">
               {users.filter((u: UserResponse) => u.enabled).length}
             </span>
-            <span className="users-stat-label">Активных</span>
+            <span className="users-stat-label">{d.usersStatActive}</span>
           </div>
           <div className="users-stat-item">
             <span className="users-stat-num red">
               {users.filter((u: UserResponse) => !u.enabled).length}
             </span>
-            <span className="users-stat-label">Отключённых</span>
+            <span className="users-stat-label">{d.usersStatDisabled}</span>
           </div>
           <div className="users-stat-item">
             <span className="users-stat-num blue">
               {users.filter((u: UserResponse) => u.role === 'ADMIN').length}
             </span>
-            <span className="users-stat-label">Администраторов</span>
+            <span className="users-stat-label">{d.usersStatAdmins}</span>
           </div>
         </div>
       )}
 
       <Modal
-        title="Регистрация нового пользователя"
+        title={d.usersModalTitle}
         open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false);
@@ -183,18 +181,18 @@ export const UserManagement: React.FC = () => {
         <Form form={form} layout="vertical" onFinish={handleCreateUser}>
           <Form.Item
             name="username"
-            label="Логин"
-            rules={[{ required: true, message: 'Введите логин' }]}
+            label={d.usersLoginLabel}
+            rules={[{ required: true, message: d.usersLoginRequired }]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
             name="password"
-            label="Пароль"
+            label={d.loginPasswordPlaceholder}
             rules={[
-              { required: true, message: 'Введите пароль' },
-              { min: 6, message: 'Пароль должен содержать не менее 6 символов' },
+              { required: true, message: d.loginPasswordRequired },
+              { min: 6, message: d.usersPasswordMinLength },
             ]}
           >
             <Input.Password />
@@ -202,27 +200,27 @@ export const UserManagement: React.FC = () => {
 
           <Form.Item
             name="fullName"
-            label="Полное имя"
-            rules={[{ required: true, message: 'Введите полное имя' }]}
+            label={d.profileFullNameLabel}
+            rules={[{ required: true, message: d.usersFullNameRequired }]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
             name="role"
-            label="Роль"
-            rules={[{ required: true, message: 'Выберите роль' }]}
+            label={d.usersColRole}
+            rules={[{ required: true, message: d.usersRoleRequired }]}
           >
             <Select>
-              <Select.Option value="OPERATOR">Оператор</Select.Option>
-              <Select.Option value="ADMIN">Администратор</Select.Option>
+              <Select.Option value="OPERATOR">{d.roles.OPERATOR}</Select.Option>
+              <Select.Option value="ADMIN">{d.roles.ADMIN}</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
-                Создать пользователя
+                {d.usersCreateBtn}
               </Button>
               <Button
                 onClick={() => {
@@ -230,7 +228,7 @@ export const UserManagement: React.FC = () => {
                   form.resetFields();
                 }}
               >
-                Отмена
+                {d.usersCancelBtn}
               </Button>
             </Space>
           </Form.Item>
