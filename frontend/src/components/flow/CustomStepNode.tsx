@@ -1,7 +1,7 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { useTheme } from '../../context/ThemeContext';
-import { getTypeAccent, getStateTokens } from '../../utils/stepTypeColors';
+import { getTypeAccent, getStateTokens, getHandleColors } from '../../utils/stepTypeColors';
 
 export interface StepNodeData {
   label: string;
@@ -36,8 +36,7 @@ const CustomStepNodeImpl: React.FC<NodeProps> = ({ data }) => {
 
   const accentColor = isSuccess || isFailure || isActive ? tok.border : accent;
 
-  const handleColor = isDark ? '#3a3a3c' : '#d1d1d6';
-  const handleBorder = isDark ? '#5a5a5e' : '#aeaeb2';
+  const { background: handleColor, border: handleBorder } = getHandleColors(isDark);
 
   return (
     <>
@@ -148,8 +147,7 @@ const CustomEndNodeImpl: React.FC<NodeProps> = ({ data }) => {
     ? (isAbort ? (isDark ? '#ff453a' : '#b91c1c') : (isDark ? '#30d158' : '#15803d'))
     : (isDark ? 'rgba(255,255,255,0.35)' : '#8e8e93');
 
-  const handleColor = isDark ? '#3a3a3c' : '#d1d1d6';
-  const handleBorder = isDark ? '#5a5a5e' : '#aeaeb2';
+  const { background: handleColor, border: handleBorder } = getHandleColors(isDark);
 
   return (
     <>

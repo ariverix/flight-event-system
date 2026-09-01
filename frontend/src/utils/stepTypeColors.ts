@@ -12,6 +12,22 @@ export function getTypeAccent(stepType: StepType, isDark: boolean): string {
   return isDark ? '#8e8e93' : '#8e8e93';
 }
 
+export interface HandleColors {
+  background: string;
+  border: string;
+}
+
+/**
+ * Цвет хэндлов React Flow (CustomStepNode/CustomEndNode) и цвет по умолчанию
+ * для нод без состояния/типа на миникарте (FlowWrapper) — общая нейтральная
+ * пара «фон/рамка», чтобы не дублировать один и тот же hex-литерал.
+ */
+export function getHandleColors(isDark: boolean): HandleColors {
+  return isDark
+    ? { background: '#3a3a3c', border: '#5a5a5e' }
+    : { background: '#d1d1d6', border: '#aeaeb2' };
+}
+
 export type StepNodeState = 'idle' | 'active' | 'success' | 'failure' | 'unreached';
 
 export interface StateTokens {

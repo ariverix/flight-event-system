@@ -8,7 +8,7 @@ import '@xyflow/react/dist/style.css';
 import { AimOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 import { getAutoLayout } from '../../utils/graphLayout';
-import { getTypeAccent } from '../../utils/stepTypeColors';
+import { getTypeAccent, getHandleColors } from '../../utils/stepTypeColors';
 import { NodeDetailPanel } from './NodeDetailPanel';
 import { LabeledEdge } from './LabeledEdge';
 import { PanelBtn } from './PanelBtn';
@@ -147,9 +147,9 @@ const FlowInner: React.FC<FlowInnerProps> = ({
             if (state === 'success')   return isDark ? '#30d158' : '#34c759';
             if (state === 'failure')   return isDark ? '#ff453a' : '#ff3b30';
             if (state === 'active')    return isDark ? '#ff9f0a' : '#ff9500';
-            if (state === 'unreached') return isDark ? '#3a3a3c' : '#d1d1d6';
+            if (state === 'unreached') return getHandleColors(isDark).background;
             const stepType = (n.data as Record<string, unknown>).stepType as string | undefined;
-            return stepType ? getTypeAccent(stepType, isDark) : (isDark ? '#3a3a3c' : '#d1d1d6');
+            return stepType ? getTypeAccent(stepType, isDark) : getHandleColors(isDark).background;
           }}
           zoomable={false}
           pannable={false}
