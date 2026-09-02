@@ -712,15 +712,6 @@ const EDITOR_RU = {
   seqFormStepDeleteError:   'Ошибка удаления шага',
 
   // ── StepForm (legacy, форма шага внутри SequenceForm) ───────────────────────
-  // Alert-уровни этой формы (INFO/WARNING/CRITICAL) не совпадают со спекой
-  // паритета SITA (No/Low/Medium/High/Critical, см. CLAUDE.md и d.alertLevels,
-  // уже используемые в StepFormV2) — расхождение существовало до этой правки,
-  // здесь только переведено дословно, значения enum не тронуты.
-  legacyAlertLevels: {
-    INFO:     'Информация',
-    WARNING:  'Предупреждение',
-    CRITICAL: 'Критический',
-  } as Record<string, string>,
   seqStepParamsLabel:        'Параметры (JSON)',
   seqStepTemplatePlaceholder: 'Например: WEATHER_UPDATE',
   seqStepTemplateRequired:   'Введите шаблон',
@@ -1431,11 +1422,6 @@ const EDITOR_EN = {
   seqFormStepDeleteError:   'Failed to delete step',
 
   // ── StepForm (legacy, форма шага внутри SequenceForm) ───────────────────────
-  legacyAlertLevels: {
-    INFO:     'Info',
-    WARNING:  'Warning',
-    CRITICAL: 'Critical',
-  } as Record<string, string>,
   seqStepParamsLabel:        'Parameters (JSON)',
   seqStepTemplatePlaceholder: 'e.g. WEATHER_UPDATE',
   seqStepTemplateRequired:   'Enter a template',

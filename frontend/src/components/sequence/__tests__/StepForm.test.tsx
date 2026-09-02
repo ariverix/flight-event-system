@@ -83,4 +83,41 @@ describe('StepForm', () => {
 
     expect(onCancel).toHaveBeenCalledOnce();
   });
+
+  it('RAISE_CONDITION: уровни алертов совпадают с бэкендовым enum AlertLevel (NO/LOW/MEDIUM/HIGH/CRITICAL)', async () => {
+    const user = userEvent.setup();
+    render(<StepForm onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Тип действия'));
+    clickDropdownOption(/RAISE_CONDITION/);
+
+    await user.click(screen.getByLabelText('Уровень алерта'));
+    const openDropdown = Array.from(document.querySelectorAll('.ant-select-dropdown')).find(
+      (dd) => !dd.className.includes('leave'),
+    );
+    const options = Array.from(
+      openDropdown?.querySelectorAll('.ant-select-item-option-content') ?? [],
+    ).map((el) => el.textContent);
+
+    expect(options).toEqual(['NO — Нет', 'LOW — Низкий', 'MEDIUM — Средний', 'HIGH — Высокий', 'CRITICAL — Критический']);
+  });
+
+  it('RAISE_CONDITION: сабмит с выбранным alertLevel=HIGH пишет валидное значение AlertLevel в configJson', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    render(<StepForm onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Тип действия'));
+    clickDropdownOption(/RAISE_CONDITION/);
+
+    await user.type(screen.getByLabelText('Имя условия'), 'ENGINE_FAULT');
+    await user.click(screen.getByLabelText('Уровень алерта'));
+    clickDropdownOption(/^HIGH/);
+
+    await user.click(screen.getByRole('button', { name: 'Добавить шаг' }));
+
+    expect(onSubmit).toHaveBeenCalledOnce();
+    const config = JSON.parse(onSubmit.mock.calls[0][0].configJson);
+    expect(config.alertLevel).toBe('HIGH');
+  });
 });

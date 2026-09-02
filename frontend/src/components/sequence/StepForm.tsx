@@ -240,9 +240,11 @@ export const StepForm: React.FC<StepFormProps> = ({ onSubmit, onCancel, initialV
               </Form.Item>
               <Form.Item name="alertLevel" label={d.alertLevelLabel}>
                 <Select allowClear>
-                  <Select.Option value="INFO">INFO — {d.legacyAlertLevels.INFO}</Select.Option>
-                  <Select.Option value="WARNING">WARNING — {d.legacyAlertLevels.WARNING}</Select.Option>
-                  <Select.Option value="CRITICAL">CRITICAL — {d.legacyAlertLevels.CRITICAL}</Select.Option>
+                  {Object.entries(d.alertLevels).map(([value, label]) => (
+                    <Select.Option key={value} value={value}>
+                      {value} — {label}
+                    </Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
             </>
