@@ -556,6 +556,71 @@ class P1_2_DecisionAndStartStopScenarioIntTest extends BaseIntegrationTest {
                     i -> i.getStatus() == ExecutionStatus.COMPLETED);
             assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.COMPLETED);
         }
+
+        @Test
+        @DisplayName("BUG: составной (COMPOUND AND) start-критерий с MESSAGE_RECEIVED не должен матчить " +
+                "историческое сообщение из БД вместо текущего события")
+        void compoundStartCriterionDoesNotMatchHistoricalMessageInsteadOfCurrentEvent() {
+            String aircraftId = AIRCRAFT_ID + "_COMPOUND_START";
+
+            Long sequenceId = createSequenceWithSteps(
+                    "Compound start with historical message guard",
+                    "{\"type\":\"COMPOUND\",\"operator\":\"AND\",\"children\":["
+                            + "{\"type\":\"MESSAGE_RECEIVED\",\"messageType\":\"DOWNLINK\",\"templateName\":\"ACK\"},"
+                            + "{\"type\":\"FLIGHT_STAGE\",\"operator\":\"EQUALS\",\"targetStage\":\"OFF\"}"
+                            + "]}",
+                    null,
+                    List.of(new StepCreateRequest(
+                            "Финал",
+                            StepType.ACTION,
+                            "{\"actionType\":\"RAISE_CONDITION\",\"conditionName\":\"COMPOUND_STARTED\",\"alertLevel\":\"LOW\"}",
+                            null,
+                            TransitionAction.END, null, false,
+                            TransitionAction.END, null, false
+                    ))
+            );
+
+            // ACK когда-то пришёл (например, в предыдущем рейсе этого борта) — НЕ текущее событие.
+            // ExecutionService.matchesStartCriteria до фикса рекурсивно уходит в CriterionEvaluator
+            // для содержимого COMPOUND, а тот ищет MESSAGE_RECEIVED в истории БД без ограничения
+            // по времени (afterTime=null вне WAIT-контекста) — историческое сообщение "засчитывается"
+            // навсегда, хотя к текущему событию отношения не имеет.
+            jdbcTemplate.update(
+                    "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, received_at) "
+                            + "VALUES (?, ?, ?, ?, ?, NOW() - INTERVAL '1 day')",
+                    "DOWNLINK", "ACK", aircraftId, FLIGHT_NUMBER, "{}"
+            );
+
+            // Текущее событие — НЕ ACK (шаблон STATUS), но стадия совпадает (OFF).
+            executionService.processEvent(new NormalizedEvent(
+                    100L, MessageType.DOWNLINK, "STATUS", aircraftId, FLIGHT_NUMBER,
+                    FlightStage.OFF, LocalDateTime.now()));
+
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            // findActiveByAircraftId не годится для этой проверки: единственный шаг тут —
+            // ACTION -> END, так что ложно запущенный инстанс тут же становится COMPLETED
+            // и перестаёт быть "активным" — проверяем по ВСЕМ инстансам этой пары
+            // (sequence, aircraft), не только по активным.
+            boolean falseStartHappened = executionRepository.findAll(org.springframework.data.domain.PageRequest.of(0, 200))
+                    .getContent().stream()
+                    .anyMatch(i -> i.getSequenceId().equals(sequenceId) && aircraftId.equals(i.getAircraftId()));
+            assertThat(falseStartHappened)
+                    .as("не должно запускаться по историческому ACK — текущее событие не ACK")
+                    .isFalse();
+
+            // Текущее событие ДЕЙСТВИТЕЛЬНО ACK + стадия OFF -> должно запуститься штатно.
+            executionService.processEvent(new NormalizedEvent(
+                    101L, MessageType.DOWNLINK, "ACK", aircraftId, FLIGHT_NUMBER,
+                    FlightStage.OFF, LocalDateTime.now()));
+
+            ExecutionInstance instance = awaitInstance(sequenceId, aircraftId,
+                    i -> i.getStatus() == ExecutionStatus.COMPLETED);
+            assertThat(instance.getStatus()).isEqualTo(ExecutionStatus.COMPLETED);
+        }
     }
 
     // ============================================================
@@ -600,6 +665,57 @@ class P1_2_DecisionAndStartStopScenarioIntTest extends BaseIntegrationTest {
             ExecutionInstance updated = awaitInstance(sequenceId, aircraftId,
                     i -> i.getStatus() == ExecutionStatus.ABORTED);
             assertThat(updated.getStatus()).isEqualTo(ExecutionStatus.ABORTED);
+        }
+
+        @Test
+        @DisplayName("BUG: простой (не составной) stop-критерий MESSAGE_RECEIVED не должен матчить " +
+                "историческое сообщение из БД вместо текущего события")
+        void stopCriterionMessageReceivedDoesNotMatchHistoricalMessageInsteadOfCurrentEvent() {
+            String aircraftId = AIRCRAFT_ID + "_STOP_HISTORICAL";
+
+            Long sequenceId = createSequenceWithSteps(
+                    "Stop on historical-message guard",
+                    null,
+                    "{\"type\":\"MESSAGE_RECEIVED\",\"messageType\":\"DOWNLINK\",\"templateName\":\"ACK\"}",
+                    List.of(new StepCreateRequest(
+                            "Ждать финальное подтверждение (в этом тесте не приходит)",
+                            StepType.WAIT,
+                            "{\"type\":\"MESSAGE_RECEIVED\",\"messageType\":\"DOWNLINK\","
+                                    + "\"templateName\":\"FINAL_ACK\",\"fromThisPointOnly\":true}",
+                            600,
+                            TransitionAction.END, null, false,
+                            TransitionAction.ABORT, null, false
+                    ))
+            );
+
+            executionService.startExecution(sequenceId, aircraftId, FLIGHT_NUMBER);
+            ExecutionInstance waiting = findInstance(sequenceId, aircraftId);
+            assertThat(waiting.getStatus()).isEqualTo(ExecutionStatus.WAITING);
+
+            // ACK когда-то пришёл ДО старта этого инстанса — НЕ текущее событие, отношения
+            // к остановке ИМЕННО ЭТОГО инстанса не имеет. До фикса checkStopCriterionTransactional
+            // вообще не сравнивал stop-критерий с текущим событием — уходил прямиком в
+            // CriterionEvaluator, а тот искал MESSAGE_RECEIVED в истории БД без ограничения времени.
+            jdbcTemplate.update(
+                    "INSERT INTO messages (message_type, template_name, aircraft_id, flight_number, content, received_at) "
+                            + "VALUES (?, ?, ?, ?, ?, NOW() - INTERVAL '1 day')",
+                    "DOWNLINK", "ACK", aircraftId, FLIGHT_NUMBER, "{}"
+            );
+
+            // Текущее событие — НЕ ACK.
+            executionService.processEvent(new NormalizedEvent(
+                    200L, MessageType.DOWNLINK, "STATUS", aircraftId, FLIGHT_NUMBER,
+                    FlightStage.OFF, LocalDateTime.now()));
+
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            ExecutionInstance stillWaiting = executionRepository.findById(waiting.getId()).orElseThrow();
+            assertThat(stillWaiting.getStatus())
+                    .as("не должен остановиться по историческому ACK — текущее событие не ACK")
+                    .isEqualTo(ExecutionStatus.WAITING);
         }
     }
 

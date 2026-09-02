@@ -223,6 +223,22 @@ public class ExecutionService {
      * Для MESSAGE_RECEIVED сравниваем с текущим событием напрямую —
      * запрос к БД давал ложные срабатывания на старых сообщениях.
      *
+     * <p><b>Найдено при полном ревью 2026-09-02 (docs/REVIEW_2026-09-02.md, CRITICAL C1):</b>
+     * это правило раньше применялось ТОЛЬКО к верхнеуровневому MESSAGE_RECEIVED — если критерий
+     * был {@code COMPOUND} (AND/OR) с MESSAGE_RECEIVED среди детей, оценка уходила напрямую в
+     * {@link CriterionEvaluator#evaluate}, а тот для MESSAGE_RECEIVED вне WAIT-контекста
+     * ({@code waitStartedAt=null}) ищет в БД "было ли сообщение когда-либо" — без ограничения
+     * по времени. Единожды совпав, такой критерий оставался истинным навсегда: инстанс плодился
+     * на КАЖДОЕ последующее событие борта (V38 dedup не спасает — у каждого события свой
+     * {@code triggeringMessageId}). Та же дыра была и в stop-критерии ({@link #checkStopCriterionTransactional})
+     * — причём там даже верхнеуровневый MESSAGE_RECEIVED не имел этой защиты вообще.
+     *
+     * <p>Фикс — {@link #evaluateStartStopCriteria}: рекурсивно обходит дерево критерия сам
+     * (а не через {@link CriterionEvaluator}), сравнивая MESSAGE_RECEIVED с ТЕКУЩИМ событием на
+     * любой глубине COMPOUND. Остальные типы критериев (FLIGHT_STAGE — контекст текущего
+     * события; POSITION_REPORTED — скользящее окно от "сейчас", не от истории; TIME_COMPARISON/
+     * CONDITION_ACTIVE) этой проблемы не имеют и уходят в {@link CriterionEvaluator} как есть.
+     *
      * <p>P1-7 (ADR-0002): {@code event.messageId()} прокидывается в {@link #startExecution}
      * как {@code triggeringMessageId} — дедуп-ключ против повторной доставки ЭТОГО ЖЕ
      * {@code NormalizedEvent} (republish-on-restart/retry Spring Modulith Event Publication
@@ -249,25 +265,67 @@ public class ExecutionService {
     }
 
     private boolean matchesStartCriteria(String criteriaJson, NormalizedEvent event) {
+        return evaluateStartStopCriteria(criteriaJson, event);
+    }
+
+    /**
+     * Оценивает start/stop-критерий против ТЕКУЩЕГО события — см. javadoc {@link #checkStartCriteria}
+     * про CRITICAL C1 (docs/REVIEW_2026-09-02.md). Используется и для start ({@link #matchesStartCriteria}),
+     * и для stop ({@link #checkStopCriterionTransactional}) — обе точки имели одну и ту же дыру.
+     *
+     * <p>MESSAGE_RECEIVED сравнивается с {@code event} напрямую, рекурсивно — в т.ч. внутри
+     * COMPOUND (AND/OR), на любой глубине. Остальные типы листьев не имеют этой проблемы
+     * (см. {@link #evaluateStartStopCriteriaNode}) и уходят в {@link CriterionEvaluator}.
+     */
+    private boolean evaluateStartStopCriteria(String criteriaJson, NormalizedEvent event) {
+        if (criteriaJson == null || criteriaJson.isBlank()) {
+            return false;
+        }
         try {
             Map<String, Object> criteria = objectMapper.readValue(criteriaJson, new TypeReference<>() {});
-            String type = (String) criteria.get("type");
-
-            if ("MESSAGE_RECEIVED".equals(type)) {
-                // сравниваем с текущим событием напрямую, не лезем в БД:
-                // к моменту проверки сообщение уже сохранено, запрос вернул бы true
-                // для всех предыдущих совпадений — запускали бы лишние экземпляры
-                if (event.messageType() == null || event.templateName() == null) return false;
-                String requiredType = (String) criteria.get("messageType");
-                String requiredTemplate = (String) criteria.get("templateName");
-                return event.messageType().name().equals(requiredType)
-                        && event.templateName().equals(requiredTemplate);
-            }
-
-            ExecutionContext context = buildContext(event);
-            return criterionEvaluator.evaluate(criteriaJson, context, null);
+            return evaluateStartStopCriteriaNode(criteria, event);
         } catch (Exception e) {
-            log.error("Failed to evaluate start criterion: {}", criteriaJson, e);
+            log.error("Failed to evaluate start/stop criterion: {}", criteriaJson, e);
+            return false;
+        }
+    }
+
+    private boolean evaluateStartStopCriteriaNode(Map<String, Object> criteria, NormalizedEvent event) {
+        String type = (String) criteria.get("type");
+
+        if ("MESSAGE_RECEIVED".equals(type)) {
+            // сравниваем с текущим событием напрямую, не лезем в БД: CriterionEvaluator вне
+            // WAIT-контекста (waitStartedAt=null) искал бы "было ли сообщение когда-либо" —
+            // без ограничения по времени, что даёт ложные срабатывания на старых сообщениях.
+            if (event.messageType() == null || event.templateName() == null) return false;
+            String requiredType = (String) criteria.get("messageType");
+            String requiredTemplate = (String) criteria.get("templateName");
+            return event.messageType().name().equals(requiredType)
+                    && event.templateName().equals(requiredTemplate);
+        }
+
+        if ("COMPOUND".equals(type)) {
+            String operator = (String) criteria.get("operator");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> children = (List<Map<String, Object>>) criteria.get("children");
+            if (children == null || children.isEmpty()) return false;
+
+            // те же short-circuit семантика и AND/OR, что и CriterionEvaluator.evaluateCompound,
+            // но рекурсия остаётся в этом методе — иначе MESSAGE_RECEIVED-дети снова уходили бы
+            // в CriterionEvaluator и теряли сравнение с текущим событием.
+            return "AND".equals(operator)
+                    ? children.stream().allMatch(child -> evaluateStartStopCriteriaNode(child, event))
+                    : children.stream().anyMatch(child -> evaluateStartStopCriteriaNode(child, event));
+        }
+
+        // FLIGHT_STAGE читает контекст текущего события; POSITION_REPORTED — скользящее окно
+        // от "сейчас" (не от истории); TIME_COMPARISON/CONDITION_ACTIVE — тоже без этой
+        // проблемы. context строится лениво, только когда реально нужен БД/context-путь.
+        try {
+            String leafJson = objectMapper.writeValueAsString(criteria);
+            return criterionEvaluator.evaluate(leafJson, buildContext(event), null);
+        } catch (Exception e) {
+            log.error("Failed to evaluate start/stop criterion leaf: {}", criteria, e);
             return false;
         }
     }
@@ -317,8 +375,11 @@ public class ExecutionService {
             return;
         }
 
-        ExecutionContext context = buildContext(event);
-        boolean criterionMet = criterionEvaluator.evaluate(sequence.getStopCriteriaJson(), context, null);
+        // CRITICAL C1 (docs/REVIEW_2026-09-02.md) — см. javadoc checkStartCriteria/
+        // evaluateStartStopCriteria: MESSAGE_RECEIVED должен сравниваться с ТЕКУЩИМ событием,
+        // а не с историей БД (иначе устаревшее сообщение из прошлого рейса может оборвать
+        // текущий инстанс без всякого отношения к нему).
+        boolean criterionMet = evaluateStartStopCriteria(sequence.getStopCriteriaJson(), event);
 
         if (criterionMet) {
             log.info("Stop criteria met for instance {} of sequence {}", instance.getId(), sequence.getId());
