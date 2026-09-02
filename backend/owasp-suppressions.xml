@@ -221,4 +221,87 @@
         <cve>CVE-2026-59313</cve>
     </suppress>
 
+    <!--
+      ============================================================================
+      ГРУППА: CVE-2026-47892/47893/59283 — Spring Framework 6.2.x (EOL-ветка), фикса нет
+      ============================================================================
+      Найдено 2026-09-02 (обычный прогон CI после несвязанного пуша). Тот же паттерн, что
+      CVE-2026-59313 неделей ранее: NVD матчит Framework 6.2.19 целиком, фикс существует
+      только в 6.2.20 — "Enterprise Support Only" (spring.io/security), в открытом доступе
+      его нет; официальный OSS-фикс есть только в линии Framework 7.0.9+ (требует Boot 4.x).
+      Ветка 6.2.x объявлена EOL, публичных патчей больше не будет.
+
+      Обоснование принятия риска (код-путь не задействован ни для одной из трёх):
+        - CVE-2026-47892 (CVSS 9.8): обход header-предиката в функциональных эндпоинтах
+          WebFlux через CORS preflight. Проект НЕ использует WebFlux — grep по pom.xml:
+          ни spring-boot-starter-webflux, ни reactor в зависимостях нет, только
+          spring-boot-starter-web (Spring MVC) + spring-boot-starter-websocket (STOMP).
+        - CVE-2026-47893 (CVSS 7.5): утечка request-заголовков в тексте исключения
+          HandshakeWebsocketService — это WebFlux-реализация WebSocket handshake, тоже
+          не задействована (используется MVC/STOMP WebSocket, не WebFlux).
+        - CVE-2026-59283 (CVSS 9.1): обход guard'ов SpEL-компилятора при SimpleEvaluationContext.
+          Проект не вычисляет SpEL вообще (grep по backend/src/main = 0 совпадений на
+          SpelExpressionParser/SimpleEvaluationContext); Easy Rules подключён только модулями
+          core/support, easy-rules-spel не зависимость (см. suppress CVE-2023-50571 выше).
+
+      Ревью: при появлении Framework 6.2.x-патча с бэкпортом (маловероятно, EOL) — снять
+      подавление немедленно; иначе пересмотреть вместе с решением о переходе на Boot 4 (ADR),
+      как и CVE-2026-59313.
+    -->
+    <suppress>
+        <notes>CVE-2026-47892: обход header-предиката WebFlux функциональных эндпоинтов через CORS
+        preflight. Проект WebFlux не использует (Spring MVC + STOMP WebSocket вместо него).
+        Фикс 6.2.20 — Enterprise Support Only; OSS-фикс только в Framework 7.0.9/Boot 4.x.
+        Риск принят до перехода на Boot 4 (отдельный ADR).</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47892</cve>
+    </suppress>
+
+    <suppress>
+        <notes>CVE-2026-47893: утечка request-заголовков в exception HandshakeWebsocketService
+        (WebFlux). Проект WebFlux не использует. Для линии 6.2.x фикса нет вообще (EOL) —
+        OSS-фикс только в Framework 7.0.9/Boot 4.x. Риск принят до перехода на Boot 4 (ADR).</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47893</cve>
+    </suppress>
+
+    <suppress>
+        <notes>CVE-2026-59283: обход safety guard'ов SpEL-компилятора. Проект SpEL не вычисляет
+        (0 использований SpelExpressionParser/SimpleEvaluationContext, easy-rules-spel не
+        зависимость). Фикс 6.2.20 — Enterprise Support Only; OSS-фикс только в Framework
+        7.0.9/Boot 4.x. Риск принят до перехода на Boot 4 (отдельный ADR).</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-59283</cve>
+    </suppress>
+
+    <!--
+      ============================================================================
+      ГРУППА: CVE-2026-59270 — Spring Security 6.5.x (EOL-ветка), фикса нет
+      ============================================================================
+      Найдено 2026-09-02. Встроенный тестовый LDAP-сервер Spring Security (UnboundIdContainer)
+      безусловно регистрирует административный bind DN и слушает на всех сетевых интерфейсах —
+      атакующий с доступом к LDAP-порту может аутентифицироваться под ним и читать/менять
+      записи каталога.
+
+      Обоснование принятия риска: проект НЕ использует встроенный LDAP-сервер Spring Security
+      (grep по backend/src = 0 совпадений на UnboundIdContainer/LdapServer/embedded LDAP);
+      аутентификация — JWT + BCrypt + собственное хранилище пользователей (P4-1/P4-2,
+      CLAUDE.md). Код-путь физически не инстанцируется.
+
+      Фикс 6.5.12 — Enterprise Support Only (spring.io/security/cve-2026-59270); открытый
+      OSS-фикс только в линии Security 7.0.7+/7.1.1+ (требует Framework 7.x/Boot 4.x).
+      Ветка 6.5.x объявлена EOL.
+
+      Ревью: при появлении Security 6.5.x-патча с бэкпортом (маловероятно, EOL) — снять
+      подавление немедленно; иначе пересмотреть вместе с решением о переходе на Boot 4 (ADR).
+    -->
+    <suppress>
+        <notes>CVE-2026-59270: встроенный LDAP-сервер Spring Security (UnboundIdContainer) слушает
+        на всех интерфейсах с известным admin bind DN. Проект embedded LDAP не использует —
+        аутентификация через JWT/BCrypt (P4-1/P4-2). Фикс 6.5.12 — Enterprise Support Only;
+        OSS-фикс только в Security 7.0.7+/Boot 4.x. Риск принят до перехода на Boot 4 (ADR).</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.security/spring-security-.*@.*$</packageUrl>
+        <cve>CVE-2026-59270</cve>
+    </suppress>
+
 </suppressions>
