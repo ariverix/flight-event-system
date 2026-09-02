@@ -20,3 +20,4 @@ ADR фиксируют кросс-модульные и стратегическ
 | [ADR-0005](ADR-0005-frontend-architecture.md) | Архитектура фронтенда: слои, Zustand, OpenAPI-клиент, WS-слой, i18n | Accepted |
 | [ADR-0006](ADR-0006-rate-limiting.md) | Rate limiting на процессе приложения (bucket4j, in-memory token bucket) | Accepted |
 | [ADR-0007](ADR-0007-start-dedup-db-unique-claim.md) | Дедупликация startExecution через частичный UNIQUE-индекс БД (V38) | Accepted |
+| [ADR-0008](ADR-0008-spring-boot-4-migration.md) | Переход на Spring Boot 4.x / Spring Framework 7.x / Spring Security 7.x | Proposed |
