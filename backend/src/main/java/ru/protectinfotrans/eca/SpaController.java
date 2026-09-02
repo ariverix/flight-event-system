@@ -23,7 +23,9 @@ public class SpaController {
     @GetMapping(value = {
             "/sequences/**",
             "/executions/**",
+            "/monitoring/**",
             "/messages/**",
+            "/timeline/**",
             "/simulator/**",
             "/users/**",
             "/audit-log",
