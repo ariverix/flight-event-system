@@ -2,8 +2,9 @@
  * WsClient — WebSocket-клиент с автоматическим переподключением.
  *
  * Поведение:
- * - URL берётся из VITE_WS_URL (env). Если переменная не задана — режим «нет-оп»:
- *   соединение не открывается, подписки молча игнорируются (приложение не падает).
+ * - Принимает URL как параметр конструктора (`string | null`); синглтон ниже резолвит его
+ *   через {@link resolveWsUrl}. `null` — режим «нет-оп»: соединение не открывается, подписки
+ *   молча игнорируются (приложение не падает) — используется только в юнит-тестах.
  * - Переподключение: экспоненциальный backoff 1 → 2 → 4 → 8 → 16 → 32 с (потолок).
  * - Ping/pong-цикл каждые 30 с для детекции «тихих» разрывов.
  * - Multiplexed подписки: множество обработчиков на один канал.
@@ -12,6 +13,7 @@
  * Инициализируется в main.tsx после монтирования приложения.
  */
 import type { WsChannel, WsMessage, WsPayload } from './types';
+import { resolveWsUrl } from './resolveWsUrl';
 
 // Внутренний тип — стёртый listener без привязки к конкретному каналу.
 // Используется только внутри Map; публичный API типобезопасен через generics.
@@ -162,11 +164,7 @@ export class WsClient {
 }
 
 /**
- * Синглтон WS-клиента.
- * URL из VITE_WS_URL. Если переменная не задана — клиент работает в нет-оп режиме.
- *
- * Пример .env.local:
- *   VITE_WS_URL=ws://localhost:8080/ws/eca
+ * Синглтон WS-клиента. URL резолвится через {@link resolveWsUrl} — из window.location
+ * по умолчанию, с override через window.__env__/VITE_WS_URL при необходимости.
  */
-const WS_URL: string | null = (import.meta.env['VITE_WS_URL'] as string | undefined) ?? null;
-export const wsClient = new WsClient(WS_URL);
+export const wsClient = new WsClient(resolveWsUrl());

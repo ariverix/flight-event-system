@@ -11,6 +11,13 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      Runtime-конфигурация (window.__env__) — генерируется entrypoint.sh (Docker Compose)
+      или монтируется ConfigMap'ом (K8s), см. frontend/Dockerfile и resolveWsUrl.ts.
+      В сборке без этого механизма (напр. статика внутри Spring Boot jar) файла нет —
+      браузер тихо пропускает 404, resolveWsUrl() падает на вывод из window.location.
+    -->
+    <script src="/env.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
